@@ -61,12 +61,16 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
-    } else {
+    }
+    // Temporarily removed auto-redirect to login
+    /*
+    else {
       // Si no hay usuario autenticado, redirigimos al login
       if (window.location.pathname !== '/login') {
         navigate('/login');
       }
     }
+    */
   }, [navigate]);
 
   const login = async (email: string, password: string) => {

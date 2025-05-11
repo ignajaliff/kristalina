@@ -14,12 +14,16 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Temporarily commented out to allow free navigation without login
+    /*
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
+    */
 
-    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    // Only check roles if user is authenticated and roles are specified
+    if (isAuthenticated && allowedRoles && user && !allowedRoles.includes(user.role)) {
       // Si el usuario no tiene el rol adecuado, redirigimos según su rol
       if (user.role === 'admin') {
         navigate('/admin');
@@ -31,13 +35,8 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     }
   }, [isAuthenticated, user, navigate, allowedRoles]);
 
-  // Si el usuario está autenticado y tiene el rol adecuado, mostramos el contenido
-  if (isAuthenticated && (!allowedRoles || (user && allowedRoles.includes(user.role)))) {
-    return <>{children}</>;
-  }
-
-  // Mientras verificamos, podríamos mostrar un loader
-  return <div className="flex items-center justify-center h-screen">Cargando...</div>;
+  // Return children regardless of authentication status
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;
