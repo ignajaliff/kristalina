@@ -1,4 +1,3 @@
-
 // Utility for storing and retrieving quotes data
 
 export interface Quote {
@@ -17,6 +16,11 @@ export interface Quote {
   adminEmail: string;
   managementCompany: string;
   legalRepresentative: string;
+  // Additional fields for accepted quotes
+  contractSignDate?: string;
+  equipmentInstallDate?: string;
+  contractTerms?: string;
+  equipmentStatus?: string;
 }
 
 export interface AcceptedQuote {

@@ -7,7 +7,8 @@ import {
   LogOut, 
   FileText, 
   CheckSquare,
-  Droplet
+  Droplet,
+  CheckCircle
 } from "lucide-react";
 
 const AdminSidebar = () => {
@@ -58,6 +59,15 @@ const AdminSidebar = () => {
               >
                 <CheckSquare className="h-4 w-4 text-blue-600" />
                 Presupuestos
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/admin/accepted-quotes" 
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors text-slate-700 font-medium"
+              >
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                Presupuestos Aceptados
               </Link>
             </li>
           </ul>
