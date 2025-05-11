@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
 import {
@@ -27,6 +28,7 @@ import {
 import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X, Pencil } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { loadQuotes, updateQuote, Quote } from "@/utils/quoteStorage";
+import AcceptQuoteDialog from "@/components/AcceptQuoteDialog";
 
 // Remove the duplicate Quote interface definition since we're importing it
 
@@ -46,6 +48,10 @@ const QuotesTable = () => {
     field: string;
     value: any;
   } | null>(null);
+  
+  // State for the accept quote dialog
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
 
   // Load quotes from storage
   useEffect(() => {
@@ -152,21 +158,29 @@ const QuotesTable = () => {
     setEditingCell(null);
   };
 
-  // Accept quote
-  const handleAcceptQuote = (id: string) => {
-    // Update in local storage
-    updateQuote(id, { status: "Aceptado" });
+  // Open accept quote dialog
+  const handleOpenAcceptDialog = (quote: Quote) => {
+    if (quote.status === "Aceptado") {
+      toast({
+        title: "Presupuesto ya aceptado",
+        description: "Este presupuesto ya ha sido aceptado anteriormente.",
+      });
+      return;
+    }
     
-    // Update in state
-    const updatedQuotes = quotes.map((quote) =>
-      quote.id === id ? { ...quote, status: "Aceptado" as const } : quote
-    );
+    setSelectedQuote(quote);
+    setAcceptDialogOpen(true);
+  };
 
+  // Handle dialog completion
+  const handleAcceptComplete = () => {
+    // Reload the quotes to reflect the changes
+    const updatedQuotes = loadQuotes();
     setQuotes(updatedQuotes);
-
+    
     toast({
-      title: "Presupuesto aceptado",
-      description: "El presupuesto ha sido marcado como aceptado.",
+      title: "Presupuesto actualizado",
+      description: "El listado de presupuestos ha sido actualizado.",
     });
   };
 
@@ -529,16 +543,15 @@ const QuotesTable = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {quote.status !== "Aceptado" && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 px-2 text-xs"
-                              onClick={() => handleAcceptQuote(quote.id)}
-                            >
-                              <CheckSquare className="h-4 w-4 mr-1" /> Aceptar
-                            </Button>
-                          )}
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className={`h-8 px-2 text-xs ${quote.status === "Aceptado" ? "opacity-50" : ""}`}
+                            onClick={() => handleOpenAcceptDialog(quote)}
+                            disabled={quote.status === "Aceptado"}
+                          >
+                            <CheckSquare className="h-4 w-4 mr-1" /> Aceptar
+                          </Button>
                           
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -572,6 +585,14 @@ const QuotesTable = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Dialog for accepting quotes with additional information */}
+        <AcceptQuoteDialog 
+          quote={selectedQuote}
+          open={acceptDialogOpen}
+          onOpenChange={setAcceptDialogOpen}
+          onAcceptComplete={handleAcceptComplete}
+        />
       </div>
     </div>
   );
