@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, Filter, Search, CheckSquare, MoreHorizontal } from "lucide-react";
+import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 // Definición de tipos
@@ -101,6 +101,23 @@ const QuotesTable = () => {
         managementCompany: "Educación Moderna",
         legalRepresentative: "Pedro Sánchez",
       },
+      {
+        id: "3",
+        communityName: "Condominio Las Flores",
+        buildingAddress: "Pasaje Jardín 789",
+        comuna: "Ñuñoa",
+        region: "Metropolitana",
+        buildingType: "Edificio",
+        units: 30,
+        quoteAmount: 1800000,
+        quotePerUnit: 60000,
+        investmentValue: 1500000,
+        status: "Enviado",
+        adminName: "",
+        adminEmail: "",
+        managementCompany: "",
+        legalRepresentative: "",
+      },
     ];
 
     setQuotes(mockData);
@@ -148,7 +165,7 @@ const QuotesTable = () => {
   }, [searchTerm, filters, quotes]);
 
   // Manejar cambio de celda
-  const handleCellChange = (e: React.ChangeEvent<HTMLInputElement>, id: string, field: string) => {
+  const handleCellChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, id: string, field: string) => {
     let value: any = e.target.value;
     
     // Convierte a número si el campo es numérico
@@ -183,8 +200,13 @@ const QuotesTable = () => {
 
     toast({
       title: "Cambio guardado",
-      description: "El cambio en el presupuesto ha sido guardado correctamente.",
+      description: "El cambio en el registro ha sido guardado correctamente.",
     });
+  };
+
+  // Cancelar edición
+  const cancelEdit = () => {
+    setEditingCell(null);
   };
 
   // Aceptar presupuesto
@@ -201,6 +223,120 @@ const QuotesTable = () => {
     });
   };
 
+  // Componente para celda editable
+  const EditableCell = ({ 
+    value, 
+    id, 
+    field, 
+    isEditing, 
+    type = "text",
+    options = [],
+    className = ""
+  }: { 
+    value: any; 
+    id: string; 
+    field: string; 
+    isEditing: boolean;
+    type?: string;
+    options?: string[];
+    className?: string;
+  }) => {
+    if (isEditing) {
+      if (type === "select") {
+        return (
+          <div className="flex items-center gap-2">
+            <select
+              value={editingCell?.value}
+              onChange={(e) => handleCellChange(e, id, field)}
+              className="w-full rounded-md border border-input p-2 text-sm"
+              autoFocus
+            >
+              {options.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveCellChange}>
+                <Save className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEdit}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        );
+      } else {
+        return (
+          <div className="flex items-center gap-2">
+            <Input
+              type={type}
+              value={editingCell?.value}
+              onChange={(e) => handleCellChange(e, id, field)}
+              autoFocus
+              className={`${className} py-1 h-8`}
+            />
+            <div className="flex gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveCellChange}>
+                <Save className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEdit}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    // Para campos vacíos
+    if (value === "" || value === undefined) {
+      return (
+        <span 
+          className="text-gray-400 italic cursor-pointer"
+          onDoubleClick={() => setEditingCell({ id, field, value: value || "" })}
+        >
+          [Sin datos]
+        </span>
+      );
+    }
+
+    // Formatea el valor de acuerdo al tipo de campo
+    let displayValue = value;
+
+    if (type === "number" && typeof value === "number") {
+      displayValue = value.toLocaleString();
+      if (field === "quoteAmount" || field === "quotePerUnit" || field === "investmentValue") {
+        displayValue = `$${displayValue}`;
+      }
+    }
+
+    // Estilos especiales para el campo de estado
+    if (field === "status") {
+      return (
+        <span 
+          className={`px-2 py-1 rounded-full text-xs font-medium ${
+            value === "Aceptado" 
+              ? "bg-green-100 text-green-800" 
+              : "bg-blue-100 text-blue-800"
+          }`}
+          onDoubleClick={() => setEditingCell({ id, field, value })}
+        >
+          {value}
+        </span>
+      );
+    }
+
+    // Celda normal con doble clic para editar
+    return (
+      <span 
+        className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
+        onDoubleClick={() => setEditingCell({ id, field, value })}
+      >
+        {displayValue}
+      </span>
+    );
+  };
+
   return (
     <div className="flex h-screen overflow-hidden">
       <AdminSidebar />
@@ -210,8 +346,8 @@ const QuotesTable = () => {
           Presupuestos Enviados
         </h1>
 
-        <Card>
-          <CardHeader className="bg-sistema-blue/10">
+        <Card className="shadow-sm border-0 glass-card">
+          <CardHeader className="bg-sistema-blue/5">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <CardTitle className="text-sistema-blue-dark">
                 Listado de Presupuestos
@@ -234,7 +370,7 @@ const QuotesTable = () => {
                       <Filter className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuContent align="end" className="w-56 bg-white">
                     <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     
@@ -310,109 +446,116 @@ const QuotesTable = () => {
                     <TableHead>Por Unidad</TableHead>
                     <TableHead>Inversión</TableHead>
                     <TableHead>Estado</TableHead>
+                    <TableHead>Administrador</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredQuotes.map((quote) => (
                     <TableRow key={quote.id}>
-                      <TableCell className="font-medium">{quote.communityName}</TableCell>
-                      <TableCell>{quote.buildingAddress}</TableCell>
-                      <TableCell>{quote.comuna}</TableCell>
-                      <TableCell>{quote.buildingType}</TableCell>
-                      <TableCell>
-                        {editingCell?.id === quote.id && editingCell?.field === "units" ? (
-                          <Input
-                            type="number"
-                            value={editingCell.value}
-                            onChange={(e) => handleCellChange(e, quote.id, "units")}
-                            onBlur={saveCellChange}
-                            autoFocus
-                            className="w-20"
-                          />
-                        ) : (
-                          <span onDoubleClick={() => setEditingCell({ id: quote.id, field: "units", value: quote.units })}>
-                            {quote.units}
-                          </span>
-                        )}
+                      <TableCell className="font-medium">
+                        <EditableCell
+                          value={quote.communityName}
+                          id={quote.id}
+                          field="communityName"
+                          isEditing={editingCell?.id === quote.id && editingCell?.field === "communityName"}
+                        />
                       </TableCell>
                       <TableCell>
-                        {editingCell?.id === quote.id && editingCell?.field === "quoteAmount" ? (
-                          <Input
-                            type="number"
-                            value={editingCell.value}
-                            onChange={(e) => handleCellChange(e, quote.id, "quoteAmount")}
-                            onBlur={saveCellChange}
-                            autoFocus
-                            className="w-24"
-                          />
-                        ) : (
-                          <span onDoubleClick={() => setEditingCell({ id: quote.id, field: "quoteAmount", value: quote.quoteAmount })}>
-                            ${quote.quoteAmount.toLocaleString()}
-                          </span>
-                        )}
+                        <EditableCell
+                          value={quote.buildingAddress}
+                          id={quote.id}
+                          field="buildingAddress"
+                          isEditing={editingCell?.id === quote.id && editingCell?.field === "buildingAddress"}
+                        />
                       </TableCell>
                       <TableCell>
-                        {editingCell?.id === quote.id && editingCell?.field === "quotePerUnit" ? (
-                          <Input
-                            type="number"
-                            value={editingCell.value}
-                            onChange={(e) => handleCellChange(e, quote.id, "quotePerUnit")}
-                            onBlur={saveCellChange}
-                            autoFocus
-                            className="w-24"
-                          />
-                        ) : (
-                          <span onDoubleClick={() => setEditingCell({ id: quote.id, field: "quotePerUnit", value: quote.quotePerUnit })}>
-                            ${quote.quotePerUnit.toLocaleString()}
-                          </span>
-                        )}
+                        <EditableCell
+                          value={quote.comuna}
+                          id={quote.id}
+                          field="comuna"
+                          isEditing={editingCell?.id === quote.id && editingCell?.field === "comuna"}
+                        />
                       </TableCell>
                       <TableCell>
-                        {editingCell?.id === quote.id && editingCell?.field === "investmentValue" ? (
-                          <Input
-                            type="number"
-                            value={editingCell.value}
-                            onChange={(e) => handleCellChange(e, quote.id, "investmentValue")}
-                            onBlur={saveCellChange}
-                            autoFocus
-                            className="w-24"
-                          />
-                        ) : (
-                          <span onDoubleClick={() => setEditingCell({ id: quote.id, field: "investmentValue", value: quote.investmentValue })}>
-                            ${quote.investmentValue.toLocaleString()}
-                          </span>
-                        )}
+                        <EditableCell
+                          value={quote.buildingType}
+                          id={quote.id}
+                          field="buildingType"
+                          isEditing={editingCell?.id === quote.id && editingCell?.field === "buildingType"}
+                          type="select"
+                          options={["Edificio", "Escolar", "Industrial"]}
+                        />
                       </TableCell>
                       <TableCell>
-                        {editingCell?.id === quote.id && editingCell?.field === "status" ? (
-                          <select
-                            value={editingCell.value}
-                            onChange={(e) => 
-                              setEditingCell({ 
-                                ...editingCell, 
-                                value: e.target.value as "Enviado" | "Aceptado" 
-                              })
-                            }
-                            onBlur={saveCellChange}
-                            autoFocus
-                            className="w-28 rounded-md border border-input px-3 py-1 text-sm"
-                          >
-                            <option value="Enviado">Enviado</option>
-                            <option value="Aceptado">Aceptado</option>
-                          </select>
-                        ) : (
-                          <span 
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              quote.status === "Aceptado" 
-                                ? "bg-green-100 text-green-800" 
-                                : "bg-blue-100 text-blue-800"
-                            }`}
-                            onDoubleClick={() => setEditingCell({ id: quote.id, field: "status", value: quote.status })}
-                          >
-                            {quote.status}
-                          </span>
-                        )}
+                        <EditableCell
+                          value={quote.units}
+                          id={quote.id}
+                          field="units"
+                          isEditing={editingCell?.id === quote.id && editingCell?.field === "units"}
+                          type="number"
+                          className="w-20"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EditableCell
+                          value={quote.quoteAmount}
+                          id={quote.id}
+                          field="quoteAmount"
+                          isEditing={editingCell?.id === quote.id && editingCell?.field === "quoteAmount"}
+                          type="number"
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EditableCell
+                          value={quote.quotePerUnit}
+                          id={quote.id}
+                          field="quotePerUnit"
+                          isEditing={editingCell?.id === quote.id && editingCell?.field === "quotePerUnit"}
+                          type="number"
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EditableCell
+                          value={quote.investmentValue}
+                          id={quote.id}
+                          field="investmentValue"
+                          isEditing={editingCell?.id === quote.id && editingCell?.field === "investmentValue"}
+                          type="number"
+                          className="w-24"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EditableCell
+                          value={quote.status}
+                          id={quote.id}
+                          field="status"
+                          isEditing={editingCell?.id === quote.id && editingCell?.field === "status"}
+                          type="select"
+                          options={["Enviado", "Aceptado"]}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <EditableCell
+                            value={quote.adminName}
+                            id={quote.id}
+                            field="adminName"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "adminName"}
+                          />
+                          {quote.adminEmail && (
+                            <div className="text-xs text-gray-500">
+                              <EditableCell
+                                value={quote.adminEmail}
+                                id={quote.id}
+                                field="adminEmail"
+                                isEditing={editingCell?.id === quote.id && editingCell?.field === "adminEmail"}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -433,7 +576,7 @@ const QuotesTable = () => {
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent align="end" className="bg-white">
                               <DropdownMenuItem>Ver detalles</DropdownMenuItem>
                               <DropdownMenuItem>Editar completo</DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -449,7 +592,7 @@ const QuotesTable = () => {
                   
                   {filteredQuotes.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={10} className="h-24 text-center">
+                      <TableCell colSpan={11} className="h-24 text-center">
                         No se encontraron presupuestos con los filtros seleccionados.
                       </TableCell>
                     </TableRow>
