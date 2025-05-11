@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X } from "lucide-react";
+import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X, Pencil } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 // Definición de tipos
@@ -185,6 +185,15 @@ const QuotesTable = () => {
     });
   };
 
+  // Iniciar edición con el valor actual
+  const startEditing = (id: string, field: string, currentValue: any) => {
+    setEditingCell({
+      id,
+      field,
+      value: currentValue,
+    });
+  };
+
   // Guardar cambio de celda
   const saveCellChange = () => {
     if (!editingCell) return;
@@ -248,7 +257,7 @@ const QuotesTable = () => {
             <select
               value={editingCell?.value}
               onChange={(e) => handleCellChange(e, id, field)}
-              className="w-full rounded-md border border-input p-2 text-sm"
+              className="w-full rounded-md border border-input bg-blue-50 p-2 text-sm"
               autoFocus
             >
               {options.map(option => (
@@ -256,10 +265,10 @@ const QuotesTable = () => {
               ))}
             </select>
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveCellChange}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={saveCellChange}>
                 <Save className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEdit}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={cancelEdit}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -273,13 +282,13 @@ const QuotesTable = () => {
               value={editingCell?.value}
               onChange={(e) => handleCellChange(e, id, field)}
               autoFocus
-              className={`${className} py-1 h-8`}
+              className={`${className} py-1 h-8 bg-blue-50 border-blue-200`}
             />
             <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveCellChange}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={saveCellChange}>
                 <Save className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEdit}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={cancelEdit}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -291,12 +300,19 @@ const QuotesTable = () => {
     // Para campos vacíos
     if (value === "" || value === undefined) {
       return (
-        <span 
-          className="text-gray-400 italic cursor-pointer"
-          onDoubleClick={() => setEditingCell({ id, field, value: value || "" })}
-        >
-          [Sin datos]
-        </span>
+        <div className="flex justify-between items-center group">
+          <span className="text-gray-400 italic">
+            [Sin datos]
+          </span>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" 
+            onClick={() => startEditing(id, field, value || "")}
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+        </div>
       );
     }
 
@@ -313,27 +329,43 @@ const QuotesTable = () => {
     // Estilos especiales para el campo de estado
     if (field === "status") {
       return (
-        <span 
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            value === "Aceptado" 
-              ? "bg-green-100 text-green-800" 
-              : "bg-blue-100 text-blue-800"
-          }`}
-          onDoubleClick={() => setEditingCell({ id, field, value })}
-        >
-          {value}
-        </span>
+        <div className="flex justify-between items-center group">
+          <span 
+            className={`px-2 py-1 rounded-full text-xs font-medium ${
+              value === "Aceptado" 
+                ? "bg-green-100 text-green-800" 
+                : "bg-blue-100 text-blue-800"
+            }`}
+          >
+            {value}
+          </span>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" 
+            onClick={() => startEditing(id, field, value)}
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+        </div>
       );
     }
 
-    // Celda normal con doble clic para editar
+    // Celda normal con botón de editar al hacer hover
     return (
-      <span 
-        className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
-        onDoubleClick={() => setEditingCell({ id, field, value })}
-      >
-        {displayValue}
-      </span>
+      <div className="flex justify-between items-center group">
+        <span className="px-2 py-1 rounded">
+          {displayValue}
+        </span>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" 
+          onClick={() => startEditing(id, field, value)}
+        >
+          <Pencil className="h-3 w-3" />
+        </Button>
+      </div>
     );
   };
 
