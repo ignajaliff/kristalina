@@ -74,6 +74,35 @@ export default {
             light: '#94a3b8',
             dark: '#475569'
           }
+        },
+        // Nuevos colores basados en el diseño de referencia
+        corporate: {
+          blue: {
+            DEFAULT: '#2563eb',
+            50: '#eff6ff',
+            100: '#dbeafe',
+            200: '#bfdbfe', 
+            300: '#93c5fd',
+            400: '#60a5fa',
+            500: '#3b82f6',
+            600: '#2563eb',
+            700: '#1d4ed8',
+            800: '#1e40af',
+            900: '#1e3a8a'
+          },
+          slate: {
+            DEFAULT: '#64748b',
+            50: '#f8fafc',
+            100: '#f1f5f9', 
+            200: '#e2e8f0',
+            300: '#cbd5e1',
+            400: '#94a3b8', 
+            500: '#64748b',
+            600: '#475569',
+            700: '#334155',
+            800: '#1e293b',
+            900: '#0f172a'
+          }
         }
 			},
 			borderRadius: {
@@ -81,6 +110,14 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			boxShadow: {
+        'card': '0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06)',
+        'card-hover': '0px 4px 8px rgba(16, 24, 40, 0.12)',
+        'dropdown': '0px 4px 6px -2px rgba(16, 24, 40, 0.05), 0px 12px 16px -4px rgba(16, 24, 40, 0.1)',
+      },
+			fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+      },
 			keyframes: {
 				'accordion-down': {
 					from: {
