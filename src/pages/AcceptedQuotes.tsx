@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, CheckCircle } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 // Schema for form updates
 const quoteUpdateSchema = z.object({
@@ -93,7 +93,7 @@ const QuoteUpdateForm = ({
       toast({
         title: "Actualización exitosa",
         description: "La información del presupuesto ha sido actualizada.",
-        variant: "success",
+        variant: "default", // Changed from "success" to "default" to fix the type error
       });
       
       onUpdate();
@@ -254,18 +254,18 @@ const AcceptedQuotes = () => {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   
-  // Load data on component mount
-  useState(() => {
-    refreshData();
-  });
-  
-  // Refresh data from storage
+  // Define the refreshData function before using it
   const refreshData = () => {
     const loadedAcceptedQuotes = loadAcceptedQuotes();
     const loadedQuotes = loadQuotes();
     setAcceptedQuotes(loadedAcceptedQuotes);
     setQuotes(loadedQuotes);
   };
+  
+  // Use useEffect instead of useState for initialization
+  useEffect(() => {
+    refreshData();
+  }, []);
   
   // Find the quote data for an accepted quote
   const findQuoteData = (acceptedQuoteId: string): Quote | undefined => {
