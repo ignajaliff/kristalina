@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
 import {
@@ -27,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X, Pencil } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { loadQuotes, updateQuote, Quote } from "@/utils/quoteStorage";
 
 // Definición de tipos
 interface Quote {
@@ -64,90 +64,37 @@ const QuotesTable = () => {
     value: any;
   } | null>(null);
 
-  // Cargar datos simulados
+  // Load quotes from storage
   useEffect(() => {
-    const mockData: Quote[] = [
-      {
-        id: "1",
-        communityName: "Edificio Los Alpes",
-        buildingAddress: "Av. Principal 123",
-        comuna: "Providencia",
-        region: "Metropolitana",
-        buildingType: "Edificio",
-        units: 45,
-        quoteAmount: 2250000,
-        quotePerUnit: 50000,
-        investmentValue: 1800000,
-        status: "Enviado",
-        adminName: "Juan Pérez",
-        adminEmail: "jperez@admin.com",
-        managementCompany: "Administradora Central",
-        legalRepresentative: "María González",
-      },
-      {
-        id: "2",
-        communityName: "Colegio San José",
-        buildingAddress: "Calle Educación 456",
-        comuna: "Las Condes",
-        region: "Metropolitana",
-        buildingType: "Escolar",
-        units: 20,
-        quoteAmount: 1500000,
-        quotePerUnit: 75000,
-        investmentValue: 1200000,
-        status: "Aceptado",
-        adminName: "Carlos Rodríguez",
-        adminEmail: "crodriguez@admin.com",
-        managementCompany: "Educación Moderna",
-        legalRepresentative: "Pedro Sánchez",
-      },
-      {
-        id: "3",
-        communityName: "Condominio Las Flores",
-        buildingAddress: "Pasaje Jardín 789",
-        comuna: "Ñuñoa",
-        region: "Metropolitana",
-        buildingType: "Edificio",
-        units: 30,
-        quoteAmount: 1800000,
-        quotePerUnit: 60000,
-        investmentValue: 1500000,
-        status: "Enviado",
-        adminName: "",
-        adminEmail: "",
-        managementCompany: "",
-        legalRepresentative: "",
-      },
-    ];
-
-    setQuotes(mockData);
-    setFilteredQuotes(mockData);
+    const storedQuotes = loadQuotes();
+    setQuotes(storedQuotes);
+    setFilteredQuotes(storedQuotes);
   }, []);
 
-  // Aplicar filtros y búsqueda
+  // Apply filters and search
   useEffect(() => {
     let result = quotes;
 
-    // Aplicar búsqueda
+    // Apply search
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
         (quote) =>
-          quote.communityName.toLowerCase().includes(term) ||
-          quote.buildingAddress.toLowerCase().includes(term) ||
-          quote.comuna.toLowerCase().includes(term)
+          quote.communityName?.toLowerCase().includes(term) ||
+          quote.buildingAddress?.toLowerCase().includes(term) ||
+          quote.comuna?.toLowerCase().includes(term)
       );
     }
 
-    // Aplicar filtros
+    // Apply filters
     if (filters.comuna) {
       result = result.filter((quote) => 
-        quote.comuna.toLowerCase() === filters.comuna.toLowerCase()
+        quote.comuna?.toLowerCase() === filters.comuna.toLowerCase()
       );
     }
     if (filters.region) {
       result = result.filter((quote) => 
-        quote.region.toLowerCase() === filters.region.toLowerCase()
+        quote.region?.toLowerCase() === filters.region.toLowerCase()
       );
     }
     if (filters.buildingType) {
@@ -164,11 +111,11 @@ const QuotesTable = () => {
     setFilteredQuotes(result);
   }, [searchTerm, filters, quotes]);
 
-  // Manejar cambio de celda
+  // Handle cell change
   const handleCellChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, id: string, field: string) => {
     let value: any = e.target.value;
     
-    // Convierte a número si el campo es numérico
+    // Convert to number if the field is numeric
     if (
       field === "quoteAmount" ||
       field === "quotePerUnit" ||
@@ -185,7 +132,7 @@ const QuotesTable = () => {
     });
   };
 
-  // Iniciar edición con el valor actual
+  // Start editing with current value
   const startEditing = (id: string, field: string, currentValue: any) => {
     setEditingCell({
       id,
@@ -194,12 +141,16 @@ const QuotesTable = () => {
     });
   };
 
-  // Guardar cambio de celda
+  // Save cell change
   const saveCellChange = () => {
     if (!editingCell) return;
 
     const { id, field, value } = editingCell;
     
+    // Update in local storage
+    updateQuote(id, { [field]: value });
+    
+    // Update in state
     const updatedQuotes = quotes.map((quote) =>
       quote.id === id ? { ...quote, [field]: value } : quote
     );
@@ -213,13 +164,17 @@ const QuotesTable = () => {
     });
   };
 
-  // Cancelar edición
+  // Cancel editing
   const cancelEdit = () => {
     setEditingCell(null);
   };
 
-  // Aceptar presupuesto
+  // Accept quote
   const handleAcceptQuote = (id: string) => {
+    // Update in local storage
+    updateQuote(id, { status: "Aceptado" });
+    
+    // Update in state
     const updatedQuotes = quotes.map((quote) =>
       quote.id === id ? { ...quote, status: "Aceptado" as const } : quote
     );

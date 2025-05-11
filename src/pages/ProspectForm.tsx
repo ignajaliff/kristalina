@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Droplet } from "lucide-react";
+import { addQuote } from "@/utils/quoteStorage";
 
 type ProspectFormData = {
   adminName: string;
@@ -25,6 +27,7 @@ type ProspectFormData = {
 
 const ProspectForm = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
   
@@ -47,8 +50,9 @@ const ProspectForm = () => {
     setIsSubmitting(true);
     
     try {
-      // Simulación de guardado en base de datos (esto sería reemplazado por llamadas reales a la API)
+      // Save to local storage using our utility
       console.log("Saving to database:", data);
+      addQuote(data);
       
       // Envío al webhook si está configurado
       if (webhookUrl) {
@@ -79,6 +83,11 @@ const ProspectForm = () => {
       
       // Reiniciar formulario
       form.reset();
+      
+      // Navigate to quotes page after a short delay
+      setTimeout(() => {
+        navigate("/admin/quotes");
+      }, 1500);
       
     } catch (error) {
       console.error("Error saving prospect:", error);
