@@ -28,24 +28,7 @@ import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X, Pencil 
 import { useToast } from "@/components/ui/use-toast";
 import { loadQuotes, updateQuote, Quote } from "@/utils/quoteStorage";
 
-// Definición de tipos
-interface Quote {
-  id: string;
-  communityName: string;
-  buildingAddress: string;
-  comuna: string;
-  buildingType: string;
-  units: number;
-  quoteAmount: number;
-  quotePerUnit: number;
-  investmentValue: number;
-  status: "Enviado" | "Aceptado";
-  region: string;
-  adminName: string;
-  adminEmail: string;
-  managementCompany: string;
-  legalRepresentative: string;
-}
+// Remove the duplicate Quote interface definition since we're importing it
 
 const QuotesTable = () => {
   const { toast } = useToast();
