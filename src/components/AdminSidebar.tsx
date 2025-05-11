@@ -45,7 +45,7 @@ const AdminSidebar = () => {
         </div>
 
         <div className="mb-4">
-          <p className="text-xs uppercase tracking-wider text-blue-100 mb-2 pl-4">Ventas</p>
+          <p className="text-xs uppercase tracking-wider text-blue-100 mb-2 pl-4">Área de Ventas</p>
           <ul className="space-y-2">
             <li>
               <Link 

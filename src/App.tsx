@@ -12,6 +12,8 @@ import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import SellerDashboard from "./pages/SellerDashboard";
 import NotFound from "./pages/NotFound";
+import ProspectForm from "./pages/ProspectForm";
+import QuotesTable from "./pages/QuotesTable";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +32,24 @@ const App = () => (
             <Route path="/admin" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/prospects" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ProspectForm />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/quotes" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <QuotesTable />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/buildings" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <div>Edificios</div>
               </ProtectedRoute>
             } />
             
