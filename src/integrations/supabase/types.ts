@@ -27,10 +27,13 @@ export type Database = {
           fecha_firma_contrato: string | null
           fecha_instalacion_equipos: string | null
           id: string
+          inversion: number | null
           legalrepresentative: string | null
           legalrepresentativephone: string | null
           legalrepresentativerut: string | null
           managementcompany: string | null
+          monto: number | null
+          por_unidad: number | null
           presupuesto_aceptado: boolean
           region: string | null
           terminos_contrato: string | null
@@ -53,10 +56,13 @@ export type Database = {
           fecha_firma_contrato?: string | null
           fecha_instalacion_equipos?: string | null
           id?: string
+          inversion?: number | null
           legalrepresentative?: string | null
           legalrepresentativephone?: string | null
           legalrepresentativerut?: string | null
           managementcompany?: string | null
+          monto?: number | null
+          por_unidad?: number | null
           presupuesto_aceptado?: boolean
           region?: string | null
           terminos_contrato?: string | null
@@ -79,10 +85,13 @@ export type Database = {
           fecha_firma_contrato?: string | null
           fecha_instalacion_equipos?: string | null
           id?: string
+          inversion?: number | null
           legalrepresentative?: string | null
           legalrepresentativephone?: string | null
           legalrepresentativerut?: string | null
           managementcompany?: string | null
+          monto?: number | null
+          por_unidad?: number | null
           presupuesto_aceptado?: boolean
           region?: string | null
           terminos_contrato?: string | null

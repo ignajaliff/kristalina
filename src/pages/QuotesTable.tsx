@@ -33,26 +33,26 @@ import { supabase } from "@/integrations/supabase/client";
 // Define the quote type based on Supabase structure
 export interface Quote {
   id: string;
-  adminName: string;
-  adminEmail: string;
-  managementCompany: string | null;
-  legalRepresentative: string | null;
+  adminname: string;
+  adminemail: string;
+  managementcompany: string | null;
+  legalrepresentative: string | null;
   additional_at: Array<{ name: string; email: string }>;
-  communityName: string;
-  buildingAddress: string | null;
+  communityname: string;
+  buildingaddress: string | null;
   comuna: string | null;
   region: string | null;
-  buildingType: string;
+  buildingtype: string;
   units: number;
   presupuesto_aceptado: boolean;
   created_at: string;
   
-  // Calculated fields for UI
-  quoteAmount?: number;
-  quotePerUnit?: number;
-  investmentValue?: number;
+  // Stored in database
+  monto: number | null;
+  inversion: number | null;
+  por_unidad: number | null;
   
-  // For editing
+  // For UI state only
   status?: "Enviado" | "Aceptado";
 }
 
@@ -93,20 +93,15 @@ const QuotesTable = () => {
       }
       
       if (data) {
-        // Process quotes and add calculated fields
+        // Process quotes and add calculated fields if necessary
         const processedQuotes = data.map(quote => {
-          // Calculate default values
-          const baseAmount = 50000; // Base amount per unit in CLP
-          const units = quote.units || 0;
-          const quotePerUnit = baseAmount;
-          const quoteAmount = units * quotePerUnit;
-          const investmentValue = Math.round(quoteAmount * 0.8); // 80% of quote amount
+          // Calculate default values if not provided in the database
+          const monto = quote.monto || quote.units * 50000; // Use DB value or calculate
+          const por_unidad = quote.por_unidad || 50000; // Use DB value or default
+          const inversion = quote.inversion || Math.round(monto * 0.8); // Use DB value or calculate
           
           return {
             ...quote,
-            quoteAmount,
-            quotePerUnit,
-            investmentValue,
             status: quote.presupuesto_aceptado ? "Aceptado" : "Enviado" as "Enviado" | "Aceptado"
           };
         });
@@ -140,8 +135,8 @@ const QuotesTable = () => {
       const term = searchTerm.toLowerCase();
       result = result.filter(
         (quote) =>
-          quote.communityName?.toLowerCase().includes(term) ||
-          quote.buildingAddress?.toLowerCase().includes(term) ||
+          quote.communityname?.toLowerCase().includes(term) ||
+          quote.buildingaddress?.toLowerCase().includes(term) ||
           quote.comuna?.toLowerCase().includes(term)
       );
     }
@@ -159,7 +154,7 @@ const QuotesTable = () => {
     }
     if (filters.buildingType) {
       result = result.filter((quote) => 
-        quote.buildingType === filters.buildingType
+        quote.buildingtype === filters.buildingType
       );
     }
     if (filters.status) {
@@ -177,9 +172,9 @@ const QuotesTable = () => {
     
     // Convert to number if the field is numeric
     if (
-      field === "quoteAmount" ||
-      field === "quotePerUnit" ||
-      field === "investmentValue" ||
+      field === "monto" ||
+      field === "por_unidad" ||
+      field === "inversion" ||
       field === "units"
     ) {
       value = parseFloat(value) || 0;
@@ -299,11 +294,11 @@ const QuotesTable = () => {
         .from("presupuestos")
         .update({ 
           presupuesto_aceptado: true,
-          legalRepresentativeRut: acceptedQuoteData.legalRepresentativeRut,
-          communityRut: acceptedQuoteData.communityRut,
-          communityEmail: acceptedQuoteData.communityEmail,
-          legalRepresentativePhone: acceptedQuoteData.legalRepresentativePhone,
-          communityFormationDate: acceptedQuoteData.communityFormationDate,
+          legalrepresentativerut: acceptedQuoteData.legalRepresentativeRut,
+          communityrut: acceptedQuoteData.communityRut,
+          communityemail: acceptedQuoteData.communityEmail,
+          legalrepresentativephone: acceptedQuoteData.legalRepresentativePhone,
+          communityformationdate: acceptedQuoteData.communityFormationDate,
           fecha_aprobacion_presupuesto: new Date().toISOString()
         })
         .eq("id", selectedQuote.id);
@@ -418,7 +413,7 @@ const QuotesTable = () => {
 
     if (type === "number" && typeof value === "number") {
       displayValue = value.toLocaleString();
-      if (field === "quoteAmount" || field === "quotePerUnit" || field === "investmentValue") {
+      if (field === "monto" || field === "por_unidad" || field === "inversion") {
         displayValue = `$${displayValue}`;
       }
     }
@@ -590,14 +585,14 @@ const QuotesTable = () => {
                     filteredQuotes.map((quote) => (
                       <TableRow key={quote.id}>
                         <TableCell className="font-medium">
-                          {quote.communityName}
+                          {quote.communityname}
                         </TableCell>
                         <TableCell>
                           <EditableCell
-                            value={quote.buildingAddress}
+                            value={quote.buildingaddress}
                             id={quote.id}
-                            field="buildingAddress"
-                            isEditing={editingCell?.id === quote.id && editingCell?.field === "buildingAddress"}
+                            field="buildingaddress"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "buildingaddress"}
                           />
                         </TableCell>
                         <TableCell>
@@ -609,7 +604,7 @@ const QuotesTable = () => {
                           />
                         </TableCell>
                         <TableCell>
-                          {quote.buildingType}
+                          {quote.buildingtype}
                         </TableCell>
                         <TableCell>
                           <EditableCell
@@ -623,30 +618,30 @@ const QuotesTable = () => {
                         </TableCell>
                         <TableCell>
                           <EditableCell
-                            value={quote.quoteAmount}
+                            value={quote.monto}
                             id={quote.id}
-                            field="quoteAmount"
-                            isEditing={editingCell?.id === quote.id && editingCell?.field === "quoteAmount"}
+                            field="monto"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "monto"}
                             type="number"
                             className="w-24"
                           />
                         </TableCell>
                         <TableCell>
                           <EditableCell
-                            value={quote.quotePerUnit}
+                            value={quote.por_unidad}
                             id={quote.id}
-                            field="quotePerUnit"
-                            isEditing={editingCell?.id === quote.id && editingCell?.field === "quotePerUnit"}
+                            field="por_unidad"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "por_unidad"}
                             type="number"
                             className="w-24"
                           />
                         </TableCell>
                         <TableCell>
                           <EditableCell
-                            value={quote.investmentValue}
+                            value={quote.inversion}
                             id={quote.id}
-                            field="investmentValue"
-                            isEditing={editingCell?.id === quote.id && editingCell?.field === "investmentValue"}
+                            field="inversion"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "inversion"}
                             type="number"
                             className="w-24"
                           />
@@ -664,18 +659,18 @@ const QuotesTable = () => {
                         <TableCell>
                           <div className="space-y-1">
                             <EditableCell
-                              value={quote.adminName}
+                              value={quote.adminname}
                               id={quote.id}
-                              field="adminName"
-                              isEditing={editingCell?.id === quote.id && editingCell?.field === "adminName"}
+                              field="adminname"
+                              isEditing={editingCell?.id === quote.id && editingCell?.field === "adminname"}
                             />
-                            {quote.adminEmail && (
+                            {quote.adminemail && (
                               <div className="text-xs text-gray-500">
                                 <EditableCell
-                                  value={quote.adminEmail}
+                                  value={quote.adminemail}
                                   id={quote.id}
-                                  field="adminEmail"
-                                  isEditing={editingCell?.id === quote.id && editingCell?.field === "adminEmail"}
+                                  field="adminemail"
+                                  isEditing={editingCell?.id === quote.id && editingCell?.field === "adminemail"}
                                 />
                               </div>
                             )}
