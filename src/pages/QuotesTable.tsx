@@ -27,10 +27,36 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X, Pencil } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { loadQuotes, updateQuote, Quote } from "@/utils/quoteStorage";
 import AcceptQuoteDialog from "@/components/AcceptQuoteDialog";
+import { supabase } from "@/integrations/supabase/client";
 
-// Remove the duplicate Quote interface definition since we're importing it
+// Define the quote type based on Supabase structure
+export interface Quote {
+  id: string;
+  adminName: string;
+  adminEmail: string;
+  managementCompany: string | null;
+  legalRepresentative: string | null;
+  additional_at: Array<{ name: string; email: string }>;
+  communityName: string;
+  buildingAddress: string | null;
+  comuna: string | null;
+  region: string | null;
+  buildingType: string;
+  units: number;
+  presupuesto_aceptado: boolean;
+  created_at: string;
+  
+  // Calculated fields for UI
+  quoteAmount?: number;
+  quotePerUnit?: number;
+  investmentValue?: number;
+  
+  // For editing
+  status?: "Enviado" | "Aceptado";
+}
+
+const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
 
 const QuotesTable = () => {
   const { toast } = useToast();
@@ -48,16 +74,61 @@ const QuotesTable = () => {
     field: string;
     value: any;
   } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // State for the accept quote dialog
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
 
-  // Load quotes from storage
+  // Fetch quotes from Supabase
+  const fetchQuotes = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("presupuestos")
+        .select("*");
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Process quotes and add calculated fields
+        const processedQuotes = data.map(quote => {
+          // Calculate default values
+          const baseAmount = 50000; // Base amount per unit in CLP
+          const units = quote.units || 0;
+          const quotePerUnit = baseAmount;
+          const quoteAmount = units * quotePerUnit;
+          const investmentValue = Math.round(quoteAmount * 0.8); // 80% of quote amount
+          
+          return {
+            ...quote,
+            quoteAmount,
+            quotePerUnit,
+            investmentValue,
+            status: quote.presupuesto_aceptado ? "Aceptado" : "Enviado" as "Enviado" | "Aceptado"
+          };
+        });
+        
+        setQuotes(processedQuotes);
+        setFilteredQuotes(processedQuotes);
+      }
+    } catch (error) {
+      console.error("Error fetching quotes:", error);
+      toast({
+        title: "Error",
+        description: "Hubo un error al cargar los presupuestos. Por favor, intente nuevamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load quotes on initial render
   useEffect(() => {
-    const storedQuotes = loadQuotes();
-    setQuotes(storedQuotes);
-    setFilteredQuotes(storedQuotes);
+    fetchQuotes();
   }, []);
 
   // Apply filters and search
@@ -93,7 +164,7 @@ const QuotesTable = () => {
     }
     if (filters.status) {
       result = result.filter((quote) => 
-        quote.status === filters.status
+        (quote.presupuesto_aceptado ? "Aceptado" : "Enviado") === filters.status
       );
     }
 
@@ -131,26 +202,51 @@ const QuotesTable = () => {
   };
 
   // Save cell change
-  const saveCellChange = () => {
+  const saveCellChange = async () => {
     if (!editingCell) return;
 
     const { id, field, value } = editingCell;
     
-    // Update in local storage
-    updateQuote(id, { [field]: value });
-    
-    // Update in state
-    const updatedQuotes = quotes.map((quote) =>
-      quote.id === id ? { ...quote, [field]: value } : quote
-    );
+    try {
+      // Map UI field to database field if needed
+      let dbField = field;
+      let dbValue = value;
+      
+      if (field === "status") {
+        dbField = "presupuesto_aceptado";
+        dbValue = value === "Aceptado";
+      }
+      
+      // Update in Supabase
+      const { error } = await supabase
+        .from("presupuestos")
+        .update({ [dbField]: dbValue })
+        .eq("id", id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Update in UI state
+      const updatedQuotes = quotes.map((quote) =>
+        quote.id === id ? { ...quote, [field]: value } : quote
+      );
 
-    setQuotes(updatedQuotes);
-    setEditingCell(null);
+      setQuotes(updatedQuotes);
+      setEditingCell(null);
 
-    toast({
-      title: "Cambio guardado",
-      description: "El cambio en el registro ha sido guardado correctamente.",
-    });
+      toast({
+        title: "Cambio guardado",
+        description: "El cambio en el registro ha sido guardado correctamente.",
+      });
+    } catch (error) {
+      console.error("Error updating quote:", error);
+      toast({
+        title: "Error",
+        description: "Hubo un error al guardar los cambios. Por favor, intente nuevamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Cancel editing
@@ -160,7 +256,7 @@ const QuotesTable = () => {
 
   // Open accept quote dialog
   const handleOpenAcceptDialog = (quote: Quote) => {
-    if (quote.status === "Aceptado") {
+    if (quote.presupuesto_aceptado) {
       toast({
         title: "Presupuesto ya aceptado",
         description: "Este presupuesto ya ha sido aceptado anteriormente.",
@@ -173,15 +269,64 @@ const QuotesTable = () => {
   };
 
   // Handle dialog completion
-  const handleAcceptComplete = () => {
-    // Reload the quotes to reflect the changes
-    const updatedQuotes = loadQuotes();
-    setQuotes(updatedQuotes);
+  const handleAcceptComplete = async (acceptedQuoteData: any) => {
+    if (!selectedQuote) return;
     
-    toast({
-      title: "Presupuesto actualizado",
-      description: "El listado de presupuestos ha sido actualizado.",
-    });
+    try {
+      // 1. Send to webhook
+      try {
+        await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          mode: "no-cors",
+          body: JSON.stringify({
+            quoteId: selectedQuote.id,
+            ...acceptedQuoteData,
+            quoteData: selectedQuote,
+            timestamp: new Date().toISOString(),
+          }),
+        });
+        
+        console.log("Webhook triggered successfully");
+      } catch (webhookError) {
+        console.error("Error triggering webhook:", webhookError);
+      }
+      
+      // 2. Update in Supabase
+      const { error } = await supabase
+        .from("presupuestos")
+        .update({ 
+          presupuesto_aceptado: true,
+          legalRepresentativeRut: acceptedQuoteData.legalRepresentativeRut,
+          communityRut: acceptedQuoteData.communityRut,
+          communityEmail: acceptedQuoteData.communityEmail,
+          legalRepresentativePhone: acceptedQuoteData.legalRepresentativePhone,
+          communityFormationDate: acceptedQuoteData.communityFormationDate,
+          fecha_aprobacion_presupuesto: new Date().toISOString()
+        })
+        .eq("id", selectedQuote.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Reload quotes
+      fetchQuotes();
+      
+      toast({
+        title: "Presupuesto aceptado",
+        description: "El presupuesto ha sido marcado como aceptado correctamente.",
+      });
+    } catch (error) {
+      console.error("Error accepting quote:", error);
+      toast({
+        title: "Error",
+        description: "Hubo un error al aceptar el presupuesto. Por favor, intente nuevamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Componente para celda editable
@@ -250,7 +395,7 @@ const QuotesTable = () => {
     }
 
     // Para campos vacíos
-    if (value === "" || value === undefined) {
+    if (value === "" || value === undefined || value === null) {
       return (
         <div className="flex justify-between items-center group">
           <span className="text-gray-400 italic">
@@ -435,145 +580,139 @@ const QuotesTable = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredQuotes.map((quote) => (
-                    <TableRow key={quote.id}>
-                      <TableCell className="font-medium">
-                        <EditableCell
-                          value={quote.communityName}
-                          id={quote.id}
-                          field="communityName"
-                          isEditing={editingCell?.id === quote.id && editingCell?.field === "communityName"}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <EditableCell
-                          value={quote.buildingAddress}
-                          id={quote.id}
-                          field="buildingAddress"
-                          isEditing={editingCell?.id === quote.id && editingCell?.field === "buildingAddress"}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <EditableCell
-                          value={quote.comuna}
-                          id={quote.id}
-                          field="comuna"
-                          isEditing={editingCell?.id === quote.id && editingCell?.field === "comuna"}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <EditableCell
-                          value={quote.buildingType}
-                          id={quote.id}
-                          field="buildingType"
-                          isEditing={editingCell?.id === quote.id && editingCell?.field === "buildingType"}
-                          type="select"
-                          options={["Edificio", "Escolar", "Industrial"]}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <EditableCell
-                          value={quote.units}
-                          id={quote.id}
-                          field="units"
-                          isEditing={editingCell?.id === quote.id && editingCell?.field === "units"}
-                          type="number"
-                          className="w-20"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <EditableCell
-                          value={quote.quoteAmount}
-                          id={quote.id}
-                          field="quoteAmount"
-                          isEditing={editingCell?.id === quote.id && editingCell?.field === "quoteAmount"}
-                          type="number"
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <EditableCell
-                          value={quote.quotePerUnit}
-                          id={quote.id}
-                          field="quotePerUnit"
-                          isEditing={editingCell?.id === quote.id && editingCell?.field === "quotePerUnit"}
-                          type="number"
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <EditableCell
-                          value={quote.investmentValue}
-                          id={quote.id}
-                          field="investmentValue"
-                          isEditing={editingCell?.id === quote.id && editingCell?.field === "investmentValue"}
-                          type="number"
-                          className="w-24"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <EditableCell
-                          value={quote.status}
-                          id={quote.id}
-                          field="status"
-                          isEditing={editingCell?.id === quote.id && editingCell?.field === "status"}
-                          type="select"
-                          options={["Enviado", "Aceptado"]}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <EditableCell
-                            value={quote.adminName}
-                            id={quote.id}
-                            field="adminName"
-                            isEditing={editingCell?.id === quote.id && editingCell?.field === "adminName"}
-                          />
-                          {quote.adminEmail && (
-                            <div className="text-xs text-gray-500">
-                              <EditableCell
-                                value={quote.adminEmail}
-                                id={quote.id}
-                                field="adminEmail"
-                                isEditing={editingCell?.id === quote.id && editingCell?.field === "adminEmail"}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className={`h-8 px-2 text-xs ${quote.status === "Aceptado" ? "opacity-50" : ""}`}
-                            onClick={() => handleOpenAcceptDialog(quote)}
-                            disabled={quote.status === "Aceptado"}
-                          >
-                            <CheckSquare className="h-4 w-4 mr-1" /> Aceptar
-                          </Button>
-                          
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white">
-                              <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                              <DropdownMenuItem>Editar completo</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600">
-                                Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={11} className="h-24 text-center">
+                        Cargando presupuestos...
                       </TableCell>
                     </TableRow>
-                  ))}
-                  
-                  {filteredQuotes.length === 0 && (
+                  ) : filteredQuotes.length > 0 ? (
+                    filteredQuotes.map((quote) => (
+                      <TableRow key={quote.id}>
+                        <TableCell className="font-medium">
+                          {quote.communityName}
+                        </TableCell>
+                        <TableCell>
+                          <EditableCell
+                            value={quote.buildingAddress}
+                            id={quote.id}
+                            field="buildingAddress"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "buildingAddress"}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <EditableCell
+                            value={quote.comuna}
+                            id={quote.id}
+                            field="comuna"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "comuna"}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {quote.buildingType}
+                        </TableCell>
+                        <TableCell>
+                          <EditableCell
+                            value={quote.units}
+                            id={quote.id}
+                            field="units"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "units"}
+                            type="number"
+                            className="w-20"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <EditableCell
+                            value={quote.quoteAmount}
+                            id={quote.id}
+                            field="quoteAmount"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "quoteAmount"}
+                            type="number"
+                            className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <EditableCell
+                            value={quote.quotePerUnit}
+                            id={quote.id}
+                            field="quotePerUnit"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "quotePerUnit"}
+                            type="number"
+                            className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <EditableCell
+                            value={quote.investmentValue}
+                            id={quote.id}
+                            field="investmentValue"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "investmentValue"}
+                            type="number"
+                            className="w-24"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <EditableCell
+                            value={quote.presupuesto_aceptado ? "Aceptado" : "Enviado"}
+                            id={quote.id}
+                            field="status"
+                            isEditing={editingCell?.id === quote.id && editingCell?.field === "status"}
+                            type="select"
+                            options={["Enviado", "Aceptado"]}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <EditableCell
+                              value={quote.adminName}
+                              id={quote.id}
+                              field="adminName"
+                              isEditing={editingCell?.id === quote.id && editingCell?.field === "adminName"}
+                            />
+                            {quote.adminEmail && (
+                              <div className="text-xs text-gray-500">
+                                <EditableCell
+                                  value={quote.adminEmail}
+                                  id={quote.id}
+                                  field="adminEmail"
+                                  isEditing={editingCell?.id === quote.id && editingCell?.field === "adminEmail"}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className={`h-8 px-2 text-xs ${quote.presupuesto_aceptado ? "opacity-50" : ""}`}
+                              onClick={() => handleOpenAcceptDialog(quote)}
+                              disabled={quote.presupuesto_aceptado}
+                            >
+                              <CheckSquare className="h-4 w-4 mr-1" /> Aceptar
+                            </Button>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-white">
+                                <DropdownMenuItem>Ver detalles</DropdownMenuItem>
+                                <DropdownMenuItem>Editar completo</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-red-600">
+                                  Eliminar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
                       <TableCell colSpan={11} className="h-24 text-center">
                         No se encontraron presupuestos con los filtros seleccionados.

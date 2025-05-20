@@ -9,7 +9,87 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      presupuestos: {
+        Row: {
+          additional_at: Json | null
+          adminemail: string
+          adminname: string
+          buildingaddress: string | null
+          buildingtype: string
+          communityemail: string | null
+          communityformationdate: string | null
+          communityname: string
+          communityrut: string | null
+          comuna: string | null
+          created_at: string
+          equipos_instalados: string | null
+          fecha_aprobacion_presupuesto: string | null
+          fecha_firma_contrato: string | null
+          fecha_instalacion_equipos: string | null
+          id: string
+          legalrepresentative: string | null
+          legalrepresentativephone: string | null
+          legalrepresentativerut: string | null
+          managementcompany: string | null
+          presupuesto_aceptado: boolean
+          region: string | null
+          terminos_contrato: string | null
+          units: number
+        }
+        Insert: {
+          additional_at?: Json | null
+          adminemail: string
+          adminname: string
+          buildingaddress?: string | null
+          buildingtype?: string
+          communityemail?: string | null
+          communityformationdate?: string | null
+          communityname: string
+          communityrut?: string | null
+          comuna?: string | null
+          created_at?: string
+          equipos_instalados?: string | null
+          fecha_aprobacion_presupuesto?: string | null
+          fecha_firma_contrato?: string | null
+          fecha_instalacion_equipos?: string | null
+          id?: string
+          legalrepresentative?: string | null
+          legalrepresentativephone?: string | null
+          legalrepresentativerut?: string | null
+          managementcompany?: string | null
+          presupuesto_aceptado?: boolean
+          region?: string | null
+          terminos_contrato?: string | null
+          units: number
+        }
+        Update: {
+          additional_at?: Json | null
+          adminemail?: string
+          adminname?: string
+          buildingaddress?: string | null
+          buildingtype?: string
+          communityemail?: string | null
+          communityformationdate?: string | null
+          communityname?: string
+          communityrut?: string | null
+          comuna?: string | null
+          created_at?: string
+          equipos_instalados?: string | null
+          fecha_aprobacion_presupuesto?: string | null
+          fecha_firma_contrato?: string | null
+          fecha_instalacion_equipos?: string | null
+          id?: string
+          legalrepresentative?: string | null
+          legalrepresentativephone?: string | null
+          legalrepresentativerut?: string | null
+          managementcompany?: string | null
+          presupuesto_aceptado?: boolean
+          region?: string | null
+          terminos_contrato?: string | null
+          units?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
