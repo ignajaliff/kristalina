@@ -37,6 +37,7 @@ import { Calendar } from "@/components/ui/calendar";
 
 // Form validation schema
 const formSchema = z.object({
+  legalRepresentativeName: z.string().min(1, "Nombre del representante legal es requerido"),
   legalRepresentativeRut: z.string().min(1, "RUT del representante legal es requerido"),
   communityRut: z.string().min(1, "RUT de la comunidad es requerido"),
   communityEmail: z.string().email("Correo electrónico inválido"),
@@ -44,7 +45,6 @@ const formSchema = z.object({
   communityFormationDate: z.date({
     required_error: "La fecha de constitución de la comunidad es requerida",
   }),
-  webhookUrl: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -69,11 +69,11 @@ export default function AcceptQuoteDialog({
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      legalRepresentativeName: "",
       legalRepresentativeRut: "",
       communityRut: "",
-      communityEmail: quote?.adminEmail || "",
+      communityEmail: quote?.adminemail || "",
       legalRepresentativePhone: "",
-      webhookUrl: "", // Optional webhook URL
     },
   });
   
@@ -87,6 +87,7 @@ export default function AcceptQuoteDialog({
       // Store the accepted quote data
       const acceptedQuote = addAcceptedQuote({
         quoteId: quote.id,
+        legalRepresentativeName: data.legalRepresentativeName,
         legalRepresentativeRut: data.legalRepresentativeRut,
         communityRut: data.communityRut,
         communityEmail: data.communityEmail,
@@ -94,24 +95,48 @@ export default function AcceptQuoteDialog({
         communityFormationDate: data.communityFormationDate.toISOString(),
       });
       
-      // Try to send to webhook if URL is provided
-      let webhookSuccess = true;
-      if (data.webhookUrl) {
-        webhookSuccess = await sendAcceptedQuoteToWebhook(data.webhookUrl, acceptedQuote, quote);
+      // Try to send to webhook (using the constant WEBHOOK_URL from QuotesTable)
+      const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
+      
+      if (WEBHOOK_URL) {
+        try {
+          // Only send the necessary information to the webhook
+          const webhookData = {
+            quoteId: quote.id,
+            legalRepresentativeName: data.legalRepresentativeName,
+            legalRepresentativeRut: data.legalRepresentativeRut,
+            communityRut: data.communityRut,
+            communityEmail: data.communityEmail,
+            legalRepresentativePhone: data.legalRepresentativePhone,
+            communityFormationDate: data.communityFormationDate.toISOString(),
+            timestamp: new Date().toISOString(),
+          };
+          
+          await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            mode: "no-cors",
+            body: JSON.stringify(webhookData),
+          });
+          
+          console.log("Webhook triggered successfully");
+        } catch (webhookError) {
+          console.error("Error triggering webhook:", webhookError);
+          throw webhookError;
+        }
       }
       
       // Show success message
       toast({
         title: "Presupuesto aceptado",
-        description: webhookSuccess 
-          ? "El presupuesto ha sido aceptado y los datos enviados correctamente."
-          : "El presupuesto ha sido aceptado, pero hubo un problema al enviar los datos al webhook.",
-        variant: webhookSuccess ? "default" : "destructive",
+        description: "El presupuesto ha sido aceptado y los datos enviados correctamente.",
       });
       
       // Close dialog and refresh list
       onOpenChange(false);
-      onAcceptComplete();
+      onAcceptComplete(acceptedQuote);
     } catch (error) {
       console.error("Error al aceptar presupuesto:", error);
       toast({
@@ -136,6 +161,20 @@ export default function AcceptQuoteDialog({
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="legalRepresentativeName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre Representante Legal</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nombre completo" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
             <FormField
               control={form.control}
               name="legalRepresentativeRut"
@@ -227,26 +266,12 @@ export default function AcceptQuoteDialog({
                         }
                         initialFocus
                         className="p-3 pointer-events-auto"
+                        fromYear={1900}
+                        toYear={new Date().getFullYear()}
+                        captionLayout="dropdown-buttons"
                       />
                     </PopoverContent>
                   </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="webhookUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>URL del Webhook (opcional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    URL para enviar los datos del presupuesto aceptado.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

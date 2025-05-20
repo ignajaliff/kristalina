@@ -279,7 +279,6 @@ const QuotesTable = () => {
           body: JSON.stringify({
             quoteId: selectedQuote.id,
             ...acceptedQuoteData,
-            quoteData: selectedQuote,
             timestamp: new Date().toISOString(),
           }),
         });
@@ -295,6 +294,7 @@ const QuotesTable = () => {
         .update({ 
           presupuesto_aceptado: true,
           legalrepresentativerut: acceptedQuoteData.legalRepresentativeRut,
+          legalrepresentative: acceptedQuoteData.legalRepresentativeName, // Store legal representative name
           communityrut: acceptedQuoteData.communityRut,
           communityemail: acceptedQuoteData.communityEmail,
           legalrepresentativephone: acceptedQuoteData.legalRepresentativePhone,
