@@ -96,20 +96,20 @@ const ProspectForm = () => {
         console.error("Error triggering webhook:", webhookError);
       }
       
-      // Save to Supabase
+      // Save to Supabase - using correct database column names
       const { error } = await supabase
         .from('presupuestos')
         .insert({
-          adminName: data.adminName,
-          adminEmail: data.adminEmail,
-          managementCompany: data.managementCompany || null,
-          legalRepresentative: data.legalRepresentative || null,
+          adminname: data.adminName, // Fixed: using adminname instead of adminName
+          adminemail: data.adminEmail, // Fixed: using adminemail instead of adminEmail
+          managementcompany: data.managementCompany || null, // Fixed: using managementcompany instead of managementCompany
+          legalrepresentative: data.legalRepresentative || null, // Fixed: using legalrepresentative instead of legalRepresentative
           additional_at: additionalATs,
-          communityName: data.communityName,
-          buildingAddress: data.buildingAddress || null,
+          communityname: data.communityName, // Fixed: using communityname instead of communityName
+          buildingaddress: data.buildingAddress || null, // Fixed: using buildingaddress instead of buildingAddress
           comuna: data.comuna || null,
           region: data.region || null,
-          buildingType: "Edificio", // Fixed as requested
+          buildingtype: "Edificio", // Fixed: using buildingtype instead of buildingType
           units: data.units,
         });
       

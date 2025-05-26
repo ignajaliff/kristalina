@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import AdminSidebar from "@/components/AdminSidebar";
 import {
@@ -29,32 +28,7 @@ import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X, Pencil 
 import { useToast } from "@/components/ui/use-toast";
 import AcceptQuoteDialog from "@/components/AcceptQuoteDialog";
 import { supabase } from "@/integrations/supabase/client";
-
-// Define the quote type based on Supabase structure
-export interface Quote {
-  id: string;
-  adminname: string;
-  adminemail: string;
-  managementcompany: string | null;
-  legalrepresentative: string | null;
-  additional_at: Array<{ name: string; email: string }>;
-  communityname: string;
-  buildingaddress: string | null;
-  comuna: string | null;
-  region: string | null;
-  buildingtype: string;
-  units: number;
-  presupuesto_aceptado: boolean;
-  created_at: string;
-  
-  // Stored in database
-  monto: number | null;
-  inversion: number | null;
-  por_unidad: number | null;
-  
-  // For UI state only
-  status?: "Enviado" | "Aceptado";
-}
+import { Quote } from "@/utils/quoteStorage";
 
 const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
 
@@ -94,14 +68,33 @@ const QuotesTable = () => {
       
       if (data) {
         // Process quotes and add calculated fields if necessary
-        const processedQuotes = data.map(quote => {
+        const processedQuotes: Quote[] = data.map(quote => {
           // Calculate default values if not provided in the database
           const monto = quote.monto || quote.units * 50000; // Use DB value or calculate
           const por_unidad = quote.por_unidad || 50000; // Use DB value or default
           const inversion = quote.inversion || Math.round(monto * 0.8); // Use DB value or calculate
           
+          // Safely parse additional_at field
+          let additional_at: Array<{ name: string; email: string }> = [];
+          if (quote.additional_at) {
+            try {
+              if (typeof quote.additional_at === 'string') {
+                additional_at = JSON.parse(quote.additional_at);
+              } else if (Array.isArray(quote.additional_at)) {
+                additional_at = quote.additional_at as Array<{ name: string; email: string }>;
+              }
+            } catch (e) {
+              console.error("Error parsing additional_at:", e);
+              additional_at = [];
+            }
+          }
+          
           return {
             ...quote,
+            additional_at,
+            monto,
+            por_unidad, 
+            inversion,
             status: quote.presupuesto_aceptado ? "Aceptado" : "Enviado" as "Enviado" | "Aceptado"
           };
         });
@@ -263,65 +256,15 @@ const QuotesTable = () => {
     setAcceptDialogOpen(true);
   };
 
-  // Handle dialog completion
-  const handleAcceptComplete = async (acceptedQuoteData: any) => {
-    if (!selectedQuote) return;
+  // Handle dialog completion - fixed function signature
+  const handleAcceptComplete = () => {
+    // Reload quotes after accepting
+    fetchQuotes();
     
-    try {
-      // 1. Send to webhook
-      try {
-        await fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          mode: "no-cors",
-          body: JSON.stringify({
-            quoteId: selectedQuote.id,
-            ...acceptedQuoteData,
-            timestamp: new Date().toISOString(),
-          }),
-        });
-        
-        console.log("Webhook triggered successfully");
-      } catch (webhookError) {
-        console.error("Error triggering webhook:", webhookError);
-      }
-      
-      // 2. Update in Supabase
-      const { error } = await supabase
-        .from("presupuestos")
-        .update({ 
-          presupuesto_aceptado: true,
-          legalrepresentativerut: acceptedQuoteData.legalRepresentativeRut,
-          legalrepresentative: acceptedQuoteData.legalRepresentativeName, // Store legal representative name
-          communityrut: acceptedQuoteData.communityRut,
-          communityemail: acceptedQuoteData.communityEmail,
-          legalrepresentativephone: acceptedQuoteData.legalRepresentativePhone,
-          communityformationdate: acceptedQuoteData.communityFormationDate,
-          fecha_aprobacion_presupuesto: new Date().toISOString()
-        })
-        .eq("id", selectedQuote.id);
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Reload quotes
-      fetchQuotes();
-      
-      toast({
-        title: "Presupuesto aceptado",
-        description: "El presupuesto ha sido marcado como aceptado correctamente.",
-      });
-    } catch (error) {
-      console.error("Error accepting quote:", error);
-      toast({
-        title: "Error",
-        description: "Hubo un error al aceptar el presupuesto. Por favor, intente nuevamente.",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Presupuesto aceptado",
+      description: "El presupuesto ha sido marcado como aceptado correctamente.",
+    });
   };
 
   // Componente para celda editable
