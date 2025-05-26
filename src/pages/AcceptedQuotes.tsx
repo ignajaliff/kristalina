@@ -84,16 +84,16 @@ const QuoteUpdateForm = ({
     try {
       // Update the quote with the additional information
       updateQuote(quoteId, {
-        contractSignDate: data.contractSignDate?.toISOString(),
-        equipmentInstallDate: data.equipmentInstallDate?.toISOString(),
-        contractTerms: data.contractTerms,
-        equipmentStatus: data.equipmentStatus
+        fecha_firma_contrato: data.contractSignDate?.toISOString(),
+        fecha_instalacion_equipos: data.equipmentInstallDate?.toISOString(),
+        terminos_contrato: data.contractTerms,
+        equipos_instalados: data.equipmentStatus
       });
       
       toast({
         title: "Actualización exitosa",
         description: "La información del presupuesto ha sido actualizada.",
-        variant: "default", // Changed from "success" to "default" to fix the type error
+        variant: "default",
       });
       
       onUpdate();
@@ -273,7 +273,7 @@ const AcceptedQuotes = () => {
   };
   
   // Get equipment status display text
-  const getEquipmentStatusText = (status?: string): string => {
+  const getEquipmentStatusText = (status?: string | null): string => {
     switch (status) {
       case "not_installed":
         return "Contrato no firmado y equipos no instalados";
@@ -289,7 +289,7 @@ const AcceptedQuotes = () => {
   };
   
   // Format date for display
-  const formatDate = (dateString?: string): string => {
+  const formatDate = (dateString?: string | null): string => {
     if (!dateString) return "No establecido";
     try {
       return format(new Date(dateString), "PPP");
@@ -336,20 +336,20 @@ const AcceptedQuotes = () => {
                       return (
                         <TableRow key={acceptedQuote.quoteId}>
                           <TableCell className="font-medium">
-                            {quoteData.communityName}
+                            {quoteData.communityname}
                           </TableCell>
                           <TableCell>{acceptedQuote.legalRepresentativeRut}</TableCell>
                           <TableCell>{formatDate(acceptedQuote.acceptedAt)}</TableCell>
                           <TableCell>
                             <span className={cn(
                               "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                              quoteData.equipmentStatus === "completed" ? "bg-green-100 text-green-800" :
-                              quoteData.equipmentStatus === "installed" ? "bg-blue-100 text-blue-800" :
-                              quoteData.equipmentStatus === "contract_signed" ? "bg-yellow-100 text-yellow-800" :
+                              quoteData.equipos_instalados === "completed" ? "bg-green-100 text-green-800" :
+                              quoteData.equipos_instalados === "installed" ? "bg-blue-100 text-blue-800" :
+                              quoteData.equipos_instalados === "contract_signed" ? "bg-yellow-100 text-yellow-800" :
                               "bg-gray-100 text-gray-800"
                             )}>
-                              {quoteData.equipmentStatus === "completed" && <CheckCircle className="mr-1 h-3 w-3" />}
-                              {getEquipmentStatusText(quoteData.equipmentStatus)}
+                              {quoteData.equipos_instalados === "completed" && <CheckCircle className="mr-1 h-3 w-3" />}
+                              {getEquipmentStatusText(quoteData.equipos_instalados)}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -393,11 +393,11 @@ const AcceptedQuotes = () => {
                               <dl className="mt-2 space-y-1">
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
-                                  <dd>{quoteData.communityName}</dd>
+                                  <dd>{quoteData.communityname}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Dirección:</dt>
-                                  <dd>{quoteData.buildingAddress}</dd>
+                                  <dd>{quoteData.buildingaddress}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Comuna:</dt>
@@ -423,7 +423,7 @@ const AcceptedQuotes = () => {
                               <dl className="mt-2 space-y-1">
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
-                                  <dd>{quoteData.legalRepresentative || 'No especificado'}</dd>
+                                  <dd>{quoteData.legalrepresentative || 'No especificado'}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">RUT:</dt>
@@ -442,15 +442,15 @@ const AcceptedQuotes = () => {
                             <dl className="mt-2 space-y-1">
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Monto:</dt>
-                                <dd>{quoteData.quoteAmount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</dd>
+                                <dd>{quoteData.monto ? quoteData.monto.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Monto por Unidad:</dt>
-                                <dd>{quoteData.quotePerUnit.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</dd>
+                                <dd>{quoteData.por_unidad ? quoteData.por_unidad.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Valor Inversión:</dt>
-                                <dd>{quoteData.investmentValue.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</dd>
+                                <dd>{quoteData.inversion ? quoteData.inversion.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Fecha Aprobación:</dt>
@@ -458,24 +458,24 @@ const AcceptedQuotes = () => {
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Firma Contrato:</dt>
-                                <dd>{formatDate(quoteData.contractSignDate)}</dd>
+                                <dd>{formatDate(quoteData.fecha_firma_contrato)}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Instalación Equipos:</dt>
-                                <dd>{formatDate(quoteData.equipmentInstallDate)}</dd>
+                                <dd>{formatDate(quoteData.fecha_instalacion_equipos)}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Estado Equipos:</dt>
-                                <dd>{getEquipmentStatusText(quoteData.equipmentStatus)}</dd>
+                                <dd>{getEquipmentStatusText(quoteData.equipos_instalados)}</dd>
                               </div>
                             </dl>
                           </div>
                           
-                          {quoteData.contractTerms && (
+                          {quoteData.terminos_contrato && (
                             <div>
                               <h3 className="font-medium text-gray-700">Términos del Contrato</h3>
                               <div className="mt-2 p-3 bg-gray-50 rounded-md border">
-                                <p className="whitespace-pre-wrap">{quoteData.contractTerms}</p>
+                                <p className="whitespace-pre-wrap">{quoteData.terminos_contrato}</p>
                               </div>
                             </div>
                           )}

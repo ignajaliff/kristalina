@@ -136,7 +136,7 @@ export default function AcceptQuoteDialog({
       
       // Close dialog and refresh list
       onOpenChange(false);
-      onAcceptComplete(acceptedQuote);
+      onAcceptComplete();
     } catch (error) {
       console.error("Error al aceptar presupuesto:", error);
       toast({

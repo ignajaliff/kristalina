@@ -1,3 +1,4 @@
+
 export interface Quote {
   id: string;
   adminname: string;
@@ -19,18 +20,31 @@ export interface Quote {
   inversion: number | null;
   por_unidad: number | null;
   
+  // Additional fields from database
+  fecha_aprobacion_presupuesto: string | null;
+  fecha_firma_contrato: string | null;
+  fecha_instalacion_equipos: string | null;
+  terminos_contrato: string | null;
+  legalrepresentativerut: string | null;
+  communityrut: string | null;
+  communityemail: string | null;
+  legalrepresentativephone: string | null;
+  equipos_instalados: string | null;
+  communityformationdate: string | null;
+  
   // For UI state only
   status?: "Enviado" | "Aceptado";
 }
 
 export interface AcceptedQuote {
   quoteId: string;
-  legalRepresentativeName: string; // Added this field
+  legalRepresentativeName: string;
   legalRepresentativeRut: string;
   communityRut: string;
   communityEmail: string;
   legalRepresentativePhone: string;
   communityFormationDate: string;
+  acceptedAt?: string;
 }
 
 // Function to simulate fetching accepted quotes from local storage
@@ -44,18 +58,53 @@ export const getAcceptedQuotes = (): AcceptedQuote[] => {
   }
 };
 
+// Load accepted quotes (alias for getAcceptedQuotes)
+export const loadAcceptedQuotes = (): AcceptedQuote[] => {
+  return getAcceptedQuotes();
+};
+
+// Function to load quotes from local storage or return empty array
+export const loadQuotes = (): Quote[] => {
+  try {
+    const quotes = localStorage.getItem('quotes');
+    return quotes ? JSON.parse(quotes) : [];
+  } catch (error) {
+    console.error("Error loading quotes from local storage:", error);
+    return [];
+  }
+};
+
+// Function to update a quote
+export const updateQuote = (quoteId: string, updates: Partial<Quote>): void => {
+  try {
+    const quotes = loadQuotes();
+    const updatedQuotes = quotes.map(quote => 
+      quote.id === quoteId ? { ...quote, ...updates } : quote
+    );
+    localStorage.setItem('quotes', JSON.stringify(updatedQuotes));
+  } catch (error) {
+    console.error("Error updating quote:", error);
+  }
+};
+
 // Add an accepted quote to local storage
 export const addAcceptedQuote = (acceptedQuote: AcceptedQuote): AcceptedQuote => {
   // Get existing quotes from local storage
   const existingAcceptedQuotes = getAcceptedQuotes();
   
+  // Add timestamp if not present
+  const quoteWithTimestamp = {
+    ...acceptedQuote,
+    acceptedAt: acceptedQuote.acceptedAt || new Date().toISOString()
+  };
+  
   // Add the new quote 
-  existingAcceptedQuotes.push(acceptedQuote);
+  existingAcceptedQuotes.push(quoteWithTimestamp);
   
   // Save back to local storage
   localStorage.setItem('acceptedQuotes', JSON.stringify(existingAcceptedQuotes));
   
-  return acceptedQuote;
+  return quoteWithTimestamp;
 };
 
 // Function to simulate removing an accepted quote from local storage
