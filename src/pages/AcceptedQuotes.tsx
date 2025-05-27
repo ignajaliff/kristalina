@@ -76,6 +76,47 @@ const QuoteUpdateForm = ({
     }
   });
   
+  // Function to send webhook data
+  const sendWebhook = async (quoteData: Quote) => {
+    try {
+      const webhookData = {
+        monto: quoteData.monto,
+        fecha_instalacion_equipos: quoteData.fecha_instalacion_equipos,
+        communityemail: quoteData.communityemail,
+        buildingaddress: quoteData.buildingaddress,
+        legalrepresentative: quoteData.legalrepresentative
+      };
+
+      console.log('Enviando datos al webhook:', webhookData);
+
+      const response = await fetch('https://n8n-n8n.qqtfab.easypanel.host/webhook-test/aa9be5f3-adfc-4eb1-9ca3-d87d6d79fc3f', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error en webhook: ${response.status}`);
+      }
+
+      console.log('Webhook enviado exitosamente');
+      toast({
+        title: "Webhook enviado",
+        description: "Los datos han sido enviados exitosamente al webhook.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Error enviando webhook:', error);
+      toast({
+        title: "Error en webhook",
+        description: "No se pudo enviar los datos al webhook, pero la actualización se guardó.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   const onSubmit = async (data: QuoteUpdateFormValues) => {
     setIsSubmitting(true);
     
@@ -99,6 +140,22 @@ const QuoteUpdateForm = ({
         description: "La información del presupuesto ha sido actualizada.",
         variant: "default",
       });
+
+      // If status is "completed", send webhook
+      if (data.equipmentStatus === "completed") {
+        // Get the updated quote data
+        const { data: quoteData, error: fetchError } = await supabase
+          .from("presupuestos")
+          .select("*")
+          .eq("id", quoteId)
+          .single();
+
+        if (fetchError) {
+          console.error("Error fetching quote data for webhook:", fetchError);
+        } else if (quoteData) {
+          await sendWebhook(quoteData as Quote);
+        }
+      }
       
       onUpdate();
     } catch (error) {
@@ -213,7 +270,6 @@ const QuoteUpdateForm = ({
                 <SelectContent>
                   <SelectItem value="not_installed">Contrato no firmado y equipos no instalados</SelectItem>
                   <SelectItem value="contract_signed">Contrato firmado, equipos no instalados</SelectItem>
-                  <SelectItem value="installed">Equipos instalados</SelectItem>
                   <SelectItem value="completed">Instalación completada y verificada</SelectItem>
                 </SelectContent>
               </Select>
@@ -383,7 +439,6 @@ const AcceptedQuotes = () => {
                             <span className={cn(
                               "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
                               quote.equipos_instalados === "completed" ? "bg-green-100 text-green-800" :
-                              quote.equipos_instalados === "installed" ? "bg-blue-100 text-blue-800" :
                               quote.equipos_instalados === "contract_signed" ? "bg-yellow-100 text-yellow-800" :
                               "bg-gray-100 text-gray-800"
                             )}>
