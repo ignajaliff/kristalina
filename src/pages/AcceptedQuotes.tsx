@@ -49,11 +49,10 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
-// Schema for form updates
+// Schema for form updates - removed contractTerms
 const quoteUpdateSchema = z.object({
   contractSignDate: z.date().optional(),
   equipmentInstallDate: z.date().optional(),
-  contractTerms: z.string().optional(),
   equipmentStatus: z.string().default("not_installed")
 });
 
@@ -73,7 +72,6 @@ const QuoteUpdateForm = ({
   const form = useForm<QuoteUpdateFormValues>({
     resolver: zodResolver(quoteUpdateSchema),
     defaultValues: {
-      contractTerms: "",
       equipmentStatus: "not_installed"
     }
   });
@@ -88,7 +86,6 @@ const QuoteUpdateForm = ({
         .update({
           fecha_firma_contrato: data.contractSignDate?.toISOString().split('T')[0],
           fecha_instalacion_equipos: data.equipmentInstallDate?.toISOString().split('T')[0],
-          terminos_contrato: data.contractTerms,
           equipos_instalados: data.equipmentStatus
         })
         .eq("id", quoteId);
@@ -200,24 +197,6 @@ const QuoteUpdateForm = ({
             )}
           />
         </div>
-        
-        <FormField
-          control={form.control}
-          name="contractTerms"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Términos del Contrato</FormLabel>
-              <FormControl>
-                <textarea
-                  className="w-full border rounded-md p-3 min-h-[100px]"
-                  placeholder="Ingrese los términos del contrato"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         
         <FormField
           control={form.control}

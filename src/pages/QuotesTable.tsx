@@ -24,7 +24,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X, Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { FileText, Filter, Search, CheckSquare, MoreHorizontal, Save, X, Pencil, Eye, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import AcceptQuoteDialog from "@/components/AcceptQuoteDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +71,18 @@ const QuotesTable = () => {
   // State for the accept quote dialog
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  
+  // State for view details dialog
+  const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
+  const [viewingQuote, setViewingQuote] = useState<Quote | null>(null);
+  
+  // State for edit dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+  
+  // State for delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingQuote, setDeletingQuote] = useState<Quote | null>(null);
 
   // Fetch quotes from Supabase
   const fetchQuotes = async () => {
@@ -265,6 +295,67 @@ const QuotesTable = () => {
       title: "Presupuesto aceptado",
       description: "El presupuesto ha sido marcado como aceptado correctamente.",
     });
+  };
+
+  // Handle view details
+  const handleViewDetails = (quote: Quote) => {
+    setViewingQuote(quote);
+    setViewDetailsOpen(true);
+  };
+
+  // Handle edit complete
+  const handleEditComplete = (quote: Quote) => {
+    setEditingQuote(quote);
+    setEditDialogOpen(true);
+  };
+
+  // Handle delete quote
+  const handleDeleteQuote = (quote: Quote) => {
+    setDeletingQuote(quote);
+    setDeleteDialogOpen(true);
+  };
+
+  // Confirm delete
+  const confirmDelete = async () => {
+    if (!deletingQuote) return;
+
+    try {
+      const { error } = await supabase
+        .from("presupuestos")
+        .delete()
+        .eq("id", deletingQuote.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Registro eliminado",
+        description: "El presupuesto ha sido eliminado correctamente.",
+      });
+
+      // Refresh quotes list
+      fetchQuotes();
+      setDeleteDialogOpen(false);
+      setDeletingQuote(null);
+    } catch (error) {
+      console.error("Error deleting quote:", error);
+      toast({
+        title: "Error",
+        description: "Hubo un error al eliminar el presupuesto. Por favor, intente nuevamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Format date for display
+  const formatDate = (dateString?: string | null): string => {
+    if (!dateString) return "No establecido";
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return "Fecha inválida";
+    }
   };
 
   // Componente para celda editable
@@ -638,10 +729,20 @@ const QuotesTable = () => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="bg-white">
-                                <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                                <DropdownMenuItem>Editar completo</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleViewDetails(quote)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver detalles
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleEditComplete(quote)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar completo
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600">
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeleteQuote(quote)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
                                   Eliminar
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -670,6 +771,261 @@ const QuotesTable = () => {
           onOpenChange={setAcceptDialogOpen}
           onAcceptComplete={handleAcceptComplete}
         />
+
+        {/* View Details Dialog */}
+        <Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Detalles del Presupuesto</DialogTitle>
+              <DialogDescription>
+                Información completa del presupuesto seleccionado
+              </DialogDescription>
+            </DialogHeader>
+            {viewingQuote && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-medium text-gray-700">Información de la Comunidad</h3>
+                    <dl className="mt-2 space-y-1">
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
+                        <dd>{viewingQuote.communityname}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Dirección:</dt>
+                        <dd>{viewingQuote.buildingaddress}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Comuna:</dt>
+                        <dd>{viewingQuote.comuna}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Región:</dt>
+                        <dd>{viewingQuote.region}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Tipo de edificio:</dt>
+                        <dd>{viewingQuote.buildingtype}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Unidades:</dt>
+                        <dd>{viewingQuote.units}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium text-gray-700">Información del Administrador</h3>
+                    <dl className="mt-2 space-y-1">
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
+                        <dd>{viewingQuote.adminname}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Email:</dt>
+                        <dd>{viewingQuote.adminemail}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Empresa administradora:</dt>
+                        <dd>{viewingQuote.managementcompany || 'No especificado'}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium text-gray-700">Información del Presupuesto</h3>
+                  <dl className="mt-2 space-y-1">
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Monto total:</dt>
+                      <dd>{viewingQuote.monto ? viewingQuote.monto.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Monto por unidad:</dt>
+                      <dd>{viewingQuote.por_unidad ? viewingQuote.por_unidad.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Valor inversión:</dt>
+                      <dd>{viewingQuote.inversion ? viewingQuote.inversion.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Estado:</dt>
+                      <dd>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          viewingQuote.presupuesto_aceptado 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-blue-100 text-blue-800"
+                        }`}>
+                          {viewingQuote.presupuesto_aceptado ? "Aceptado" : "Enviado"}
+                        </span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-gray-500">Fecha de creación:</dt>
+                      <dd>{formatDate(viewingQuote.created_at)}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Complete Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Editar Presupuesto Completo</DialogTitle>
+              <DialogDescription>
+                Edite todos los campos del presupuesto seleccionado
+              </DialogDescription>
+            </DialogHeader>
+            {editingQuote && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Nombre de la comunidad</label>
+                    <Input 
+                      value={editingQuote.communityname || ""} 
+                      onChange={(e) => setEditingQuote({...editingQuote, communityname: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Dirección</label>
+                    <Input 
+                      value={editingQuote.buildingaddress || ""} 
+                      onChange={(e) => setEditingQuote({...editingQuote, buildingaddress: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Comuna</label>
+                    <Input 
+                      value={editingQuote.comuna || ""} 
+                      onChange={(e) => setEditingQuote({...editingQuote, comuna: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Región</label>
+                    <Input 
+                      value={editingQuote.region || ""} 
+                      onChange={(e) => setEditingQuote({...editingQuote, region: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Tipo de edificio</label>
+                    <select
+                      className="w-full rounded-md border border-input px-3 py-2 text-sm"
+                      value={editingQuote.buildingtype || ""}
+                      onChange={(e) => setEditingQuote({...editingQuote, buildingtype: e.target.value})}
+                    >
+                      <option value="Edificio">Edificio</option>
+                      <option value="Escolar">Escolar</option>
+                      <option value="Industrial">Industrial</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Unidades</label>
+                    <Input 
+                      type="number"
+                      value={editingQuote.units || ""} 
+                      onChange={(e) => setEditingQuote({...editingQuote, units: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Nombre del administrador</label>
+                    <Input 
+                      value={editingQuote.adminname || ""} 
+                      onChange={(e) => setEditingQuote({...editingQuote, adminname: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Email del administrador</label>
+                    <Input 
+                      type="email"
+                      value={editingQuote.adminemail || ""} 
+                      onChange={(e) => setEditingQuote({...editingQuote, adminemail: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setEditDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={async () => {
+                  if (!editingQuote) return;
+                  
+                  try {
+                    const { error } = await supabase
+                      .from("presupuestos")
+                      .update({
+                        communityname: editingQuote.communityname,
+                        buildingaddress: editingQuote.buildingaddress,
+                        comuna: editingQuote.comuna,
+                        region: editingQuote.region,
+                        buildingtype: editingQuote.buildingtype,
+                        units: editingQuote.units,
+                        adminname: editingQuote.adminname,
+                        adminemail: editingQuote.adminemail,
+                      })
+                      .eq("id", editingQuote.id);
+
+                    if (error) throw error;
+
+                    toast({
+                      title: "Presupuesto actualizado",
+                      description: "Los datos del presupuesto han sido actualizados correctamente.",
+                    });
+
+                    fetchQuotes();
+                    setEditDialogOpen(false);
+                    setEditingQuote(null);
+                  } catch (error) {
+                    console.error("Error updating quote:", error);
+                    toast({
+                      title: "Error",
+                      description: "Hubo un error al actualizar el presupuesto.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              >
+                Guardar cambios
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. El presupuesto será eliminado permanentemente de la base de datos.
+                {deletingQuote && (
+                  <div className="mt-2 p-2 bg-gray-50 rounded">
+                    <strong>Presupuesto:</strong> {deletingQuote.communityname}
+                  </div>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDelete}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
