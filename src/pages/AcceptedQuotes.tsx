@@ -1,7 +1,6 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, CheckCircle } from "lucide-react";
+import { CalendarIcon, CheckCircle, ExternalLink } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -385,8 +384,8 @@ const AcceptedQuotes = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Comunidad</TableHead>
-                      <TableHead>Representante Legal</TableHead>
+                      <TableHead>Dirección</TableHead>
+                      <TableHead>Fecha instalación de equipos</TableHead>
                       <TableHead>Fecha Aprobación</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Acción</TableHead>
@@ -397,9 +396,9 @@ const AcceptedQuotes = () => {
                       return (
                         <TableRow key={quote.id}>
                           <TableCell className="font-medium">
-                            {quote.communityname}
+                            {quote.buildingaddress || quote.communityname}
                           </TableCell>
-                          <TableCell>{quote.legalrepresentativerut || 'No especificado'}</TableCell>
+                          <TableCell>{formatDate(quote.fecha_instalacion_equipos)}</TableCell>
                           <TableCell>{formatDate(quote.fecha_aprobacion_presupuesto)}</TableCell>
                           <TableCell>
                             <span className={cn(
@@ -528,17 +527,22 @@ const AcceptedQuotes = () => {
                                 <dt className="text-sm font-medium text-gray-500">Estado Equipos:</dt>
                                 <dd>{getEquipmentStatusText(selectedQuote.equipos_instalados)}</dd>
                               </div>
+                              <div>
+                                <dt className="text-sm font-medium text-gray-500">Documentos:</dt>
+                                <dd>
+                                  <a 
+                                    href="https://drive.google.com/file/d/1mvjvKucoS22aKcRtoXwhExcynTbFxvTs2oG1QDPeyGA/view"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center text-blue-600 hover:text-blue-800 underline"
+                                  >
+                                    Ver documento en Google Drive
+                                    <ExternalLink className="ml-1 h-4 w-4" />
+                                  </a>
+                                </dd>
+                              </div>
                             </dl>
                           </div>
-                          
-                          {selectedQuote.terminos_contrato && (
-                            <div>
-                              <h3 className="font-medium text-gray-700">Términos del Contrato</h3>
-                              <div className="mt-2 p-3 bg-gray-50 rounded-md border">
-                                <p className="whitespace-pre-wrap">{selectedQuote.terminos_contrato}</p>
-                              </div>
-                            </div>
-                          )}
                           
                           <div className="border-t pt-6">
                             <h3 className="font-medium text-gray-700 mb-4">Actualizar Información</h3>
