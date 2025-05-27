@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { AcceptedQuote, Quote, loadAcceptedQuotes, loadQuotes, updateQuote } from "@/utils/quoteStorage";
+import { Quote } from "@/utils/quoteStorage";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Button } from "@/components/ui/button";
 import { 
@@ -48,6 +48,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Schema for form updates
 const quoteUpdateSchema = z.object({
@@ -78,17 +79,24 @@ const QuoteUpdateForm = ({
     }
   });
   
-  const onSubmit = (data: QuoteUpdateFormValues) => {
+  const onSubmit = async (data: QuoteUpdateFormValues) => {
     setIsSubmitting(true);
     
     try {
-      // Update the quote with the additional information
-      updateQuote(quoteId, {
-        fecha_firma_contrato: data.contractSignDate?.toISOString(),
-        fecha_instalacion_equipos: data.equipmentInstallDate?.toISOString(),
-        terminos_contrato: data.contractTerms,
-        equipos_instalados: data.equipmentStatus
-      });
+      // Update the quote with the additional information in Supabase
+      const { error } = await supabase
+        .from("presupuestos")
+        .update({
+          fecha_firma_contrato: data.contractSignDate?.toISOString().split('T')[0],
+          fecha_instalacion_equipos: data.equipmentInstallDate?.toISOString().split('T')[0],
+          terminos_contrato: data.contractTerms,
+          equipos_instalados: data.equipmentStatus
+        })
+        .eq("id", quoteId);
+      
+      if (error) {
+        throw error;
+      }
       
       toast({
         title: "Actualización exitosa",
@@ -250,27 +258,74 @@ const QuoteUpdateForm = ({
 // Main page component
 const AcceptedQuotes = () => {
   const { toast } = useToast();
-  const [acceptedQuotes, setAcceptedQuotes] = useState<AcceptedQuote[]>([]);
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [acceptedQuotes, setAcceptedQuotes] = useState<Quote[]>([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Define the refreshData function before using it
-  const refreshData = () => {
-    const loadedAcceptedQuotes = loadAcceptedQuotes();
-    const loadedQuotes = loadQuotes();
-    setAcceptedQuotes(loadedAcceptedQuotes);
-    setQuotes(loadedQuotes);
+  // Fetch accepted quotes from Supabase
+  const fetchAcceptedQuotes = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("presupuestos")
+        .select("*")
+        .eq("presupuesto_aceptado", true);
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Process quotes and add calculated fields if necessary
+        const processedQuotes: Quote[] = data.map(quote => {
+          // Calculate default values if not provided in the database
+          const monto = quote.monto || quote.units * 50000;
+          const por_unidad = quote.por_unidad || 50000;
+          const inversion = quote.inversion || Math.round(monto * 0.8);
+          
+          // Safely parse additional_at field
+          let additional_at: Array<{ name: string; email: string }> = [];
+          if (quote.additional_at) {
+            try {
+              if (typeof quote.additional_at === 'string') {
+                additional_at = JSON.parse(quote.additional_at);
+              } else if (Array.isArray(quote.additional_at)) {
+                additional_at = quote.additional_at as Array<{ name: string; email: string }>;
+              }
+            } catch (e) {
+              console.error("Error parsing additional_at:", e);
+              additional_at = [];
+            }
+          }
+          
+          return {
+            ...quote,
+            additional_at,
+            monto,
+            por_unidad, 
+            inversion,
+            status: "Aceptado" as "Enviado" | "Aceptado"
+          };
+        });
+        
+        setAcceptedQuotes(processedQuotes);
+      }
+    } catch (error) {
+      console.error("Error fetching accepted quotes:", error);
+      toast({
+        title: "Error",
+        description: "Hubo un error al cargar los presupuestos aceptados. Por favor, intente nuevamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
-  // Use useEffect instead of useState for initialization
+  // Load quotes on initial render
   useEffect(() => {
-    refreshData();
+    fetchAcceptedQuotes();
   }, []);
-  
-  // Find the quote data for an accepted quote
-  const findQuoteData = (acceptedQuoteId: string): Quote | undefined => {
-    return quotes.find(quote => quote.id === acceptedQuoteId);
-  };
   
   // Get equipment status display text
   const getEquipmentStatusText = (status?: string | null): string => {
@@ -306,7 +361,16 @@ const AcceptedQuotes = () => {
         <div className="max-w-6xl mx-auto">
           <h1 className="text-2xl font-bold text-gray-800 mb-6">Presupuestos Aceptados</h1>
           
-          {acceptedQuotes.length === 0 ? (
+          {isLoading ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Cargando...</CardTitle>
+                <CardDescription>
+                  Obteniendo los presupuestos aceptados...
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : acceptedQuotes.length === 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle>No hay presupuestos aceptados</CardTitle>
@@ -329,36 +393,33 @@ const AcceptedQuotes = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {acceptedQuotes.map((acceptedQuote) => {
-                      const quoteData = findQuoteData(acceptedQuote.quoteId);
-                      if (!quoteData) return null;
-                      
+                    {acceptedQuotes.map((quote) => {
                       return (
-                        <TableRow key={acceptedQuote.quoteId}>
+                        <TableRow key={quote.id}>
                           <TableCell className="font-medium">
-                            {quoteData.communityname}
+                            {quote.communityname}
                           </TableCell>
-                          <TableCell>{acceptedQuote.legalRepresentativeRut}</TableCell>
-                          <TableCell>{formatDate(acceptedQuote.acceptedAt)}</TableCell>
+                          <TableCell>{quote.legalrepresentativerut || 'No especificado'}</TableCell>
+                          <TableCell>{formatDate(quote.fecha_aprobacion_presupuesto)}</TableCell>
                           <TableCell>
                             <span className={cn(
                               "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                              quoteData.equipos_instalados === "completed" ? "bg-green-100 text-green-800" :
-                              quoteData.equipos_instalados === "installed" ? "bg-blue-100 text-blue-800" :
-                              quoteData.equipos_instalados === "contract_signed" ? "bg-yellow-100 text-yellow-800" :
+                              quote.equipos_instalados === "completed" ? "bg-green-100 text-green-800" :
+                              quote.equipos_instalados === "installed" ? "bg-blue-100 text-blue-800" :
+                              quote.equipos_instalados === "contract_signed" ? "bg-yellow-100 text-yellow-800" :
                               "bg-gray-100 text-gray-800"
                             )}>
-                              {quoteData.equipos_instalados === "completed" && <CheckCircle className="mr-1 h-3 w-3" />}
-                              {getEquipmentStatusText(quoteData.equipos_instalados)}
+                              {quote.equipos_instalados === "completed" && <CheckCircle className="mr-1 h-3 w-3" />}
+                              {getEquipmentStatusText(quote.equipos_instalados)}
                             </span>
                           </TableCell>
                           <TableCell>
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => setSelectedQuoteId(acceptedQuote.quoteId === selectedQuoteId ? null : acceptedQuote.quoteId)}
+                              onClick={() => setSelectedQuoteId(quote.id === selectedQuoteId ? null : quote.id)}
                             >
-                              {acceptedQuote.quoteId === selectedQuoteId ? "Cerrar" : "Ver Detalles"}
+                              {quote.id === selectedQuoteId ? "Cerrar" : "Ver Detalles"}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -378,10 +439,9 @@ const AcceptedQuotes = () => {
                   </CardHeader>
                   <CardContent>
                     {(() => {
-                      const acceptedQuote = acceptedQuotes.find(q => q.quoteId === selectedQuoteId);
-                      const quoteData = findQuoteData(selectedQuoteId);
+                      const selectedQuote = acceptedQuotes.find(q => q.id === selectedQuoteId);
                       
-                      if (!acceptedQuote || !quoteData) {
+                      if (!selectedQuote) {
                         return <p>No se encontró la información del presupuesto.</p>;
                       }
                       
@@ -393,27 +453,27 @@ const AcceptedQuotes = () => {
                               <dl className="mt-2 space-y-1">
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
-                                  <dd>{quoteData.communityname}</dd>
+                                  <dd>{selectedQuote.communityname}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Dirección:</dt>
-                                  <dd>{quoteData.buildingaddress}</dd>
+                                  <dd>{selectedQuote.buildingaddress}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Comuna:</dt>
-                                  <dd>{quoteData.comuna}</dd>
+                                  <dd>{selectedQuote.comuna}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">RUT Comunidad:</dt>
-                                  <dd>{acceptedQuote.communityRut}</dd>
+                                  <dd>{selectedQuote.communityrut || 'No especificado'}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Email:</dt>
-                                  <dd>{acceptedQuote.communityEmail}</dd>
+                                  <dd>{selectedQuote.communityemail || selectedQuote.adminemail}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Fecha Constitución:</dt>
-                                  <dd>{formatDate(acceptedQuote.communityFormationDate)}</dd>
+                                  <dd>{formatDate(selectedQuote.communityformationdate)}</dd>
                                 </div>
                               </dl>
                             </div>
@@ -423,15 +483,15 @@ const AcceptedQuotes = () => {
                               <dl className="mt-2 space-y-1">
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
-                                  <dd>{quoteData.legalrepresentative || 'No especificado'}</dd>
+                                  <dd>{selectedQuote.legalrepresentative || 'No especificado'}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">RUT:</dt>
-                                  <dd>{acceptedQuote.legalRepresentativeRut}</dd>
+                                  <dd>{selectedQuote.legalrepresentativerut || 'No especificado'}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Teléfono:</dt>
-                                  <dd>{acceptedQuote.legalRepresentativePhone}</dd>
+                                  <dd>{selectedQuote.legalrepresentativephone || 'No especificado'}</dd>
                                 </div>
                               </dl>
                             </div>
@@ -442,47 +502,47 @@ const AcceptedQuotes = () => {
                             <dl className="mt-2 space-y-1">
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Monto:</dt>
-                                <dd>{quoteData.monto ? quoteData.monto.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
+                                <dd>{selectedQuote.monto ? selectedQuote.monto.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Monto por Unidad:</dt>
-                                <dd>{quoteData.por_unidad ? quoteData.por_unidad.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
+                                <dd>{selectedQuote.por_unidad ? selectedQuote.por_unidad.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Valor Inversión:</dt>
-                                <dd>{quoteData.inversion ? quoteData.inversion.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
+                                <dd>{selectedQuote.inversion ? selectedQuote.inversion.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Fecha Aprobación:</dt>
-                                <dd>{formatDate(acceptedQuote.acceptedAt)}</dd>
+                                <dd>{formatDate(selectedQuote.fecha_aprobacion_presupuesto)}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Firma Contrato:</dt>
-                                <dd>{formatDate(quoteData.fecha_firma_contrato)}</dd>
+                                <dd>{formatDate(selectedQuote.fecha_firma_contrato)}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Instalación Equipos:</dt>
-                                <dd>{formatDate(quoteData.fecha_instalacion_equipos)}</dd>
+                                <dd>{formatDate(selectedQuote.fecha_instalacion_equipos)}</dd>
                               </div>
                               <div>
                                 <dt className="text-sm font-medium text-gray-500">Estado Equipos:</dt>
-                                <dd>{getEquipmentStatusText(quoteData.equipos_instalados)}</dd>
+                                <dd>{getEquipmentStatusText(selectedQuote.equipos_instalados)}</dd>
                               </div>
                             </dl>
                           </div>
                           
-                          {quoteData.terminos_contrato && (
+                          {selectedQuote.terminos_contrato && (
                             <div>
                               <h3 className="font-medium text-gray-700">Términos del Contrato</h3>
                               <div className="mt-2 p-3 bg-gray-50 rounded-md border">
-                                <p className="whitespace-pre-wrap">{quoteData.terminos_contrato}</p>
+                                <p className="whitespace-pre-wrap">{selectedQuote.terminos_contrato}</p>
                               </div>
                             </div>
                           )}
                           
                           <div className="border-t pt-6">
                             <h3 className="font-medium text-gray-700 mb-4">Actualizar Información</h3>
-                            <QuoteUpdateForm quoteId={selectedQuoteId} onUpdate={refreshData} />
+                            <QuoteUpdateForm quoteId={selectedQuoteId} onUpdate={fetchAcceptedQuotes} />
                           </div>
                         </div>
                       );
