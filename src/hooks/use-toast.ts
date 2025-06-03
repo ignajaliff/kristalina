@@ -169,6 +169,16 @@ function toast({ ...props }: Toast) {
 }
 
 function useToast() {
+  // Ensure React is available before using hooks
+  if (!React || !React.useState) {
+    console.error('React is not available in the current context')
+    return {
+      toasts: [],
+      toast,
+      dismiss: () => {},
+    }
+  }
+
   const [state, setState] = React.useState<State>(memoryState)
 
   React.useEffect(() => {
