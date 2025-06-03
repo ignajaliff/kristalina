@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       gestion: {
         Row: {
+          buildingaddress: string
           buildingtype: string
           created_at: string
           estadopago: string
@@ -21,6 +22,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          buildingaddress?: string
           buildingtype: string
           created_at?: string
           estadopago?: string
@@ -31,6 +33,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          buildingaddress?: string
           buildingtype?: string
           created_at?: string
           estadopago?: string

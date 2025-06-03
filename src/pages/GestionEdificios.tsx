@@ -9,16 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import AddGestionDialog from "@/components/AddGestionDialog";
 import EditGestionDialog from "@/components/EditGestionDialog";
+import { useToast } from "@/components/ui/use-toast";
 
 interface GestionItem {
   id: string;
   legalrepresentative: string;
   buildingtype: string;
+  buildingaddress: string;
   mesrenting: number;
   fechapago: string;
   estadopago: string;
@@ -32,6 +34,7 @@ const GestionEdificios = () => {
   const [monthFilter, setMonthFilter] = useState<string>(new Date().getMonth().toString());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<GestionItem | null>(null);
+  const { toast } = useToast();
 
   const { data: gestionItems, isLoading, refetch } = useQuery({
     queryKey: ['gestion', monthFilter, statusFilter],
@@ -69,6 +72,42 @@ const GestionEdificios = () => {
     },
   });
 
+  const handleConfirmPayment = async (itemId: string) => {
+    try {
+      const { error } = await supabase
+        .from('gestion')
+        .update({ 
+          estadopago: 'Pago confirmado',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', itemId);
+
+      if (error) {
+        console.error('Error confirming payment:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo confirmar el pago. Intenta nuevamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Pago confirmado",
+        description: "El estado del pago ha sido actualizado exitosamente.",
+      });
+
+      refetch();
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      toast({
+        title: "Error",
+        description: "Ocurrió un error inesperado.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Pago confirmado':
@@ -100,7 +139,8 @@ const GestionEdificios = () => {
 
   const filteredItems = gestionItems?.filter(item =>
     item.legalrepresentative.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.buildingtype.toLowerCase().includes(searchTerm.toLowerCase())
+    item.buildingtype.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.buildingaddress.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
   return (
@@ -136,7 +176,7 @@ const GestionEdificios = () => {
                   <div className="relative">
                     <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
-                      placeholder="Buscar por representante legal o tipo de edificio..."
+                      placeholder="Buscar por representante legal, tipo de edificio o dirección..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
@@ -187,22 +227,23 @@ const GestionEdificios = () => {
                   <TableRow>
                     <TableHead>Representante Legal</TableHead>
                     <TableHead>Tipo de Edificio</TableHead>
+                    <TableHead>Dirección del Edificio</TableHead>
                     <TableHead>Mes Renting</TableHead>
                     <TableHead>Fecha de Pago</TableHead>
                     <TableHead>Estado del Pago</TableHead>
-                    <TableHead>Acciones</TableHead>
+                    <TableHead>Confirmar Pago</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
+                      <TableCell colSpan={7} className="text-center py-8">
                         Cargando...
                       </TableCell>
                     </TableRow>
                   ) : filteredItems.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                      <TableCell colSpan={7} className="text-center py-8 text-slate-500">
                         No se encontraron edificios
                       </TableCell>
                     </TableRow>
@@ -213,6 +254,7 @@ const GestionEdificios = () => {
                           {item.legalrepresentative}
                         </TableCell>
                         <TableCell>{item.buildingtype}</TableCell>
+                        <TableCell>{item.buildingaddress}</TableCell>
                         <TableCell>{item.mesrenting}</TableCell>
                         <TableCell>
                           {format(new Date(item.fechapago), "dd 'de' MMMM, yyyy", { locale: es })}
@@ -222,11 +264,14 @@ const GestionEdificios = () => {
                         </TableCell>
                         <TableCell>
                           <Button
-                            variant="ghost"
+                            variant="success"
                             size="sm"
-                            onClick={() => setEditingItem(item)}
+                            onClick={() => handleConfirmPayment(item.id)}
+                            disabled={item.estadopago !== 'En fecha/No pagado'}
+                            className="gap-2"
                           >
-                            Editar
+                            <CheckCircle className="h-4 w-4" />
+                            Confirmar Pago
                           </Button>
                         </TableCell>
                       </TableRow>
