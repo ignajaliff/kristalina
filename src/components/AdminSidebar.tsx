@@ -8,7 +8,8 @@ import {
   FileText, 
   CheckSquare,
   Droplet,
-  CheckCircle
+  CheckCircle,
+  Building2
 } from "lucide-react";
 
 const AdminSidebar = () => {
@@ -68,6 +69,21 @@ const AdminSidebar = () => {
               >
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 Presupuestos Aceptados
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-wider text-slate-400 mb-2 pl-3">Área de Gestión</p>
+          <ul className="space-y-1">
+            <li>
+              <Link 
+                to="/admin/gestion" 
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors text-slate-700 font-medium"
+              >
+                <Building2 className="h-4 w-4 text-purple-600" />
+                Gestión Edificios
               </Link>
             </li>
           </ul>
