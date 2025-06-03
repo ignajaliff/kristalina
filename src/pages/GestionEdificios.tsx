@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import AddGestionDialog from "@/components/AddGestionDialog";
 import EditGestionDialog from "@/components/EditGestionDialog";
@@ -118,6 +117,18 @@ const GestionEdificios = () => {
         return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">No en fecha</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  // Function to properly format date avoiding timezone issues
+  const formatPaymentDate = (dateString: string) => {
+    try {
+      // Parse the date string and format it properly to avoid timezone shifts
+      const date = parseISO(dateString + 'T00:00:00');
+      return format(date, "dd 'de' MMMM, yyyy", { locale: es });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateString;
     }
   };
 
@@ -257,7 +268,7 @@ const GestionEdificios = () => {
                         <TableCell>{item.buildingaddress}</TableCell>
                         <TableCell>{item.mesrenting}</TableCell>
                         <TableCell>
-                          {format(new Date(item.fechapago), "dd 'de' MMMM, yyyy", { locale: es })}
+                          {formatPaymentDate(item.fechapago)}
                         </TableCell>
                         <TableCell>
                           {getStatusBadge(item.estadopago)}
