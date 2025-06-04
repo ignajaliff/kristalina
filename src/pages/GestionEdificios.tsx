@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle } from "lucide-react";
+import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle, Building2, TrendingUp, Users, DollarSign } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import AddGestionDialog from "@/components/AddGestionDialog";
@@ -154,6 +155,12 @@ const GestionEdificios = () => {
     item.buildingaddress.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
+  // Calculate stats
+  const totalEdificios = filteredItems.length;
+  const pagosConfirmados = filteredItems.filter(item => item.estadopago === 'Pago confirmado').length;
+  const pendientesPago = filteredItems.filter(item => item.estadopago === 'En fecha/No pagado').length;
+  const fueraDeFecha = filteredItems.filter(item => item.estadopago === 'No en fecha').length;
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <AdminSidebar />
@@ -170,17 +177,92 @@ const GestionEdificios = () => {
               </p>
             </div>
             
-            <Button
-              onClick={() => setIsAddDialogOpen(true)}
-              className="gap-2"
-            >
-              <PlusIcon className="h-4 w-4" />
-              Agregar Edificio
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="outline" className="text-slate-700 h-9 gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                <span className="text-xs">Mes actual</span>
+              </Button>
+              
+              <Button size="sm" variant="outline" className="text-slate-700 h-9 gap-2">
+                <FilterIcon className="h-4 w-4" />
+                <span className="text-xs">Filtros</span>
+              </Button>
+              
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Agregar Edificio
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            <Card className="border-0 shadow overflow-hidden stat-card-gradient-3">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-medium opacity-90">Total Edificios</p>
+                    <p className="text-2xl font-bold mt-1">{totalEdificios}</p>
+                    <p className="text-sm mt-2 opacity-80">En gestión</p>
+                  </div>
+                  <div className="rounded-full p-2 bg-white/20">
+                    <Building2 className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow overflow-hidden stat-card-gradient-2">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-medium opacity-90">Pagos Confirmados</p>
+                    <p className="text-2xl font-bold mt-1">{pagosConfirmados}</p>
+                    <p className="text-sm mt-2 opacity-80">Este período</p>
+                  </div>
+                  <div className="rounded-full p-2 bg-white/20">
+                    <CheckCircle className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow overflow-hidden stat-card-gradient-4">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-medium opacity-90">Pendientes Pago</p>
+                    <p className="text-2xl font-bold mt-1">{pendientesPago}</p>
+                    <p className="text-sm mt-2 opacity-80">En fecha</p>
+                  </div>
+                  <div className="rounded-full p-2 bg-white/20">
+                    <Users className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow overflow-hidden stat-card-gradient-1">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-medium opacity-90">Fuera de Fecha</p>
+                    <p className="text-2xl font-bold mt-1">{fueraDeFecha}</p>
+                    <p className="text-sm mt-2 opacity-80">Requieren atención</p>
+                  </div>
+                  <div className="rounded-full p-2 bg-white/20">
+                    <TrendingUp className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Filters */}
-          <Card className="mb-6">
+          <Card className="mb-6 border-0 shadow-sm">
             <CardContent className="p-4">
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1">
@@ -226,9 +308,9 @@ const GestionEdificios = () => {
           </Card>
 
           {/* Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-medium">
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="border-b p-5">
+              <CardTitle className="text-base font-medium text-slate-800">
                 Lista de Edificios ({filteredItems.length})
               </CardTitle>
             </CardHeader>
@@ -242,7 +324,7 @@ const GestionEdificios = () => {
                     <TableHead>Mes Renting</TableHead>
                     <TableHead>Fecha de Pago</TableHead>
                     <TableHead>Estado del Pago</TableHead>
-                    <TableHead>Confirmar Pago</TableHead>
+                    <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -260,7 +342,7 @@ const GestionEdificios = () => {
                     </TableRow>
                   ) : (
                     filteredItems.map((item) => (
-                      <TableRow key={item.id}>
+                      <TableRow key={item.id} className="hover:bg-slate-50">
                         <TableCell className="font-medium">
                           {item.legalrepresentative}
                         </TableCell>
@@ -292,6 +374,24 @@ const GestionEdificios = () => {
               </Table>
             </CardContent>
           </Card>
+
+          {/* Promotional Card */}
+          <div className="mt-6 mb-8">
+            <Card className="border-0 shadow-md bg-gradient-to-r from-purple-600 to-purple-700 text-white overflow-hidden">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Optimiza tu Gestión</h3>
+                  <p className="text-purple-100 mb-4 text-sm">Automatiza los recordatorios de pago y mejora tu flujo de caja</p>
+                  <Button size="sm" className="bg-white text-purple-600 hover:bg-purple-50 px-4 text-xs">
+                    Ver funciones avanzadas
+                  </Button>
+                </div>
+                <div className="hidden md:block">
+                  <Building2 className="h-20 w-20 text-purple-300 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
 
