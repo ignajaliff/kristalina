@@ -85,7 +85,8 @@ const QuoteUpdateForm = ({
         fecha_instalacion_equipos: quoteData.fecha_instalacion_equipos,
         communityemail: quoteData.communityemail,
         buildingaddress: quoteData.buildingaddress,
-        legalrepresentative: quoteData.legalrepresentative
+        legalrepresentative: quoteData.legalrepresentative,
+        buildingtype: quoteData.buildingtype // Added buildingtype to webhook data
       };
 
       console.log('Enviando datos al webhook:', webhookData);
