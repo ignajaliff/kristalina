@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { Quote } from "@/utils/quoteStorage";
 import AdminSidebar from "@/components/AdminSidebar";
+import AcceptedQuotesHeader from "@/components/AcceptedQuotesHeader";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -391,205 +392,209 @@ const AcceptedQuotes = () => {
     <div className="flex h-screen bg-gray-50">
       <AdminSidebar />
       
-      <div className="flex-1 p-8 overflow-auto">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800 mb-6">Presupuestos Aceptados</h1>
-          
-          {isLoading ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Cargando...</CardTitle>
-                <CardDescription>
-                  Obteniendo los presupuestos aceptados...
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : acceptedQuotes.length === 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>No hay presupuestos aceptados</CardTitle>
-                <CardDescription>
-                  Los presupuestos aceptados aparecerán aquí.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : (
-            <>
-              <div className="mb-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Dirección</TableHead>
-                      <TableHead>Fecha instalación de equipos</TableHead>
-                      <TableHead>Fecha Aprobación</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {acceptedQuotes.map((quote) => {
-                      return (
-                        <TableRow key={quote.id}>
-                          <TableCell className="font-medium">
-                            {quote.buildingaddress || quote.communityname}
-                          </TableCell>
-                          <TableCell>{formatDate(quote.fecha_instalacion_equipos)}</TableCell>
-                          <TableCell>{formatDate(quote.fecha_aprobacion_presupuesto)}</TableCell>
-                          <TableCell>
-                            <span className={cn(
-                              "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                              quote.equipos_instalados === "completed" ? "bg-green-100 text-green-800" :
-                              quote.equipos_instalados === "contract_signed" ? "bg-yellow-100 text-yellow-800" :
-                              "bg-gray-100 text-gray-800"
-                            )}>
-                              {quote.equipos_instalados === "completed" && <CheckCircle className="mr-1 h-3 w-3" />}
-                              {getEquipmentStatusText(quote.equipos_instalados)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setSelectedQuoteId(quote.id === selectedQuoteId ? null : quote.id)}
-                            >
-                              {quote.id === selectedQuoteId ? "Cerrar" : "Ver Detalles"}
-                            </Button>
-                          </TableCell>
+      <div className="flex-1 flex flex-col">
+        <AcceptedQuotesHeader />
+        
+        <div className="flex-1 p-8 overflow-auto">
+          <div className="max-w-6xl mx-auto">
+            {isLoading ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cargando...</CardTitle>
+                  <CardDescription>
+                    Obteniendo los presupuestos aceptados...
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ) : acceptedQuotes.length === 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>No hay presupuestos aceptados</CardTitle>
+                  <CardDescription>
+                    Los presupuestos aceptados aparecerán aquí.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              <>
+                <Card className="mb-6">
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Dirección</TableHead>
+                          <TableHead>Fecha instalación de equipos</TableHead>
+                          <TableHead>Fecha Aprobación</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>Acción</TableHead>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-              
-              {selectedQuoteId && (
-                <Card className="mt-6">
-                  <CardHeader>
-                    <CardTitle>Detalles del Presupuesto</CardTitle>
-                    <CardDescription>
-                      Actualizar información adicional del presupuesto aceptado
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {(() => {
-                      const selectedQuote = acceptedQuotes.find(q => q.id === selectedQuoteId);
-                      
-                      if (!selectedQuote) {
-                        return <p>No se encontró la información del presupuesto.</p>;
-                      }
-                      
-                      return (
-                        <div className="space-y-6">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      </TableHeader>
+                      <TableBody>
+                        {acceptedQuotes.map((quote) => {
+                          return (
+                            <TableRow key={quote.id}>
+                              <TableCell className="font-medium">
+                                {quote.buildingaddress || quote.communityname}
+                              </TableCell>
+                              <TableCell>{formatDate(quote.fecha_instalacion_equipos)}</TableCell>
+                              <TableCell>{formatDate(quote.fecha_aprobacion_presupuesto)}</TableCell>
+                              <TableCell>
+                                <span className={cn(
+                                  "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
+                                  quote.equipos_instalados === "completed" ? "bg-green-100 text-green-800" :
+                                  quote.equipos_instalados === "contract_signed" ? "bg-yellow-100 text-yellow-800" :
+                                  "bg-gray-100 text-gray-800"
+                                )}>
+                                  {quote.equipos_instalados === "completed" && <CheckCircle className="mr-1 h-3 w-3" />}
+                                  {getEquipmentStatusText(quote.equipos_instalados)}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setSelectedQuoteId(quote.id === selectedQuoteId ? null : quote.id)}
+                                >
+                                  {quote.id === selectedQuoteId ? "Cerrar" : "Ver Detalles"}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+                
+                {selectedQuoteId && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Detalles del Presupuesto</CardTitle>
+                      <CardDescription>
+                        Actualizar información adicional del presupuesto aceptado
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {(() => {
+                        const selectedQuote = acceptedQuotes.find(q => q.id === selectedQuoteId);
+                        
+                        if (!selectedQuote) {
+                          return <p>No se encontró la información del presupuesto.</p>;
+                        }
+                        
+                        return (
+                          <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <h3 className="font-medium text-gray-700">Información de la Comunidad</h3>
+                                <dl className="mt-2 space-y-1">
+                                  <div>
+                                    <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
+                                    <dd>{selectedQuote.communityname}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-sm font-medium text-gray-500">Dirección:</dt>
+                                    <dd>{selectedQuote.buildingaddress}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-sm font-medium text-gray-500">Comuna:</dt>
+                                    <dd>{selectedQuote.comuna}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-sm font-medium text-gray-500">RUT Comunidad:</dt>
+                                    <dd>{selectedQuote.communityrut || 'No especificado'}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-sm font-medium text-gray-500">Email:</dt>
+                                    <dd>{selectedQuote.communityemail || selectedQuote.adminemail}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-sm font-medium text-gray-500">Fecha Constitución:</dt>
+                                    <dd>{formatDate(selectedQuote.communityformationdate)}</dd>
+                                  </div>
+                                </dl>
+                              </div>
+                              
+                              <div>
+                                <h3 className="font-medium text-gray-700">Información del Representante Legal</h3>
+                                <dl className="mt-2 space-y-1">
+                                  <div>
+                                    <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
+                                    <dd>{selectedQuote.legalrepresentative || 'No especificado'}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-sm font-medium text-gray-500">RUT:</dt>
+                                    <dd>{selectedQuote.legalrepresentativerut || 'No especificado'}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-sm font-medium text-gray-500">Teléfono:</dt>
+                                    <dd>{selectedQuote.legalrepresentativephone || 'No especificado'}</dd>
+                                  </div>
+                                </dl>
+                              </div>
+                            </div>
+                            
                             <div>
-                              <h3 className="font-medium text-gray-700">Información de la Comunidad</h3>
+                              <h3 className="font-medium text-gray-700">Información del Presupuesto</h3>
                               <dl className="mt-2 space-y-1">
                                 <div>
-                                  <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
-                                  <dd>{selectedQuote.communityname}</dd>
+                                  <dt className="text-sm font-medium text-gray-500">Monto:</dt>
+                                  <dd>{selectedQuote.monto ? selectedQuote.monto.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
                                 </div>
                                 <div>
-                                  <dt className="text-sm font-medium text-gray-500">Dirección:</dt>
-                                  <dd>{selectedQuote.buildingaddress}</dd>
+                                  <dt className="text-sm font-medium text-gray-500">Monto por Unidad:</dt>
+                                  <dd>{selectedQuote.por_unidad ? selectedQuote.por_unidad.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
                                 </div>
                                 <div>
-                                  <dt className="text-sm font-medium text-gray-500">Comuna:</dt>
-                                  <dd>{selectedQuote.comuna}</dd>
+                                  <dt className="text-sm font-medium text-gray-500">Valor Inversión:</dt>
+                                  <dd>{selectedQuote.inversion ? selectedQuote.inversion.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
                                 </div>
                                 <div>
-                                  <dt className="text-sm font-medium text-gray-500">RUT Comunidad:</dt>
-                                  <dd>{selectedQuote.communityrut || 'No especificado'}</dd>
+                                  <dt className="text-sm font-medium text-gray-500">Fecha Aprobación:</dt>
+                                  <dd>{formatDate(selectedQuote.fecha_aprobacion_presupuesto)}</dd>
                                 </div>
                                 <div>
-                                  <dt className="text-sm font-medium text-gray-500">Email:</dt>
-                                  <dd>{selectedQuote.communityemail || selectedQuote.adminemail}</dd>
+                                  <dt className="text-sm font-medium text-gray-500">Firma Contrato:</dt>
+                                  <dd>{formatDate(selectedQuote.fecha_firma_contrato)}</dd>
                                 </div>
                                 <div>
-                                  <dt className="text-sm font-medium text-gray-500">Fecha Constitución:</dt>
-                                  <dd>{formatDate(selectedQuote.communityformationdate)}</dd>
+                                  <dt className="text-sm font-medium text-gray-500">Instalación Equipos:</dt>
+                                  <dd>{formatDate(selectedQuote.fecha_instalacion_equipos)}</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-sm font-medium text-gray-500">Estado Equipos:</dt>
+                                  <dd>{getEquipmentStatusText(selectedQuote.equipos_instalados)}</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-sm font-medium text-gray-500">Documentos:</dt>
+                                  <dd>
+                                    <a 
+                                      href="https://drive.google.com/file/d/1mvjvKucoS22aKcRtoXwhExcynTbFxvTs2oG1QDPeyGA/view"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center text-blue-600 hover:text-blue-800 underline"
+                                    >
+                                      Ver documento en Google Drive
+                                      <ExternalLink className="ml-1 h-4 w-4" />
+                                    </a>
+                                  </dd>
                                 </div>
                               </dl>
                             </div>
                             
-                            <div>
-                              <h3 className="font-medium text-gray-700">Información del Representante Legal</h3>
-                              <dl className="mt-2 space-y-1">
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
-                                  <dd>{selectedQuote.legalrepresentative || 'No especificado'}</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">RUT:</dt>
-                                  <dd>{selectedQuote.legalrepresentativerut || 'No especificado'}</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">Teléfono:</dt>
-                                  <dd>{selectedQuote.legalrepresentativephone || 'No especificado'}</dd>
-                                </div>
-                              </dl>
+                            <div className="border-t pt-6">
+                              <h3 className="font-medium text-gray-700 mb-4">Actualizar Información</h3>
+                              <QuoteUpdateForm quoteId={selectedQuoteId} onUpdate={fetchAcceptedQuotes} />
                             </div>
                           </div>
-                          
-                          <div>
-                            <h3 className="font-medium text-gray-700">Información del Presupuesto</h3>
-                            <dl className="mt-2 space-y-1">
-                              <div>
-                                <dt className="text-sm font-medium text-gray-500">Monto:</dt>
-                                <dd>{selectedQuote.monto ? selectedQuote.monto.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
-                              </div>
-                              <div>
-                                <dt className="text-sm font-medium text-gray-500">Monto por Unidad:</dt>
-                                <dd>{selectedQuote.por_unidad ? selectedQuote.por_unidad.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
-                              </div>
-                              <div>
-                                <dt className="text-sm font-medium text-gray-500">Valor Inversión:</dt>
-                                <dd>{selectedQuote.inversion ? selectedQuote.inversion.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' }) : 'No especificado'}</dd>
-                              </div>
-                              <div>
-                                <dt className="text-sm font-medium text-gray-500">Fecha Aprobación:</dt>
-                                <dd>{formatDate(selectedQuote.fecha_aprobacion_presupuesto)}</dd>
-                              </div>
-                              <div>
-                                <dt className="text-sm font-medium text-gray-500">Firma Contrato:</dt>
-                                <dd>{formatDate(selectedQuote.fecha_firma_contrato)}</dd>
-                              </div>
-                              <div>
-                                <dt className="text-sm font-medium text-gray-500">Instalación Equipos:</dt>
-                                <dd>{formatDate(selectedQuote.fecha_instalacion_equipos)}</dd>
-                              </div>
-                              <div>
-                                <dt className="text-sm font-medium text-gray-500">Estado Equipos:</dt>
-                                <dd>{getEquipmentStatusText(selectedQuote.equipos_instalados)}</dd>
-                              </div>
-                              <div>
-                                <dt className="text-sm font-medium text-gray-500">Documentos:</dt>
-                                <dd>
-                                  <a 
-                                    href="https://drive.google.com/file/d/1mvjvKucoS22aKcRtoXwhExcynTbFxvTs2oG1QDPeyGA/view"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center text-blue-600 hover:text-blue-800 underline"
-                                  >
-                                    Ver documento en Google Drive
-                                    <ExternalLink className="ml-1 h-4 w-4" />
-                                  </a>
-                                </dd>
-                              </div>
-                            </dl>
-                          </div>
-                          
-                          <div className="border-t pt-6">
-                            <h3 className="font-medium text-gray-700 mb-4">Actualizar Información</h3>
-                            <QuoteUpdateForm quoteId={selectedQuoteId} onUpdate={fetchAcceptedQuotes} />
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </CardContent>
-                </Card>
-              )}
-            </>
-          )}
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
