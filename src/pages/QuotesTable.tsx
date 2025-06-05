@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Eye, Download, CheckCircle } from "lucide-react";
@@ -33,6 +32,7 @@ const QuotesTable = () => {
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const fetchQuotes = async () => {
     setIsLoading(true);
@@ -96,6 +96,7 @@ const QuotesTable = () => {
 
   const handleAcceptQuote = (quote: Quote) => {
     setSelectedQuote(quote);
+    setIsDialogOpen(true);
   };
 
   const formatDate = (dateString?: string | null): string => {
@@ -261,7 +262,7 @@ const QuotesTable = () => {
                                   </div>
                                   <div>
                                     <dt className="text-sm font-medium text-gray-500">Teléfono:</dt>
-                                    <dd>{selectedQuote.adminphone || 'No especificado'}</dd>
+                                    <dd>{selectedQuote.legalrepresentativephone || 'No especificado'}</dd>
                                   </div>
                                 </dl>
                               </div>
@@ -336,16 +337,16 @@ const QuotesTable = () => {
         </div>
       </div>
 
-      {selectedQuote && (
-        <AcceptQuoteDialog 
-          quote={selectedQuote}
-          onClose={() => setSelectedQuote(null)}
-          onSuccess={() => {
-            setSelectedQuote(null);
-            fetchQuotes();
-          }}
-        />
-      )}
+      <AcceptQuoteDialog 
+        quote={selectedQuote}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onAcceptComplete={() => {
+          setIsDialogOpen(false);
+          setSelectedQuote(null);
+          fetchQuotes();
+        }}
+      />
     </div>
   );
 };
