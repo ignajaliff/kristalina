@@ -18,6 +18,7 @@ interface AddGestionDialogProps {
 interface GestionFormData {
   legalrepresentative: string;
   buildingtype: string;
+  buildingaddress: string;
   mesrenting: number;
   fechapago: string;
   estadopago: string;
@@ -30,6 +31,7 @@ const AddGestionDialog = ({ open, onOpenChange, onSuccess }: AddGestionDialogPro
     defaultValues: {
       legalrepresentative: "",
       buildingtype: "Edificio",
+      buildingaddress: "",
       mesrenting: 1,
       fechapago: "",
       estadopago: "No en fecha"
@@ -45,6 +47,7 @@ const AddGestionDialog = ({ open, onOpenChange, onSuccess }: AddGestionDialogPro
         .insert([{
           legalrepresentative: data.legalrepresentative,
           buildingtype: data.buildingtype,
+          buildingaddress: data.buildingaddress,
           mesrenting: data.mesrenting,
           fechapago: data.fechapago,
           estadopago: data.estadopago
@@ -121,6 +124,20 @@ const AddGestionDialog = ({ open, onOpenChange, onSuccess }: AddGestionDialogPro
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="buildingaddress">Dirección del Edificio</Label>
+            <Input
+              id="buildingaddress"
+              {...register("buildingaddress", { 
+                required: "La dirección del edificio es requerida" 
+              })}
+              placeholder="Dirección del edificio"
+            />
+            {errors.buildingaddress && (
+              <p className="text-sm text-red-500">{errors.buildingaddress.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="mesrenting">Mes de Renting</Label>
             <Input
               id="mesrenting"
@@ -165,7 +182,7 @@ const AddGestionDialog = ({ open, onOpenChange, onSuccess }: AddGestionDialogPro
               <SelectContent>
                 <SelectItem value="No en fecha">No en fecha</SelectItem>
                 <SelectItem value="En fecha/No pagado">En fecha/No pagado</SelectItem>
-                <SelectItem value="Pago confirmado">Pago confirmado</SelectItem>
+                <SelectItem value="Mes pagado">Mes pagado</SelectItem>
               </SelectContent>
             </Select>
           </div>

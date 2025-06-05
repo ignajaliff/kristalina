@@ -77,7 +77,7 @@ const GestionEdificios = () => {
       const { error } = await supabase
         .from('gestion')
         .update({ 
-          estadopago: 'Pago confirmado',
+          estadopago: 'Mes pagado',
           updated_at: new Date().toISOString()
         })
         .eq('id', itemId);
@@ -110,12 +110,12 @@ const GestionEdificios = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'Pago confirmado':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Pago confirmado</Badge>;
+      case 'Mes pagado':
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Mes pagado</Badge>;
       case 'En fecha/No pagado':
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">En fecha/No pagado</Badge>;
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">En fecha/No pagado</Badge>;
       case 'No en fecha':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">No en fecha</Badge>;
+        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">No en fecha</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -157,9 +157,9 @@ const GestionEdificios = () => {
 
   // Calculate stats
   const totalEdificios = filteredItems.length;
-  const pagosConfirmados = filteredItems.filter(item => item.estadopago === 'Pago confirmado').length;
-  const pendientesPago = filteredItems.filter(item => item.estadopago === 'En fecha/No pagado').length;
-  const fueraDeFecha = filteredItems.filter(item => item.estadopago === 'No en fecha').length;
+  const mesPagado = filteredItems.filter(item => item.estadopago === 'Mes pagado').length;
+  const enFechaNoPagado = filteredItems.filter(item => item.estadopago === 'En fecha/No pagado').length;
+  const noEnFecha = filteredItems.filter(item => item.estadopago === 'No en fecha').length;
 
   return (
     <div className="min-h-screen bg-corporate-slate-50">
@@ -212,8 +212,8 @@ const GestionEdificios = () => {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="text-sm font-medium opacity-90 text-white">Pagos Confirmados</p>
-                        <p className="text-3xl font-bold mt-1 text-white">{pagosConfirmados}</p>
+                        <p className="text-sm font-medium opacity-90 text-white">Mes Pagado</p>
+                        <p className="text-3xl font-bold mt-1 text-white">{mesPagado}</p>
                         <p className="text-sm mt-2 opacity-80 text-white">Este período</p>
                       </div>
                       <div className="rounded-full p-3 bg-white/20">
@@ -227,8 +227,8 @@ const GestionEdificios = () => {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="text-sm font-medium opacity-90 text-white">Pendientes Pago</p>
-                        <p className="text-3xl font-bold mt-1 text-white">{pendientesPago}</p>
+                        <p className="text-sm font-medium opacity-90 text-white">En Fecha/No Pagado</p>
+                        <p className="text-3xl font-bold mt-1 text-white">{enFechaNoPagado}</p>
                         <p className="text-sm mt-2 opacity-80 text-white">En fecha</p>
                       </div>
                       <div className="rounded-full p-3 bg-white/20">
@@ -242,8 +242,8 @@ const GestionEdificios = () => {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="text-sm font-medium opacity-90 text-white">Fuera de Fecha</p>
-                        <p className="text-3xl font-bold mt-1 text-white">{fueraDeFecha}</p>
+                        <p className="text-sm font-medium opacity-90 text-white">No en Fecha</p>
+                        <p className="text-3xl font-bold mt-1 text-white">{noEnFecha}</p>
                         <p className="text-sm mt-2 opacity-80 text-white">Requieren atención</p>
                       </div>
                       <div className="rounded-full p-3 bg-white/20">
@@ -291,7 +291,7 @@ const GestionEdificios = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todos los estados</SelectItem>
-                        <SelectItem value="Pago confirmado">Pago confirmado</SelectItem>
+                        <SelectItem value="Mes pagado">Mes pagado</SelectItem>
                         <SelectItem value="En fecha/No pagado">En fecha/No pagado</SelectItem>
                         <SelectItem value="No en fecha">No en fecha</SelectItem>
                       </SelectContent>
