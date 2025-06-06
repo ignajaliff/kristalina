@@ -18,8 +18,8 @@ const AdminDashboard = () => {
       // Get recent presupuestos updates
       const { data: presupuestos, error: presupuestosError } = await supabase
         .from('presupuestos')
-        .select('id, communityname, presupuesto_aceptado, created_at, updated_at')
-        .order('updated_at', { ascending: false })
+        .select('id, communityname, presupuesto_aceptado, created_at')
+        .order('created_at', { ascending: false })
         .limit(5);
 
       if (presupuestosError) {
@@ -44,7 +44,7 @@ const AdminDashboard = () => {
           type: 'presupuesto' as const,
           title: p.presupuesto_aceptado ? 'Presupuesto aceptado' : 'Nuevo presupuesto enviado',
           detail: p.communityname,
-          timestamp: p.updated_at || p.created_at,
+          timestamp: p.created_at,
           color: p.presupuesto_aceptado ? 'green' : 'blue'
         })),
         ...(gestion || []).map(g => ({
