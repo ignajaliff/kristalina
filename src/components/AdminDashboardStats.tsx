@@ -61,12 +61,12 @@ const AdminDashboardStats = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
       <StatCard 
         title="Presupuestos Enviados"
         value={presupuestosEnviados.toString()}
         description={`${presupuestosEnviados > 0 ? Math.round((presupuestosEnviados / (presupuestosData?.length || 1)) * 100) : 0}% del total`}
-        icon={<FileText className="h-6 w-6 text-white" />}
+        icon={<FileText className="h-5 w-5 md:h-6 md:w-6 text-white" />}
         className="stat-card-gradient-1"
         trend="+15%"
       />
@@ -75,7 +75,7 @@ const AdminDashboardStats = () => {
         title="Presupuestos Aceptados"
         value={presupuestosAceptados.toString()}
         description={`${presupuestosData?.length ? Math.round((presupuestosAceptados / presupuestosData.length) * 100) : 0}% de conversión`}
-        icon={<CheckSquare className="h-6 w-6 text-white" />}
+        icon={<CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-white" />}
         className="stat-card-gradient-2"
         trend="+8%"
       />
@@ -84,7 +84,7 @@ const AdminDashboardStats = () => {
         title="Clientes Gestionándose"
         value={clientesGestionandose.toString()}
         description="Equipos completados"
-        icon={<Users className="h-6 w-6 text-white" />}
+        icon={<Users className="h-5 w-5 md:h-6 md:w-6 text-white" />}
         className="stat-card-gradient-3"
         trend="+22%"
       />
@@ -93,7 +93,7 @@ const AdminDashboardStats = () => {
         title="Ingresos Mensuales"
         value={formatCurrency(ingresosMensuales)}
         description="+12% vs. mes anterior"
-        icon={<DollarSign className="h-6 w-6 text-white" />}
+        icon={<DollarSign className="h-5 w-5 md:h-6 md:w-6 text-white" />}
         className="stat-card-gradient-green"
         trend="+12%"
       />
@@ -112,22 +112,22 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, description, icon, className, trend }: StatCardProps) => (
   <Card className={`border-0 shadow overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${className}`}>
-    <CardContent className="p-6">
+    <CardContent className="p-4 md:p-6">
       <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <p className="text-sm font-medium opacity-90 mb-1">{title}</p>
-          <p className="text-2xl font-bold mb-2">{value}</p>
-          <div className="flex items-center justify-between">
-            <p className="text-sm opacity-80">{description}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs md:text-sm font-medium opacity-90 mb-1 truncate">{title}</p>
+          <p className="text-xl md:text-2xl font-bold mb-2 truncate">{value}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs md:text-sm opacity-80 truncate flex-1">{description}</p>
             {trend && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 flex-shrink-0">
                 <TrendingUp className="h-3 w-3 opacity-80" />
                 <span className="text-xs font-medium opacity-90">{trend}</span>
               </div>
             )}
           </div>
         </div>
-        <div className="rounded-full p-3 bg-white/20 ml-4">
+        <div className="rounded-full p-2 md:p-3 bg-white/20 ml-3 md:ml-4 flex-shrink-0">
           {icon}
         </div>
       </div>

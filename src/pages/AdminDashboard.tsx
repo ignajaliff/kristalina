@@ -3,14 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminSidebar from "@/components/AdminSidebar";
 import AdminDashboardStats from "@/components/AdminDashboardStats";
 import AdminDashboardCharts from "@/components/AdminDashboardCharts";
-import { Bell, Filter, Download, Droplet, Calendar, Plus } from "lucide-react";
+import { Bell, Filter, Download, Droplet, Calendar, Plus, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AdminDashboard = () => {
+  const isMobile = useIsMobile();
+
   // Fetch recent activity from both tables
   const { data: recentActivity } = useQuery({
     queryKey: ['recent-activity'],
@@ -80,38 +83,46 @@ const AdminDashboard = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <AdminSidebar />
+      {!isMobile && <AdminSidebar />}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-6">
+        <div className="p-3 md:p-6">
           {/* Header Section */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-xl font-semibold text-slate-800">
-                Dashboard Financiero
-              </h1>
-              <p className="text-sm text-slate-500 mt-1">
-                Resumen de rendimiento y métricas clave
-              </p>
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-4">
+            <div className="flex items-center gap-3">
+              {isMobile && (
+                <Button size="sm" variant="ghost" className="text-slate-600 h-9 w-9 p-0 md:hidden">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              )}
+              <div>
+                <h1 className="text-lg md:text-xl font-semibold text-slate-800">
+                  Dashboard Financiero
+                </h1>
+                <p className="text-xs md:text-sm text-slate-500 mt-1">
+                  Resumen de rendimiento y métricas clave
+                </p>
+              </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <Button size="sm" variant="ghost" className="text-slate-600 h-9 w-9 p-0">
-                <Bell className="h-4 w-4" />
+            <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+              <Button size="sm" variant="ghost" className="text-slate-600 h-8 w-8 md:h-9 md:w-9 p-0">
+                <Bell className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
               
-              <Button size="sm" variant="outline" className="text-slate-700 h-9 gap-2">
-                <Calendar className="h-4 w-4" />
-                <span className="text-xs">Últimos 30 días</span>
+              <Button size="sm" variant="outline" className="text-slate-700 h-8 md:h-9 gap-1 md:gap-2 text-xs">
+                <Calendar className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Últimos 30 días</span>
+                <span className="sm:hidden">30d</span>
               </Button>
               
-              <Button size="sm" variant="outline" className="text-slate-700 h-9 gap-2">
-                <Filter className="h-4 w-4" />
-                <span className="text-xs">Filtros</span>
+              <Button size="sm" variant="outline" className="text-slate-700 h-8 md:h-9 gap-1 md:gap-2 text-xs">
+                <Filter className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Filtros</span>
               </Button>
               
-              <Button size="sm" variant="outline" className="text-slate-700 h-9 gap-2">
-                <Download className="h-4 w-4" />
-                <span className="text-xs">Exportar</span>
+              <Button size="sm" variant="outline" className="text-slate-700 h-8 md:h-9 gap-1 md:gap-2 text-xs">
+                <Download className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Exportar</span>
               </Button>
             </div>
           </div>
@@ -123,14 +134,15 @@ const AdminDashboard = () => {
           <AdminDashboardCharts />
           
           {/* Recent Activity */}
-          <div className="mt-8">
+          <div className="mt-6 md:mt-8">
             <Card className="border-0 shadow-sm">
-              <CardHeader className="border-b p-5">
+              <CardHeader className="border-b p-3 md:p-5">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-medium text-slate-800">Actividad Reciente</CardTitle>
-                  <Button variant="outline" size="sm" className="text-xs h-8 gap-1">
+                  <CardTitle className="text-sm md:text-base font-medium text-slate-800">Actividad Reciente</CardTitle>
+                  <Button variant="outline" size="sm" className="text-xs h-7 md:h-8 gap-1">
                     <Plus className="h-3 w-3" />
-                    Nueva actividad
+                    <span className="hidden sm:inline">Nueva actividad</span>
+                    <span className="sm:hidden">Nueva</span>
                   </Button>
                 </div>
               </CardHeader>
@@ -147,8 +159,8 @@ const AdminDashboard = () => {
                       />
                     ))
                   ) : (
-                    <div className="p-8 text-center text-slate-500">
-                      <p>No hay actividad reciente</p>
+                    <div className="p-6 md:p-8 text-center text-slate-500">
+                      <p className="text-sm">No hay actividad reciente</p>
                     </div>
                   )}
                 </div>
@@ -157,18 +169,18 @@ const AdminDashboard = () => {
           </div>
 
           {/* Financial Promotion Card */}
-          <div className="mt-6 mb-8">
+          <div className="mt-4 md:mt-6 mb-6 md:mb-8">
             <Card className="border-0 shadow-md bg-gradient-to-r from-blue-600 to-blue-700 text-white overflow-hidden">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Promoción de Verano</h3>
-                  <p className="text-blue-100 mb-4 text-sm">Descuento especial para instalaciones en edificios nuevos</p>
-                  <Button size="sm" className="bg-white text-blue-600 hover:bg-blue-50 px-4 text-xs">
+              <CardContent className="p-4 md:p-5 flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="text-base md:text-lg font-medium mb-2">Promoción de Verano</h3>
+                  <p className="text-blue-100 mb-3 md:mb-4 text-xs md:text-sm">Descuento especial para instalaciones en edificios nuevos</p>
+                  <Button size="sm" className="bg-white text-blue-600 hover:bg-blue-50 px-3 md:px-4 text-xs h-7 md:h-8">
                     Ver detalles
                   </Button>
                 </div>
-                <div className="hidden md:block">
-                  <Droplet className="h-20 w-20 text-blue-300 opacity-50" />
+                <div className="hidden md:block ml-4">
+                  <Droplet className="h-16 w-16 md:h-20 md:w-20 text-blue-300 opacity-50" />
                 </div>
               </CardContent>
             </Card>
@@ -195,10 +207,10 @@ const ActivityItem = ({ title, detail, time, color }: ActivityItemProps) => {
   };
   
   return (
-    <div className="flex items-center px-5 py-3 hover:bg-slate-50">
-      <div className={`w-2 h-2 rounded-full ${colorMap[color]} mr-3`}></div>
-      <div className="flex-1">
-        <p className="font-medium text-sm text-slate-800">{title} - {detail}</p>
+    <div className="flex items-center px-3 md:px-5 py-2 md:py-3 hover:bg-slate-50">
+      <div className={`w-2 h-2 rounded-full ${colorMap[color]} mr-2 md:mr-3`}></div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-xs md:text-sm text-slate-800 truncate">{title} - {detail}</p>
         <p className="text-xs text-slate-500">{time}</p>
       </div>
     </div>
