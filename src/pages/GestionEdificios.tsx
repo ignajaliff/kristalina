@@ -385,7 +385,14 @@ const GestionEdificios = () => {
                           </TableRow>
                         ) : (
                           filteredItems.map((item) => (
-                            <TableRow key={item.id} className="hover:bg-corporate-slate-50/50 transition-colors duration-150">
+                            <TableRow 
+                              key={item.id} 
+                              className={`transition-colors duration-150 ${
+                                item.estadopago === 'Mes pagado' 
+                                  ? 'bg-green-50 hover:bg-green-100 border-l-4 border-green-500' 
+                                  : 'hover:bg-corporate-slate-50/50'
+                              }`}
+                            >
                               <TableCell className="font-medium text-corporate-slate-900 py-4">
                                 {item.legalrepresentative}
                               </TableCell>

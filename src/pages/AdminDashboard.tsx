@@ -5,8 +5,79 @@ import AdminDashboardStats from "@/components/AdminDashboardStats";
 import AdminDashboardCharts from "@/components/AdminDashboardCharts";
 import { Bell, Filter, Download, Droplet, Calendar, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 
 const AdminDashboard = () => {
+  // Fetch recent activity from both tables
+  const { data: recentActivity } = useQuery({
+    queryKey: ['recent-activity'],
+    queryFn: async () => {
+      // Get recent presupuestos updates
+      const { data: presupuestos, error: presupuestosError } = await supabase
+        .from('presupuestos')
+        .select('id, communityname, presupuesto_aceptado, created_at, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      if (presupuestosError) {
+        console.error('Error fetching presupuestos activity:', presupuestosError);
+      }
+
+      // Get recent gestion updates
+      const { data: gestion, error: gestionError } = await supabase
+        .from('gestion')
+        .select('id, legalrepresentative, estadopago, created_at, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(5);
+
+      if (gestionError) {
+        console.error('Error fetching gestion activity:', gestionError);
+      }
+
+      // Combine and sort all activities
+      const allActivities = [
+        ...(presupuestos || []).map(p => ({
+          id: p.id,
+          type: 'presupuesto' as const,
+          title: p.presupuesto_aceptado ? 'Presupuesto aceptado' : 'Nuevo presupuesto enviado',
+          detail: p.communityname,
+          timestamp: p.updated_at || p.created_at,
+          color: p.presupuesto_aceptado ? 'green' : 'blue'
+        })),
+        ...(gestion || []).map(g => ({
+          id: g.id,
+          type: 'gestion' as const,
+          title: g.estadopago === 'Mes pagado' ? 'Pago confirmado' : 'Registro actualizado',
+          detail: g.legalrepresentative,
+          timestamp: g.updated_at || g.created_at,
+          color: g.estadopago === 'Mes pagado' ? 'green' : 'purple'
+        }))
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+       .slice(0, 6);
+
+      return allActivities;
+    },
+  });
+
+  const formatTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const date = parseISO(timestamp);
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 60) {
+      return `Hace ${diffInMinutes} minutos`;
+    } else if (diffInMinutes < 1440) {
+      const hours = Math.floor(diffInMinutes / 60);
+      return `Hace ${hours} hora${hours > 1 ? 's' : ''}`;
+    } else {
+      const days = Math.floor(diffInMinutes / 1440);
+      return `Hace ${days} día${days > 1 ? 's' : ''}`;
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <AdminSidebar />
@@ -65,24 +136,21 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="divide-y divide-gray-100">
-                  <ActivityItem
-                    title="Nuevo presupuesto enviado"
-                    detail="Edificio Los Alpes"
-                    time="Hace 2 horas"
-                    color="blue"
-                  />
-                  <ActivityItem
-                    title="Presupuesto aceptado"
-                    detail="Condominio Vista Hermosa"
-                    time="Hace 4 horas"
-                    color="green"
-                  />
-                  <ActivityItem
-                    title="Instalación completada"
-                    detail="Edificio Marina Bay"
-                    time="Hace 12 horas"
-                    color="purple"
-                  />
+                  {recentActivity?.length ? (
+                    recentActivity.map((activity) => (
+                      <ActivityItem
+                        key={`${activity.type}-${activity.id}`}
+                        title={activity.title}
+                        detail={activity.detail}
+                        time={formatTimeAgo(activity.timestamp)}
+                        color={activity.color as "blue" | "green" | "purple" | "orange"}
+                      />
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-slate-500">
+                      <p>No hay actividad reciente</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
