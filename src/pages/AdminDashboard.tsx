@@ -1,9 +1,9 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminSidebar from "@/components/AdminSidebar";
 import AdminDashboardStats from "@/components/AdminDashboardStats";
 import AdminDashboardCharts from "@/components/AdminDashboardCharts";
-import { Bell, Filter, Download, Droplet, Calendar, Plus, Menu } from "lucide-react";
+import MobileDrawer from "@/components/MobileDrawer";
+import { Bell, Filter, Download, Droplet, Calendar, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,11 +89,7 @@ const AdminDashboard = () => {
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-4">
             <div className="flex items-center gap-3">
-              {isMobile && (
-                <Button size="sm" variant="ghost" className="text-slate-600 h-9 w-9 p-0 md:hidden">
-                  <Menu className="h-4 w-4" />
-                </Button>
-              )}
+              <MobileDrawer />
               <div>
                 <h1 className="text-lg md:text-xl font-semibold text-slate-800">
                   Dashboard Financiero
