@@ -118,38 +118,3 @@
   background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
   color: white;
 }
-
-/* Corporate design tokens */
-.corporate-blue-50 { @apply bg-corporate-blue-50; }
-.corporate-blue-100 { @apply bg-corporate-blue-100; }
-.corporate-blue-600 { @apply bg-corporate-blue-600; }
-.corporate-blue-700 { @apply bg-corporate-blue-700; }
-
-.corporate-slate-50 { @apply bg-corporate-slate-50; }
-.corporate-slate-100 { @apply bg-corporate-slate-100; }
-.corporate-slate-200 { @apply bg-corporate-slate-200; }
-.corporate-slate-300 { @apply bg-corporate-slate-300; }
-.corporate-slate-400 { @apply bg-corporate-slate-400; }
-.corporate-slate-500 { @apply bg-corporate-slate-500; }
-.corporate-slate-600 { @apply bg-corporate-slate-600; }
-.corporate-slate-700 { @apply bg-corporate-slate-700; }
-.corporate-slate-800 { @apply bg-corporate-slate-800; }
-.corporate-slate-900 { @apply bg-corporate-slate-900; }
-
-.text-corporate-blue-600 { @apply text-corporate-blue-600; }
-.text-corporate-slate-400 { @apply text-corporate-slate-400; }
-.text-corporate-slate-500 { @apply text-corporate-slate-500; }
-.text-corporate-slate-600 { @apply text-corporate-slate-600; }
-.text-corporate-slate-700 { @apply text-corporate-slate-700; }
-.text-corporate-slate-800 { @apply text-corporate-slate-800; }
-.text-corporate-slate-900 { @apply text-corporate-slate-900; }
-
-.border-corporate-blue-500 { @apply border-corporate-blue-500; }
-.border-corporate-slate-100 { @apply border-corporate-slate-100; }
-.border-corporate-slate-200 { @apply border-corporate-slate-200; }
-
-.focus\:border-corporate-blue-500:focus { @apply border-corporate-blue-500; }
-.focus\:ring-corporate-blue-500:focus { @apply ring-corporate-blue-500; }
-
-.hover\:bg-corporate-blue-700:hover { @apply bg-corporate-blue-700; }
-.hover\:bg-corporate-slate-50:hover { @apply bg-corporate-slate-50; }
