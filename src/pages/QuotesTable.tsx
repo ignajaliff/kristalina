@@ -1,6 +1,7 @@
+
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Eye, Download, CheckCircle } from "lucide-react";
+import { Eye, FileText, CheckCircle } from "lucide-react";
 
 import { Quote } from "@/utils/quoteStorage";
 import AdminSidebar from "@/components/AdminSidebar";
@@ -108,11 +109,16 @@ const QuotesTable = () => {
     }
   };
 
-  const generateQuoteReport = (quote: Quote) => {
-    toast({
-      title: "Generando reporte",
-      description: "El reporte del presupuesto está siendo generado...",
-    });
+  const handleOpenContract = (quote: Quote) => {
+    if (quote.terminos_contrato) {
+      window.open(quote.terminos_contrato, '_blank');
+    } else {
+      toast({
+        title: "Sin contrato",
+        description: "Este presupuesto no tiene un contrato disponible.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -194,10 +200,10 @@ const QuotesTable = () => {
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  onClick={() => generateQuoteReport(quote)}
+                                  onClick={() => handleOpenContract(quote)}
                                 >
-                                  <Download className="mr-1 h-4 w-4" />
-                                  Reporte
+                                  <FileText className="mr-1 h-4 w-4" />
+                                  Contrato
                                 </Button>
                                 {quote.status === "Enviado" && (
                                   <Button 

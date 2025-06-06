@@ -74,6 +74,47 @@ const GestionEdificios = () => {
 
   const handleConfirmPayment = async (itemId: string) => {
     try {
+      const item = gestionItems?.find(i => i.id === itemId);
+      if (!item) {
+        toast({
+          title: "Error",
+          description: "No se encontró el registro.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Send webhook data
+      const webhookUrl = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/8cdde499-cc85-4d5a-b5b4-c40545844fdc";
+      
+      try {
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          mode: "no-cors",
+          body: JSON.stringify({
+            id: item.id,
+            legalrepresentative: item.legalrepresentative,
+            buildingtype: item.buildingtype,
+            buildingaddress: item.buildingaddress,
+            mesrenting: item.mesrenting,
+            fechapago: item.fechapago,
+            estadopago: item.estadopago,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            action: "payment_confirmed",
+            timestamp: new Date().toISOString()
+          }),
+        });
+        
+        console.log("Webhook sent successfully for payment confirmation");
+      } catch (webhookError) {
+        console.error("Error sending webhook:", webhookError);
+        // Continue with the database update even if webhook fails
+      }
+
       const { error } = await supabase
         .from('gestion')
         .update({ 
@@ -94,7 +135,7 @@ const GestionEdificios = () => {
 
       toast({
         title: "Pago confirmado",
-        description: "El estado del pago ha sido actualizado exitosamente.",
+        description: "El estado del pago ha sido actualizado exitosamente y se ha enviado la notificación.",
       });
 
       refetch();
