@@ -49,6 +49,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const quoteUpdateSchema = z.object({
   contractSignDate: z.date().optional(),
@@ -287,17 +288,40 @@ const QuoteUpdateForm = ({
 
 const SellerAcceptedQuotes = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [acceptedQuotes, setAcceptedQuotes] = useState<Quote[]>([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentSeller, setCurrentSeller] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCurrentSeller = async () => {
+      if (user?.email) {
+        const { data: seller, error } = await supabase
+          .from('vendedores')
+          .select('nombre')
+          .eq('email', user.email)
+          .single();
+        
+        if (seller && !error) {
+          setCurrentSeller(seller.nombre);
+        }
+      }
+    };
+
+    fetchCurrentSeller();
+  }, [user?.email]);
   
   const fetchAcceptedQuotes = async () => {
+    if (!currentSeller) return;
+    
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from("presupuestos")
         .select("*")
-        .eq("presupuesto_aceptado", true);
+        .eq("presupuesto_aceptado", true)
+        .eq("vendedor", currentSeller);
       
       if (error) {
         throw error;
@@ -348,8 +372,10 @@ const SellerAcceptedQuotes = () => {
   };
   
   useEffect(() => {
-    fetchAcceptedQuotes();
-  }, []);
+    if (currentSeller) {
+      fetchAcceptedQuotes();
+    }
+  }, [currentSeller]);
   
   const getEquipmentStatusText = (status?: string | null): string => {
     switch (status) {
@@ -390,7 +416,12 @@ const SellerAcceptedQuotes = () => {
                 Presupuestos Aceptados
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Revisa los presupuestos que han sido aprobados por los clientes
+                Revisa tus presupuestos que han sido aprobados por los clientes
+                {currentSeller && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    • Vendedor: {currentSeller}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -403,7 +434,7 @@ const SellerAcceptedQuotes = () => {
                 <CardHeader>
                   <CardTitle>Cargando...</CardTitle>
                   <CardDescription>
-                    Obteniendo los presupuestos aceptados...
+                    Obteniendo tus presupuestos aceptados...
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -412,7 +443,7 @@ const SellerAcceptedQuotes = () => {
                 <CardHeader>
                   <CardTitle>No hay presupuestos aceptados</CardTitle>
                   <CardDescription>
-                    Los presupuestos aceptados aparecerán aquí.
+                    Los presupuestos que aceptes aparecerán aquí.
                   </CardDescription>
                 </CardHeader>
               </Card>

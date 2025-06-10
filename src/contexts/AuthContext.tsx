@@ -47,6 +47,20 @@ const mockUsers = [
     email: 'seller@example.com',
     password: 'seller123',
     role: 'seller' as UserRole
+  },
+  {
+    id: '3',
+    name: 'Pablo Ruiz',
+    email: 'pablo.ruiz@example.com',
+    password: 'pablo123',
+    role: 'seller' as UserRole
+  },
+  {
+    id: '4',
+    name: 'Carlos Lopez',
+    email: 'carlos.lopez@example.com',
+    password: 'carlos123',
+    role: 'seller' as UserRole
   }
 ];
 
@@ -62,15 +76,6 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
-    // Temporarily removed auto-redirect to login
-    /*
-    else {
-      // Si no hay usuario autenticado, redirigimos al login
-      if (window.location.pathname !== '/login') {
-        navigate('/login');
-      }
-    }
-    */
   }, [navigate]);
 
   const login = async (email: string, password: string) => {

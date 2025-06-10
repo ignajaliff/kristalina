@@ -25,21 +25,45 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SellerQuotes = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [currentSeller, setCurrentSeller] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCurrentSeller = async () => {
+      if (user?.email) {
+        const { data: seller, error } = await supabase
+          .from('vendedores')
+          .select('nombre')
+          .eq('email', user.email)
+          .single();
+        
+        if (seller && !error) {
+          setCurrentSeller(seller.nombre);
+        }
+      }
+    };
+
+    fetchCurrentSeller();
+  }, [user?.email]);
 
   const fetchQuotes = async () => {
+    if (!currentSeller) return;
+    
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from("presupuestos")
         .select("*")
+        .eq("vendedor", currentSeller)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -73,7 +97,7 @@ const SellerQuotes = () => {
             por_unidad,
             inversion,
             status: quote.presupuesto_aceptado ? "Aceptado" : "Enviado"
-          };
+          } as Quote;
         });
 
         setQuotes(processedQuotes);
@@ -91,8 +115,10 @@ const SellerQuotes = () => {
   };
 
   useEffect(() => {
-    fetchQuotes();
-  }, []);
+    if (currentSeller) {
+      fetchQuotes();
+    }
+  }, [currentSeller]);
 
   const handleAcceptQuote = (quote: Quote) => {
     setSelectedQuote(quote);
@@ -135,7 +161,12 @@ const SellerQuotes = () => {
                 Presupuestos Enviados
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Gestiona y supervisa todos los presupuestos enviados a clientes
+                Gestiona y supervisa todos tus presupuestos enviados a clientes
+                {currentSeller && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    • Vendedor: {currentSeller}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -148,7 +179,7 @@ const SellerQuotes = () => {
                 <CardHeader>
                   <CardTitle>Cargando...</CardTitle>
                   <CardDescription>
-                    Obteniendo los presupuestos enviados...
+                    Obteniendo tus presupuestos enviados...
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -157,7 +188,7 @@ const SellerQuotes = () => {
                 <CardHeader>
                   <CardTitle>No hay presupuestos</CardTitle>
                   <CardDescription>
-                    Los presupuestos creados aparecerán aquí.
+                    Los presupuestos que crees aparecerán aquí.
                   </CardDescription>
                 </CardHeader>
               </Card>
