@@ -11,6 +11,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import SellerDashboard from "./pages/SellerDashboard";
+import SellerProducts from "./pages/SellerProducts";
+import SellerReports from "./pages/SellerReports";
 import NotFound from "./pages/NotFound";
 import ProspectForm from "./pages/ProspectForm";
 import QuotesTable from "./pages/QuotesTable";
@@ -65,6 +67,18 @@ const App = () => (
             <Route path="/seller" element={
               <ProtectedRoute allowedRoles={['seller']}>
                 <SellerDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/seller/products" element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerProducts />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/seller/reports" element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerReports />
               </ProtectedRoute>
             } />
             

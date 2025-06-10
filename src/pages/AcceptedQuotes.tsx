@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, CheckCircle, ExternalLink } from "lucide-react";
@@ -319,13 +320,14 @@ const AcceptedQuotes = () => {
           const por_unidad = quote.por_unidad || 50000;
           const inversion = quote.inversion || Math.round(monto * 0.8);
           
-          // Safely parse additional_at field
+          // Safely parse additional_at field - fix the type conversion issue
           let additional_at: Array<{ name: string; email: string }> = [];
           if (quote.additional_at) {
             try {
               if (typeof quote.additional_at === 'string') {
                 additional_at = JSON.parse(quote.additional_at);
               } else if (Array.isArray(quote.additional_at)) {
+                // Type assertion to handle the Json type from Supabase
                 additional_at = quote.additional_at as Array<{ name: string; email: string }>;
               }
             } catch (e) {
@@ -341,7 +343,7 @@ const AcceptedQuotes = () => {
             por_unidad, 
             inversion,
             status: "Aceptado" as "Enviado" | "Aceptado"
-          };
+          } as Quote;
         });
         
         setAcceptedQuotes(processedQuotes);
