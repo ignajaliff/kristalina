@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, CheckCircle, ExternalLink } from "lucide-react";
@@ -292,40 +291,25 @@ const SellerAcceptedQuotes = () => {
   const [acceptedQuotes, setAcceptedQuotes] = useState<Quote[]>([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentSeller, setCurrentSeller] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchCurrentSeller = async () => {
-      if (user?.email) {
-        const { data: seller, error } = await supabase
-          .from('vendedores')
-          .select('nombre')
-          .eq('email', user.email)
-          .single();
-        
-        if (seller && !error) {
-          setCurrentSeller(seller.nombre);
-        }
-      }
-    };
-
-    fetchCurrentSeller();
-  }, [user?.email]);
   
   const fetchAcceptedQuotes = async () => {
-    if (!currentSeller) return;
+    if (!user?.name) return;
     
     setIsLoading(true);
     try {
+      console.log('Buscando presupuestos aceptados para vendedor:', user.name);
+      
       const { data, error } = await supabase
         .from("presupuestos")
         .select("*")
         .eq("presupuesto_aceptado", true)
-        .eq("vendedor", currentSeller);
+        .eq("vendedor", user.name);
       
       if (error) {
         throw error;
       }
+      
+      console.log('Datos de presupuestos aceptados encontrados:', data);
       
       if (data) {
         const processedQuotes: Quote[] = data.map(quote => {
@@ -358,6 +342,7 @@ const SellerAcceptedQuotes = () => {
         });
         
         setAcceptedQuotes(processedQuotes);
+        console.log('Presupuestos aceptados procesados:', processedQuotes);
       }
     } catch (error) {
       console.error("Error fetching accepted quotes:", error);
@@ -372,10 +357,8 @@ const SellerAcceptedQuotes = () => {
   };
   
   useEffect(() => {
-    if (currentSeller) {
-      fetchAcceptedQuotes();
-    }
-  }, [currentSeller]);
+    fetchAcceptedQuotes();
+  }, [user?.name]);
   
   const getEquipmentStatusText = (status?: string | null): string => {
     switch (status) {
@@ -417,9 +400,9 @@ const SellerAcceptedQuotes = () => {
               </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Revisa tus presupuestos que han sido aprobados por los clientes
-                {currentSeller && (
+                {user?.name && (
                   <span className="ml-2 text-blue-600 font-medium">
-                    • Vendedor: {currentSeller}
+                    • Vendedor: {user.name}
                   </span>
                 )}
               </p>
@@ -444,6 +427,11 @@ const SellerAcceptedQuotes = () => {
                   <CardTitle>No hay presupuestos aceptados</CardTitle>
                   <CardDescription>
                     Los presupuestos que aceptes aparecerán aquí.
+                    {user?.name && (
+                      <span className="block text-xs text-gray-500 mt-1">
+                        Buscando para vendedor: {user.name}
+                      </span>
+                    )}
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -634,3 +622,5 @@ const SellerAcceptedQuotes = () => {
 };
 
 export default SellerAcceptedQuotes;
+
+</edits_to_apply>

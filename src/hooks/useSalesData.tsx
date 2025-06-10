@@ -22,40 +22,24 @@ interface RecentSale {
 
 export const useSalesData = () => {
   const { user } = useAuth();
-  const [currentSeller, setCurrentSeller] = useState<string | null>(null);
 
-  // Fetch current seller name
-  useEffect(() => {
-    const fetchCurrentSeller = async () => {
-      if (user?.email) {
-        const { data: seller, error } = await supabase
-          .from('vendedores')
-          .select('nombre')
-          .eq('email', user.email)
-          .single();
-        
-        if (seller && !error) {
-          setCurrentSeller(seller.nombre);
-        }
-      }
-    };
-
-    fetchCurrentSeller();
-  }, [user?.email]);
-
-  // Fetch sales data
+  // Fetch sales data using user name directly
   const { data: salesData, isLoading, error } = useQuery({
-    queryKey: ['salesData', currentSeller],
+    queryKey: ['salesData', user?.name],
     queryFn: async () => {
-      if (!currentSeller) return null;
+      if (!user?.name) return null;
+
+      console.log('Fetching sales data for:', user.name);
 
       const { data: presupuestos, error } = await supabase
         .from('presupuestos')
         .select('*')
-        .eq('vendedor', currentSeller)
+        .eq('vendedor', user.name)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      console.log('Sales data found:', presupuestos);
 
       // Calculate stats
       const today = new Date();
@@ -91,13 +75,13 @@ export const useSalesData = () => {
 
       return { stats, recentSales };
     },
-    enabled: !!currentSeller,
+    enabled: !!user?.name,
   });
 
   return {
     salesData,
     isLoading,
     error,
-    currentSeller,
+    currentSeller: user?.name || null,
   };
 };

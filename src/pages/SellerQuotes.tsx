@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Eye, FileText, CheckCircle } from "lucide-react";
@@ -35,40 +34,25 @@ const SellerQuotes = () => {
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [currentSeller, setCurrentSeller] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchCurrentSeller = async () => {
-      if (user?.email) {
-        const { data: seller, error } = await supabase
-          .from('vendedores')
-          .select('nombre')
-          .eq('email', user.email)
-          .single();
-        
-        if (seller && !error) {
-          setCurrentSeller(seller.nombre);
-        }
-      }
-    };
-
-    fetchCurrentSeller();
-  }, [user?.email]);
 
   const fetchQuotes = async () => {
-    if (!currentSeller) return;
+    if (!user?.name) return;
     
     setIsLoading(true);
     try {
+      console.log('Buscando presupuestos para vendedor:', user.name);
+      
       const { data, error } = await supabase
         .from("presupuestos")
         .select("*")
-        .eq("vendedor", currentSeller)
+        .eq("vendedor", user.name)
         .order("created_at", { ascending: false });
 
       if (error) {
         throw error;
       }
+
+      console.log('Datos encontrados:', data);
 
       if (data) {
         const processedQuotes: Quote[] = data.map(quote => {
@@ -101,6 +85,7 @@ const SellerQuotes = () => {
         });
 
         setQuotes(processedQuotes);
+        console.log('Presupuestos procesados:', processedQuotes);
       }
     } catch (error) {
       console.error("Error fetching quotes:", error);
@@ -115,10 +100,8 @@ const SellerQuotes = () => {
   };
 
   useEffect(() => {
-    if (currentSeller) {
-      fetchQuotes();
-    }
-  }, [currentSeller]);
+    fetchQuotes();
+  }, [user?.name]);
 
   const handleAcceptQuote = (quote: Quote) => {
     setSelectedQuote(quote);
@@ -162,9 +145,9 @@ const SellerQuotes = () => {
               </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Gestiona y supervisa todos tus presupuestos enviados a clientes
-                {currentSeller && (
+                {user?.name && (
                   <span className="ml-2 text-blue-600 font-medium">
-                    • Vendedor: {currentSeller}
+                    • Vendedor: {user.name}
                   </span>
                 )}
               </p>
@@ -189,6 +172,11 @@ const SellerQuotes = () => {
                   <CardTitle>No hay presupuestos</CardTitle>
                   <CardDescription>
                     Los presupuestos que crees aparecerán aquí.
+                    {user?.name && (
+                      <span className="block text-xs text-gray-500 mt-1">
+                        Buscando para vendedor: {user.name}
+                      </span>
+                    )}
                   </CardDescription>
                 </CardHeader>
               </Card>
