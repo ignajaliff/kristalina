@@ -74,6 +74,7 @@ export type Database = {
           region: string | null
           terminos_contrato: string | null
           units: number
+          vendedor: string | null
         }
         Insert: {
           additional_at?: Json | null
@@ -103,6 +104,7 @@ export type Database = {
           region?: string | null
           terminos_contrato?: string | null
           units: number
+          vendedor?: string | null
         }
         Update: {
           additional_at?: Json | null
@@ -132,6 +134,37 @@ export type Database = {
           region?: string | null
           terminos_contrato?: string | null
           units?: number
+          vendedor?: string | null
+        }
+        Relationships: []
+      }
+      vendedores: {
+        Row: {
+          activo: boolean
+          created_at: string
+          email: string
+          id: string
+          nombre: string
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          nombre: string
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          nombre?: string
+          telefono?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

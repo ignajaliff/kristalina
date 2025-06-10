@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,8 +43,10 @@ type BuildingType = "Edificio" | "Escuela" | "Industria";
 const ProspectForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedBuildingType, setSelectedBuildingType] = useState<BuildingType | null>(null);
+  const [currentSeller, setCurrentSeller] = useState<string | null>(null);
   
   // Initialize the form
   const form = useForm<FormValues>({
@@ -70,6 +72,27 @@ const ProspectForm = () => {
     name: "additionalATs",
   });
 
+  // Fetch current seller information when component mounts
+  useEffect(() => {
+    const fetchCurrentSeller = async () => {
+      if (user?.email) {
+        const { data: seller, error } = await supabase
+          .from('vendedores')
+          .select('nombre')
+          .eq('email', user.email)
+          .single();
+        
+        if (seller && !error) {
+          setCurrentSeller(seller.nombre);
+        } else {
+          console.log('No seller found for current user email:', user.email);
+        }
+      }
+    };
+
+    fetchCurrentSeller();
+  }, [user?.email]);
+
   // Update form when building type is selected
   useEffect(() => {
     if (selectedBuildingType) {
@@ -86,6 +109,14 @@ const ProspectForm = () => {
       // Format additional ATs for storage
       const additionalATs = data.additionalATs || [];
       
+      // Prepare webhook data with seller information
+      const webhookData = {
+        ...data,
+        vendedor: currentSeller,
+        timestamp: new Date().toISOString(),
+        source: "Kristalina CRM"
+      };
+      
       // Send to webhook
       try {
         await fetch(WEBHOOK_URL, {
@@ -94,11 +125,7 @@ const ProspectForm = () => {
             "Content-Type": "application/json",
           },
           mode: "no-cors",
-          body: JSON.stringify({
-            ...data,
-            timestamp: new Date().toISOString(),
-            source: "Kristalina CRM"
-          }),
+          body: JSON.stringify(webhookData),
         });
         
         console.log("Webhook triggered successfully");
@@ -121,6 +148,7 @@ const ProspectForm = () => {
           region: data.region || null,
           buildingtype: data.buildingType,
           units: data.units,
+          vendedor: currentSeller, // Assign current seller
         });
       
       if (error) {
@@ -199,6 +227,11 @@ const ProspectForm = () => {
               </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Registra los datos del prospecto para generar una cotización
+                {currentSeller && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    • Vendedor: {currentSeller}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -512,3 +545,5 @@ const ProspectForm = () => {
 };
 
 export default ProspectForm;
+
+</edits_to_apply>
