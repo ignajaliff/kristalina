@@ -13,6 +13,9 @@ import AdminDashboard from "./pages/AdminDashboard";
 import SellerDashboard from "./pages/SellerDashboard";
 import SellerProducts from "./pages/SellerProducts";
 import SellerReports from "./pages/SellerReports";
+import SellerProspects from "./pages/SellerProspects";
+import SellerQuotes from "./pages/SellerQuotes";
+import SellerAcceptedQuotes from "./pages/SellerAcceptedQuotes";
 import NotFound from "./pages/NotFound";
 import ProspectForm from "./pages/ProspectForm";
 import QuotesTable from "./pages/QuotesTable";
@@ -67,6 +70,24 @@ const App = () => (
             <Route path="/seller" element={
               <ProtectedRoute allowedRoles={['seller']}>
                 <SellerDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/seller/prospects" element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerProspects />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/seller/quotes" element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerQuotes />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/seller/accepted-quotes" element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerAcceptedQuotes />
               </ProtectedRoute>
             } />
             

@@ -2,7 +2,14 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, LogOut } from "lucide-react";
+import { 
+  ShoppingCart, 
+  LogOut, 
+  FileText, 
+  CheckSquare,
+  CheckCircle,
+  PlusCircle
+} from "lucide-react";
 
 const SellerSidebar = () => {
   const { user, logout } = useAuth();
@@ -15,17 +22,77 @@ const SellerSidebar = () => {
       </div>
       
       <nav className="flex-1 p-4">
-        <ul className="space-y-2">
-          <li>
-            <Link 
-              to="/seller" 
-              className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              Área de Ventas
-            </Link>
-          </li>
-        </ul>
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-wider text-blue-300 mb-2 pl-3">General</p>
+          <ul className="space-y-2">
+            <li>
+              <Link 
+                to="/seller" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                Dashboard
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-wider text-blue-300 mb-2 pl-3">Gestión de Ventas</p>
+          <ul className="space-y-2">
+            <li>
+              <Link 
+                to="/seller/prospects" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <PlusCircle className="h-5 w-5" />
+                Captura Prospectos
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/seller/quotes" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <CheckSquare className="h-5 w-5" />
+                Presupuestos
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/seller/accepted-quotes" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <CheckCircle className="h-5 w-5 text-green-400" />
+                Presupuestos Aceptados
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-wider text-blue-300 mb-2 pl-3">Otros</p>
+          <ul className="space-y-2">
+            <li>
+              <Link 
+                to="/seller/products" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <FileText className="h-5 w-5" />
+                Productos
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/seller/reports" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <FileText className="h-5 w-5" />
+                Reportes
+              </Link>
+            </li>
+          </ul>
+        </div>
       </nav>
       
       <div className="p-4 border-t border-blue-700">
