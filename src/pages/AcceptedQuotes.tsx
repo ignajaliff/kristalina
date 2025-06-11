@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, CheckCircle, ExternalLink, FileText } from "lucide-react";
@@ -157,7 +156,31 @@ const QuoteUpdateForm = ({
         if (fetchError) {
           console.error("Error fetching quote data for webhook:", fetchError);
         } else if (quoteData) {
-          await sendWebhook(quoteData as Quote);
+          // Properly convert to Quote type
+          let additional_at: Array<{ name: string; email: string }> = [];
+          if (quoteData.additional_at) {
+            try {
+              if (typeof quoteData.additional_at === 'string') {
+                additional_at = JSON.parse(quoteData.additional_at);
+              } else if (Array.isArray(quoteData.additional_at)) {
+                additional_at = quoteData.additional_at as Array<{ name: string; email: string }>;
+              }
+            } catch (e) {
+              console.error("Error parsing additional_at:", e);
+              additional_at = [];
+            }
+          }
+
+          const convertedQuote: Quote = {
+            ...quoteData,
+            additional_at,
+            monto: quoteData.monto || quoteData.units * 50000,
+            por_unidad: quoteData.por_unidad || 50000,
+            inversion: quoteData.inversion || Math.round((quoteData.monto || quoteData.units * 50000) * 0.8),
+            status: "Aceptado" as "Enviado" | "Aceptado"
+          };
+
+          await sendWebhook(convertedQuote);
         }
       }
       
@@ -337,14 +360,39 @@ const AcceptedQuotes = () => {
             }
           }
           
-          return {
-            ...quote,
+          // Properly construct Quote object instead of using type assertion
+          const processedQuote: Quote = {
+            id: quote.id,
+            adminname: quote.adminname,
+            adminemail: quote.adminemail,
+            managementcompany: quote.managementcompany,
+            legalrepresentative: quote.legalrepresentative,
             additional_at,
+            communityname: quote.communityname,
+            buildingaddress: quote.buildingaddress,
+            comuna: quote.comuna,
+            region: quote.region,
+            buildingtype: quote.buildingtype,
+            units: quote.units,
+            presupuesto_aceptado: quote.presupuesto_aceptado,
+            created_at: quote.created_at,
             monto,
-            por_unidad, 
+            por_unidad,
             inversion,
+            fecha_aprobacion_presupuesto: quote.fecha_aprobacion_presupuesto,
+            fecha_firma_contrato: quote.fecha_firma_contrato,
+            fecha_instalacion_equipos: quote.fecha_instalacion_equipos,
+            terminos_contrato: quote.terminos_contrato,
+            legalrepresentativerut: quote.legalrepresentativerut,
+            communityrut: quote.communityrut,
+            communityemail: quote.communityemail,
+            legalrepresentativephone: quote.legalrepresentativephone,
+            equipos_instalados: quote.equipos_instalados,
+            communityformationdate: quote.communityformationdate,
             status: "Aceptado" as "Enviado" | "Aceptado"
           };
+          
+          return processedQuote;
         });
         
         setAcceptedQuotes(processedQuotes);
