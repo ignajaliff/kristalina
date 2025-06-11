@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, CheckCircle, ExternalLink, FileText } from "lucide-react";
@@ -638,5 +639,3 @@ const AcceptedQuotes = () => {
 };
 
 export default AcceptedQuotes;
-
-}

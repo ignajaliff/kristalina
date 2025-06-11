@@ -656,5 +656,3 @@ const SellerAcceptedQuotes = () => {
 };
 
 export default SellerAcceptedQuotes;
-
-}

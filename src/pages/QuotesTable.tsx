@@ -332,5 +332,3 @@ const QuotesTable = () => {
 };
 
 export default QuotesTable;
-
-</edits_to_apply>
