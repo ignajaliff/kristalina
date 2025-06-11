@@ -1,38 +1,22 @@
+
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CalendarIcon, PlusCircle, Building2, Building, School, Factory } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { PlusCircle, Building2, Building, School, Factory, AlertCircle } from "lucide-react";
 
 import SellerSidebar from "@/components/SellerSidebar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,8 +26,6 @@ const formSchema = z.object({
   adminEmail: z.string().email({ message: "Correo electrónico inválido" }).min(1, { message: "El correo del administrador es obligatorio" }),
   managementCompany: z.string().optional(),
   legalRepresentative: z.string().optional(),
-  legalRepresentativeRut: z.string().optional(),
-  legalRepresentativePhone: z.string().optional(),
   additionalATs: z.array(
     z.object({
       name: z.string().min(1, { message: "El nombre es obligatorio" }),
@@ -56,9 +38,6 @@ const formSchema = z.object({
   region: z.string().optional(),
   buildingType: z.string().default("Edificio"),
   units: z.number().min(1, { message: "La cantidad de unidades es obligatoria" }),
-  communityFormationDate: z.date().optional(),
-  communityRut: z.string().optional(),
-  communityEmail: z.string().email("Debe ser un email válido").optional().or(z.literal("")),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -80,17 +59,13 @@ const SellerProspects = () => {
       adminEmail: "",
       managementCompany: "",
       legalRepresentative: "",
-      legalRepresentativeRut: "",
-      legalRepresentativePhone: "",
       additionalATs: [],
       communityName: "",
       buildingAddress: "",
       comuna: "",
       region: "",
       buildingType: "Edificio",
-      units: 1,
-      communityRut: "",
-      communityEmail: "",
+      units: 0,
     },
   });
 
@@ -127,6 +102,8 @@ const SellerProspects = () => {
     setIsSubmitting(true);
     
     try {
+      console.log("Form data:", data);
+      
       const additionalATs = data.additionalATs || [];
       
       // Prepare webhook data with seller information
@@ -151,8 +128,8 @@ const SellerProspects = () => {
         console.log("Webhook triggered successfully");
 
         toast({
-          title: "Prospecto enviado exitosamente",
-          description: "El prospecto ha sido enviado para procesamiento.",
+          title: "Presupuesto enviado",
+          description: "El presupuesto ha sido enviado correctamente para procesamiento.",
         });
 
         form.reset();
@@ -160,14 +137,14 @@ const SellerProspects = () => {
         
       } catch (webhookError) {
         console.error("Error triggering webhook:", webhookError);
-        throw new Error("Error al enviar el prospecto");
+        throw new Error("Error al enviar el presupuesto");
       }
 
     } catch (error) {
-      console.error("Error al procesar el prospecto:", error);
+      console.error("Error processing prospect:", error);
       toast({
         title: "Error",
-        description: "Hubo un error al enviar el prospecto. Por favor, intente nuevamente.",
+        description: "Ocurrió un error al enviar el presupuesto. Por favor, intente nuevamente.",
         variant: "destructive",
       });
     } finally {
@@ -182,17 +159,13 @@ const SellerProspects = () => {
       adminEmail: "",
       managementCompany: "",
       legalRepresentative: "",
-      legalRepresentativeRut: "",
-      legalRepresentativePhone: "",
       additionalATs: [],
       communityName: "",
       buildingAddress: "",
       comuna: "",
       region: "",
       buildingType: type,
-      units: 1,
-      communityRut: "",
-      communityEmail: "",
+      units: 0,
     });
   };
 
@@ -210,9 +183,10 @@ const SellerProspects = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       <SellerSidebar />
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="flex-1 overflow-y-auto">
+        {/* Header with proper spacing */}
         <div className="bg-white border-b border-gray-200 px-8 py-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -220,10 +194,10 @@ const SellerProspects = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Captura de Prospectos
+                Creación presupuesto Viviendas
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Registra nuevos prospectos y genera presupuestos automáticamente
+                Registra los datos del prospecto para generar una cotización
                 {currentSeller && (
                   <span className="ml-2 text-blue-600 font-medium">
                     • Vendedor: {currentSeller}
@@ -234,8 +208,10 @@ const SellerProspects = () => {
           </div>
         </div>
 
+        {/* Main content with proper spacing */}
         <div className="p-8">
           {!selectedBuildingType ? (
+            // Building type selection view
             <Card className="max-w-5xl mx-auto shadow-sm border-0">
               <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
                 <CardTitle className="text-xl font-semibold text-gray-800 flex items-center gap-2">
@@ -275,6 +251,7 @@ const SellerProspects = () => {
               </CardContent>
             </Card>
           ) : (
+            // Form view
             <Card className="max-w-5xl mx-auto shadow-sm border-0">
               <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
                 <div className="flex items-center justify-between">
@@ -356,36 +333,9 @@ const SellerProspects = () => {
                           </FormItem>
                         )}
                       />
-
-                      <FormField
-                        control={form.control}
-                        name="legalRepresentativeRut"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>RUT Representante Legal</FormLabel>
-                            <FormControl>
-                              <Input placeholder="12.345.678-9" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="legalRepresentativePhone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Teléfono Representante Legal</FormLabel>
-                            <FormControl>
-                              <Input placeholder="+56 9 1234 5678" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                     </div>
                     
+                    {/* Additional ATs Section */}
                     {fields.map((field, index) => (
                       <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3 pb-3 border-t border-gray-200">
                         <FormField
@@ -529,78 +479,8 @@ const SellerProspects = () => {
                                   type="number" 
                                   placeholder={selectedBuildingType === "Escuela" ? "Número de aulas" : selectedBuildingType === "Industria" ? "Número de secciones" : "Número de departamentos"}
                                   {...field} 
-                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                                 />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="communityFormationDate"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>Fecha de Constitución</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={cn(
-                                        "w-full pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                      )}
-                                    >
-                                      {field.value ? (
-                                        format(field.value, "PPP", { locale: es })
-                                      ) : (
-                                        <span>Seleccionar fecha</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={field.onChange}
-                                    disabled={(date) =>
-                                      date > new Date() || date < new Date("1900-01-01")
-                                    }
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="communityRut"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>RUT de la Comunidad</FormLabel>
-                              <FormControl>
-                                <Input placeholder="12.345.678-9" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="communityEmail"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email de la Comunidad</FormLabel>
-                              <FormControl>
-                                <Input type="email" placeholder="comunidad@ejemplo.com" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -609,18 +489,20 @@ const SellerProspects = () => {
                       </div>
                     </div>
                     
-                    <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <div className="flex justify-end pt-6 border-t border-gray-200">
                       <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => form.reset()}
+                        type="submit" 
+                        className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-base font-medium"
                         disabled={isSubmitting}
                       >
-                        Limpiar Formulario
+                        {isSubmitting ? "Enviando..." : "Guardar Presupuesto"}
                       </Button>
-                      <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? "Enviando..." : "Crear Prospecto"}
-                      </Button>
+                    </div>
+                    
+                    {/* Required fields note */}
+                    <div className="text-sm text-gray-500 flex items-center gap-2 pt-4">
+                      <AlertCircle className="h-4 w-4" />
+                      Los campos marcados con <span className="text-red-500 font-medium">*</span> son obligatorios
                     </div>
                   </form>
                 </Form>
