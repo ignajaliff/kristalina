@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -525,5 +526,3 @@ const ProspectForm = () => {
 };
 
 export default ProspectForm;
-
-</edits_to_apply>
