@@ -1,7 +1,6 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, CheckCircle, ExternalLink } from "lucide-react";
+import { CalendarIcon, CheckCircle, ExternalLink, FileText } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -406,6 +405,18 @@ const SellerAcceptedQuotes = () => {
       return "Fecha inválida";
     }
   };
+
+  const handleOpenContract = (quote: Quote) => {
+    if (quote.terminos_contrato) {
+      window.open(quote.terminos_contrato, '_blank');
+    } else {
+      toast({
+        title: "Sin contrato",
+        description: "Este presupuesto no tiene un contrato disponible.",
+        variant: "destructive",
+      });
+    }
+  };
   
   return (
     <div className="flex h-screen bg-gray-50">
@@ -465,10 +476,10 @@ const SellerAcceptedQuotes = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Dirección</TableHead>
+                          <TableHead>Edificio</TableHead>
+                          <TableHead>Fecha firma de contrato</TableHead>
                           <TableHead>Fecha instalación de equipos</TableHead>
-                          <TableHead>Fecha Aprobación</TableHead>
-                          <TableHead>Estado</TableHead>
+                          <TableHead>Fecha envío de contrato</TableHead>
                           <TableHead>Acción</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -477,29 +488,29 @@ const SellerAcceptedQuotes = () => {
                           return (
                             <TableRow key={quote.id}>
                               <TableCell className="font-medium">
-                                {quote.buildingaddress || quote.communityname}
+                                {quote.communityname}
                               </TableCell>
+                              <TableCell>{formatDate(quote.fecha_firma_contrato)}</TableCell>
                               <TableCell>{formatDate(quote.fecha_instalacion_equipos)}</TableCell>
                               <TableCell>{formatDate(quote.fecha_aprobacion_presupuesto)}</TableCell>
                               <TableCell>
-                                <span className={cn(
-                                  "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                                  quote.equipos_instalados === "completed" ? "bg-green-100 text-green-800" :
-                                  quote.equipos_instalados === "contract_signed" ? "bg-yellow-100 text-yellow-800" :
-                                  "bg-gray-100 text-gray-800"
-                                )}>
-                                  {quote.equipos_instalados === "completed" && <CheckCircle className="mr-1 h-3 w-3" />}
-                                  {getEquipmentStatusText(quote.equipos_instalados)}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => setSelectedQuoteId(quote.id === selectedQuoteId ? null : quote.id)}
-                                >
-                                  {quote.id === selectedQuoteId ? "Cerrar" : "Ver Detalles"}
-                                </Button>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => setSelectedQuoteId(quote.id === selectedQuoteId ? null : quote.id)}
+                                  >
+                                    {quote.id === selectedQuoteId ? "Cerrar" : "Ver Detalles"}
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleOpenContract(quote)}
+                                  >
+                                    <FileText className="mr-1 h-4 w-4" />
+                                    Contrato
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -645,3 +656,5 @@ const SellerAcceptedQuotes = () => {
 };
 
 export default SellerAcceptedQuotes;
+
+}

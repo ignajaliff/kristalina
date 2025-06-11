@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Eye, FileText, CheckCircle } from "lucide-react";
+import { Eye, CheckCircle, FileText } from "lucide-react";
 
 import { Quote } from "@/utils/quoteStorage";
 import SellerSidebar from "@/components/SellerSidebar";
@@ -117,18 +117,6 @@ const SellerQuotes = () => {
     }
   };
 
-  const handleOpenContract = (quote: Quote) => {
-    if (quote.terminos_contrato) {
-      window.open(quote.terminos_contrato, '_blank');
-    } else {
-      toast({
-        title: "Sin contrato",
-        description: "Este presupuesto no tiene un contrato disponible.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="flex h-screen bg-gray-50">
       <SellerSidebar />
@@ -187,10 +175,10 @@ const SellerQuotes = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>Edificio</TableHead>
                           <TableHead>Dirección</TableHead>
-                          <TableHead>Comuna</TableHead>
                           <TableHead>Fecha Creación</TableHead>
-                          <TableHead>Monto</TableHead>
+                          <TableHead>Nombre Administrador</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead>Acciones</TableHead>
                         </TableRow>
@@ -199,16 +187,11 @@ const SellerQuotes = () => {
                         {quotes.map((quote) => (
                           <TableRow key={quote.id}>
                             <TableCell className="font-medium">
-                              {quote.buildingaddress || quote.communityname}
+                              {quote.communityname}
                             </TableCell>
-                            <TableCell>{quote.comuna}</TableCell>
+                            <TableCell>{quote.buildingaddress}</TableCell>
                             <TableCell>{formatDate(quote.created_at)}</TableCell>
-                            <TableCell>
-                              {quote.monto?.toLocaleString('es-CL', { 
-                                style: 'currency', 
-                                currency: 'CLP' 
-                              })}
-                            </TableCell>
+                            <TableCell>{quote.adminname}</TableCell>
                             <TableCell>
                               <Badge 
                                 variant={quote.status === "Aceptado" ? "default" : "secondary"}
@@ -228,14 +211,6 @@ const SellerQuotes = () => {
                                 >
                                   <Eye className="mr-1 h-4 w-4" />
                                   {quote.id === selectedQuoteId ? "Cerrar" : "Ver"}
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleOpenContract(quote)}
-                                >
-                                  <FileText className="mr-1 h-4 w-4" />
-                                  Contrato
                                 </Button>
                                 {quote.status === "Enviado" && (
                                   <Button 
