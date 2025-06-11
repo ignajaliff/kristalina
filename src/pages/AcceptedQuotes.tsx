@@ -337,11 +337,33 @@ const AcceptedQuotes = () => {
           }
           
           return {
-            ...quote,
+            id: quote.id,
+            adminname: quote.adminname,
+            adminemail: quote.adminemail,
+            managementcompany: quote.managementcompany,
+            legalrepresentative: quote.legalrepresentative,
             additional_at,
+            communityname: quote.communityname,
+            buildingaddress: quote.buildingaddress,
+            comuna: quote.comuna,
+            region: quote.region,
+            buildingtype: quote.buildingtype,
+            units: quote.units,
+            presupuesto_aceptado: quote.presupuesto_aceptado,
+            created_at: quote.created_at,
             monto,
             por_unidad, 
             inversion,
+            fecha_aprobacion_presupuesto: quote.fecha_aprobacion_presupuesto,
+            fecha_firma_contrato: quote.fecha_firma_contrato,
+            fecha_instalacion_equipos: quote.fecha_instalacion_equipos,
+            terminos_contrato: quote.terminos_contrato,
+            legalrepresentativerut: quote.legalrepresentativerut,
+            communityrut: quote.communityrut,
+            communityemail: quote.communityemail,
+            legalrepresentativephone: quote.legalrepresentativephone,
+            equipos_instalados: quote.equipos_instalados,
+            communityformationdate: quote.communityformationdate,
             status: "Aceptado" as "Enviado" | "Aceptado"
           } as Quote;
         });
