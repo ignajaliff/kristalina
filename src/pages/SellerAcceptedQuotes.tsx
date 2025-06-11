@@ -45,6 +45,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -332,35 +333,13 @@ const SellerAcceptedQuotes = () => {
           }
           
           return {
-            id: quote.id,
-            adminname: quote.adminname,
-            adminemail: quote.adminemail,
-            managementcompany: quote.managementcompany,
-            legalrepresentative: quote.legalrepresentative,
+            ...quote,
             additional_at,
-            communityname: quote.communityname,
-            buildingaddress: quote.buildingaddress,
-            comuna: quote.comuna,
-            region: quote.region,
-            buildingtype: quote.buildingtype,
-            units: quote.units,
-            presupuesto_aceptado: quote.presupuesto_aceptado,
-            created_at: quote.created_at,
             monto,
             por_unidad, 
             inversion,
-            fecha_aprobacion_presupuesto: quote.fecha_aprobacion_presupuesto,
-            fecha_firma_contrato: quote.fecha_firma_contrato,
-            fecha_instalacion_equipos: quote.fecha_instalacion_equipos,
-            terminos_contrato: quote.terminos_contrato,
-            legalrepresentativerut: quote.legalrepresentativerut,
-            communityrut: quote.communityrut,
-            communityemail: quote.communityemail,
-            legalrepresentativephone: quote.legalrepresentativephone,
-            equipos_instalados: quote.equipos_instalados,
-            communityformationdate: quote.communityformationdate,
             status: "Aceptado" as "Enviado" | "Aceptado"
-          } as Quote;
+          };
         });
         
         setAcceptedQuotes(processedQuotes);
@@ -479,6 +458,7 @@ const SellerAcceptedQuotes = () => {
                           <TableHead>Edificio</TableHead>
                           <TableHead>Fecha firma de contrato</TableHead>
                           <TableHead>Fecha instalación de equipos</TableHead>
+                          <TableHead>Estado</TableHead>
                           <TableHead>Fecha envío de contrato</TableHead>
                           <TableHead>Acción</TableHead>
                         </TableRow>
@@ -492,6 +472,12 @@ const SellerAcceptedQuotes = () => {
                               </TableCell>
                               <TableCell>{formatDate(quote.fecha_firma_contrato)}</TableCell>
                               <TableCell>{formatDate(quote.fecha_instalacion_equipos)}</TableCell>
+                              <TableCell>
+                                <Badge variant="default">
+                                  <CheckCircle className="mr-1 h-3 w-3" />
+                                  {getEquipmentStatusText(quote.equipos_instalados)}
+                                </Badge>
+                              </TableCell>
                               <TableCell>{formatDate(quote.fecha_aprobacion_presupuesto)}</TableCell>
                               <TableCell>
                                 <div className="flex gap-2">
