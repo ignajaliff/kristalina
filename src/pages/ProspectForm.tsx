@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -118,7 +117,7 @@ const ProspectForm = () => {
         source: "Kristalina CRM"
       };
       
-      // Send to webhook
+      // Send to webhook only
       try {
         await fetch(WEBHOOK_URL, {
           method: "POST",
@@ -130,51 +129,31 @@ const ProspectForm = () => {
         });
         
         console.log("Webhook triggered successfully");
+        
+        toast({
+          title: "Presupuesto enviado",
+          description: "El presupuesto ha sido enviado correctamente para procesamiento.",
+        });
+        
+        // Reset form and selection
+        form.reset();
+        setSelectedBuildingType(null);
+        
+        // Navigate to quotes page after a short delay
+        setTimeout(() => {
+          navigate("/admin/quotes");
+        }, 1500);
+        
       } catch (webhookError) {
         console.error("Error triggering webhook:", webhookError);
+        throw new Error("Error al enviar el presupuesto");
       }
-      
-      // Save to Supabase - using correct database column names
-      const { error } = await supabase
-        .from('presupuestos')
-        .insert({
-          adminname: data.adminName,
-          adminemail: data.adminEmail,
-          managementcompany: data.managementCompany || null,
-          legalrepresentative: data.legalRepresentative || null,
-          additional_at: additionalATs,
-          communityname: data.communityName,
-          buildingaddress: data.buildingAddress || null,
-          comuna: data.comuna || null,
-          region: data.region || null,
-          buildingtype: data.buildingType,
-          units: data.units,
-          vendedor: currentSeller, // Assign current seller
-        });
-      
-      if (error) {
-        throw error;
-      }
-      
-      toast({
-        title: "Presupuesto enviado",
-        description: "El presupuesto ha sido registrado correctamente y se ha enviado para cotización.",
-      });
-      
-      // Reset form and selection
-      form.reset();
-      setSelectedBuildingType(null);
-      
-      // Navigate to quotes page after a short delay
-      setTimeout(() => {
-        navigate("/admin/quotes");
-      }, 1500);
       
     } catch (error) {
-      console.error("Error saving prospect:", error);
+      console.error("Error processing prospect:", error);
       toast({
         title: "Error",
-        description: "Ocurrió un error al guardar el presupuesto. Por favor, intente nuevamente.",
+        description: "Ocurrió un error al enviar el presupuesto. Por favor, intente nuevamente.",
         variant: "destructive",
       });
     } finally {
@@ -546,3 +525,5 @@ const ProspectForm = () => {
 };
 
 export default ProspectForm;
+
+</edits_to_apply>

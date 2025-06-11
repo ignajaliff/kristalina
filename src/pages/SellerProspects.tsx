@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -65,6 +64,8 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 type BuildingType = "Edificio" | "Escuela" | "Industria";
 
+const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
+
 const SellerProspects = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -128,47 +129,45 @@ const SellerProspects = () => {
     try {
       const additionalATs = data.additionalATs || [];
       
-      const { error } = await supabase
-        .from('presupuestos')
-        .insert({
-          adminname: data.adminName,
-          adminemail: data.adminEmail,
-          managementcompany: data.managementCompany || null,
-          legalrepresentative: data.legalRepresentative || null,
-          legalrepresentativerut: data.legalRepresentativeRut || null,
-          legalrepresentativephone: data.legalRepresentativePhone || null,
-          additional_at: additionalATs,
-          communityname: data.communityName,
-          buildingaddress: data.buildingAddress || null,
-          comuna: data.comuna || null,
-          region: data.region || null,
-          buildingtype: data.buildingType,
-          units: data.units,
-          communityformationdate: data.communityFormationDate?.toISOString(),
-          communityrut: data.communityRut || null,
-          communityemail: data.communityEmail || null,
-          monto: data.units * 50000,
-          por_unidad: 50000,
-          inversion: Math.round(data.units * 50000 * 0.8),
-          vendedor: currentSeller,
+      // Prepare webhook data with seller information
+      const webhookData = {
+        ...data,
+        vendedor: currentSeller,
+        timestamp: new Date().toISOString(),
+        source: "Kristalina CRM - Seller"
+      };
+      
+      // Send to webhook only
+      try {
+        await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          mode: "no-cors",
+          body: JSON.stringify(webhookData),
+        });
+        
+        console.log("Webhook triggered successfully");
+
+        toast({
+          title: "Prospecto enviado exitosamente",
+          description: "El prospecto ha sido enviado para procesamiento.",
         });
 
-      if (error) {
-        throw error;
+        form.reset();
+        setSelectedBuildingType(null);
+        
+      } catch (webhookError) {
+        console.error("Error triggering webhook:", webhookError);
+        throw new Error("Error al enviar el prospecto");
       }
 
-      toast({
-        title: "Prospecto creado exitosamente",
-        description: "El prospecto ha sido registrado en el sistema.",
-      });
-
-      form.reset();
-      setSelectedBuildingType(null);
     } catch (error) {
-      console.error("Error al crear el prospecto:", error);
+      console.error("Error al procesar el prospecto:", error);
       toast({
         title: "Error",
-        description: "Hubo un error al crear el prospecto. Por favor, intente nuevamente.",
+        description: "Hubo un error al enviar el prospecto. Por favor, intente nuevamente.",
         variant: "destructive",
       });
     } finally {
@@ -620,7 +619,7 @@ const SellerProspects = () => {
                         Limpiar Formulario
                       </Button>
                       <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? "Creando..." : "Crear Prospecto"}
+                        {isSubmitting ? "Enviando..." : "Crear Prospecto"}
                       </Button>
                     </div>
                   </form>
