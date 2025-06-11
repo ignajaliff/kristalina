@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +17,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const formSchema = z.object({
@@ -50,7 +48,6 @@ const SellerProspects = () => {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedBuildingType, setSelectedBuildingType] = useState<BuildingType | null>(null);
-  const [currentSeller, setCurrentSeller] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -75,24 +72,6 @@ const SellerProspects = () => {
   });
 
   useEffect(() => {
-    const fetchCurrentSeller = async () => {
-      if (user?.email) {
-        const { data: seller, error } = await supabase
-          .from('vendedores')
-          .select('nombre')
-          .eq('email', user.email)
-          .single();
-        
-        if (seller && !error) {
-          setCurrentSeller(seller.nombre);
-        }
-      }
-    };
-
-    fetchCurrentSeller();
-  }, [user?.email]);
-
-  useEffect(() => {
     if (selectedBuildingType) {
       form.setValue("buildingType", selectedBuildingType);
     }
@@ -103,8 +82,13 @@ const SellerProspects = () => {
     
     try {
       console.log("Form data:", data);
+      console.log("Current user:", user);
       
       const additionalATs = data.additionalATs || [];
+      
+      // Use the authenticated user's name directly as the seller
+      const currentSeller = user?.name || null;
+      console.log("Using seller name from auth context:", currentSeller);
       
       // Prepare webhook data with seller information
       const webhookData = {
@@ -113,6 +97,8 @@ const SellerProspects = () => {
         timestamp: new Date().toISOString(),
         source: "Kristalina CRM - Seller"
       };
+      
+      console.log("Webhook data to send:", webhookData);
       
       // Send to webhook only
       try {
@@ -198,9 +184,9 @@ const SellerProspects = () => {
               </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Registra los datos del prospecto para generar una cotización
-                {currentSeller && (
+                {user?.name && (
                   <span className="ml-2 text-blue-600 font-medium">
-                    • Vendedor: {currentSeller}
+                    • Vendedor: {user.name}
                   </span>
                 )}
               </p>
