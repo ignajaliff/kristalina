@@ -7,8 +7,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { cn } from "@/lib/utils";
-import { Quote, addAcceptedQuote, sendAcceptedQuoteToWebhook } from "@/utils/quoteStorage";
+import { Quote } from "@/utils/quoteStorage";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -84,18 +85,27 @@ export default function AcceptQuoteDialog({
     setIsSubmitting(true);
     
     try {
-      // Store the accepted quote data
-      const acceptedQuote = addAcceptedQuote({
-        quoteId: quote.id,
-        legalRepresentativeName: data.legalRepresentativeName,
-        legalRepresentativeRut: data.legalRepresentativeRut,
-        communityRut: data.communityRut,
-        communityEmail: data.communityEmail,
-        legalRepresentativePhone: data.legalRepresentativePhone,
-        communityFormationDate: data.communityFormationDate.toISOString(),
-      });
+      // Update the quote in the database with the acceptance information
+      const { error } = await supabase
+        .from("presupuestos")
+        .update({
+          presupuesto_aceptado: true,
+          legalrepresentative: data.legalRepresentativeName,
+          legalrepresentativerut: data.legalRepresentativeRut,
+          communityrut: data.communityRut,
+          communityemail: data.communityEmail,
+          legalrepresentativephone: data.legalRepresentativePhone,
+          communityformationdate: data.communityFormationDate.toISOString(),
+          fecha_aprobacion_presupuesto: new Date().toISOString().split('T')[0],
+          estado_contacto: "Presupuesto Aceptado"
+        })
+        .eq("id", quote.id);
       
-      // Try to send to webhook (using the constant WEBHOOK_URL from QuotesTable)
+      if (error) {
+        throw error;
+      }
+      
+      // Try to send to webhook
       const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
       
       if (WEBHOOK_URL) {
@@ -124,7 +134,7 @@ export default function AcceptQuoteDialog({
           console.log("Webhook triggered successfully");
         } catch (webhookError) {
           console.error("Error triggering webhook:", webhookError);
-          throw webhookError;
+          // Don't throw here, we still want to show success
         }
       }
       

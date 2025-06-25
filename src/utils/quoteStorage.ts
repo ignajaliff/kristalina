@@ -32,16 +32,28 @@ export interface Quote {
   status: "Enviado" | "Aceptado";
 }
 
-export const addAcceptedQuote = async (quote: Quote) => {
-  // This function would typically save the accepted quote to the database
-  // For now, it's a placeholder
-  console.log('Adding accepted quote:', quote);
+export const logQuoteAcceptance = (quote: Quote) => {
+  // Function to log quote acceptance for debugging
+  console.log('Quote accepted:', quote);
   return quote;
 };
 
-export const sendAcceptedQuoteToWebhook = async (quote: Quote) => {
-  // This function would typically send the quote to a webhook
-  // For now, it's a placeholder
-  console.log('Sending accepted quote to webhook:', quote);
-  return quote;
+export const sendQuoteToWebhook = async (webhookUrl: string, data: any) => {
+  // Function to send data to webhook
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      mode: "no-cors",
+      body: JSON.stringify(data),
+    });
+    
+    console.log('Webhook sent successfully');
+    return response;
+  } catch (error) {
+    console.error('Error sending webhook:', error);
+    throw error;
+  }
 };
