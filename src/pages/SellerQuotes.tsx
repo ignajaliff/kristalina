@@ -120,8 +120,7 @@ const SellerQuotes = () => {
     const filtered = quotes.filter(quote =>
       quote.communityname.toLowerCase().includes(query.toLowerCase()) ||
       quote.adminname.toLowerCase().includes(query.toLowerCase()) ||
-      (quote.buildingaddress && quote.buildingaddress.toLowerCase().includes(query.toLowerCase())) ||
-      (quote.vendedor && quote.vendedor.toLowerCase().includes(query.toLowerCase()))
+      (quote.buildingaddress && quote.buildingaddress.toLowerCase().includes(query.toLowerCase()))
     );
     setFilteredQuotes(filtered);
   };
@@ -162,6 +161,11 @@ const SellerQuotes = () => {
     } catch (error) {
       return "Fecha inválida";
     }
+  };
+
+  const formatCurrency = (amount: number | null | undefined): string => {
+    if (!amount) return "N/A";
+    return amount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' });
   };
 
   const filterOptions = [
@@ -231,9 +235,9 @@ const SellerQuotes = () => {
             ) : filteredQuotes.length === 0 ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>No hay presupuestos</CardTitle>
+                  <CardTitle>No hay presupuestos enviados</CardTitle>
                   <CardDescription>
-                    Los presupuestos que crees aparecerán aquí.
+                    Los presupuestos con estado "Presupuesto Enviado" aparecerán aquí.
                     {user?.name && (
                       <span className="block text-xs text-gray-500 mt-1">
                         Buscando para vendedor: {user.name}
@@ -249,9 +253,10 @@ const SellerQuotes = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Edificio</TableHead>
-                        <TableHead>Dirección</TableHead>
+                        <TableHead>Administrador</TableHead>
+                        <TableHead>Monto</TableHead>
+                        <TableHead>Unidades</TableHead>
                         <TableHead>Fecha Creación</TableHead>
-                        <TableHead>Nombre Administrador</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Acciones</TableHead>
                       </TableRow>
@@ -262,9 +267,10 @@ const SellerQuotes = () => {
                           <TableCell className="font-medium">
                             {quote.communityname}
                           </TableCell>
-                          <TableCell>{quote.buildingaddress}</TableCell>
-                          <TableCell>{formatDate(quote.created_at)}</TableCell>
                           <TableCell>{quote.adminname}</TableCell>
+                          <TableCell>{formatCurrency(quote.monto)}</TableCell>
+                          <TableCell>{quote.units}</TableCell>
+                          <TableCell>{formatDate(quote.created_at)}</TableCell>
                           <TableCell>
                             <Badge 
                               variant={quote.status === "Aceptado" ? "default" : "secondary"}
