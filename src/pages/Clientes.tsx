@@ -218,7 +218,7 @@ const Clientes = () => {
   const getNextActionLabel = (currentEstado: string) => {
     switch (currentEstado) {
       case "Primer Contacto":
-        return "Marcar como Segundo Contacto";
+        return "Confirmar Primer Contacto";
       case "Segundo Contacto":
         return "Enviar Presupuesto";
       default:
@@ -357,7 +357,7 @@ const Clientes = () => {
                               ) : (
                                 <>
                                   <ArrowRight className="h-4 w-4 mr-1" />
-                                  Siguiente
+                                  {getNextActionLabel(cliente.estado_contacto)}
                                 </>
                               )}
                             </Button>
