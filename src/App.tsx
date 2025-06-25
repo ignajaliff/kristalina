@@ -19,6 +19,7 @@ import QuotesTable from "./pages/QuotesTable";
 import AcceptedQuotes from "./pages/AcceptedQuotes";
 import GestionEdificios from "./pages/GestionEdificios";
 import Clientes from "./pages/Clientes";
+import PresupuestosAceptados from "./pages/PresupuestosAceptados";
 
 const queryClient = new QueryClient();
 
@@ -60,7 +61,7 @@ const App = () => (
             
             <Route path="/admin/accepted-quotes" element={
               <ProtectedRoute allowedRoles={['admin']}>
-                <AcceptedQuotes />
+                <PresupuestosAceptados />
               </ProtectedRoute>
             } />
             

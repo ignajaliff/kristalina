@@ -1,12 +1,23 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Phone, Mail, Building, MapPin, Calendar, ArrowRight } from "lucide-react";
+import { Users, Phone, Mail, Building, MapPin, Calendar, ArrowRight, Edit, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
+import EditDialog from "@/components/EditDialog";
+import SearchAndFilter from "@/components/SearchAndFilter";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
 
@@ -31,12 +42,19 @@ interface Cliente {
 const Clientes = () => {
   const { toast } = useToast();
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingCliente, setUpdatingCliente] = useState<string | null>(null);
+  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchClientes();
   }, []);
+
+  useEffect(() => {
+    setFilteredClientes(clientes);
+  }, [clientes]);
 
   const fetchClientes = async () => {
     try {
@@ -67,6 +85,46 @@ const Clientes = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = (query: string) => {
+    if (!query.trim()) {
+      setFilteredClientes(clientes);
+      return;
+    }
+
+    const filtered = clientes.filter(cliente =>
+      cliente.communityname.toLowerCase().includes(query.toLowerCase()) ||
+      cliente.adminname.toLowerCase().includes(query.toLowerCase()) ||
+      cliente.adminemail.toLowerCase().includes(query.toLowerCase()) ||
+      (cliente.buildingaddress && cliente.buildingaddress.toLowerCase().includes(query.toLowerCase())) ||
+      (cliente.vendedor && cliente.vendedor.toLowerCase().includes(query.toLowerCase()))
+    );
+    setFilteredClientes(filtered);
+  };
+
+  const handleFilter = (filters: any) => {
+    let filtered = clientes;
+
+    if (filters.estado_contacto) {
+      filtered = filtered.filter(cliente => cliente.estado_contacto === filters.estado_contacto);
+    }
+
+    if (filters.buildingtype) {
+      filtered = filtered.filter(cliente => cliente.buildingtype === filters.buildingtype);
+    }
+
+    setFilteredClientes(filtered);
+  };
+
+  const handleEditClick = (cliente: Cliente) => {
+    setEditingCliente(cliente);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleCloseEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setEditingCliente(null);
   };
 
   const updateEstadoContacto = async (clienteId: string, nuevoEstado: string) => {
@@ -168,6 +226,26 @@ const Clientes = () => {
     }
   };
 
+  const filterOptions = [
+    {
+      label: "Estado",
+      key: "estado_contacto",
+      options: [
+        { value: "Primer Contacto", label: "Primer Contacto" },
+        { value: "Segundo Contacto", label: "Segundo Contacto" },
+      ]
+    },
+    {
+      label: "Tipo de Edificio",
+      key: "buildingtype",
+      options: [
+        { value: "Edificio", label: "Edificio" },
+        { value: "Condominio", label: "Condominio" },
+        { value: "Casa", label: "Casa" },
+      ]
+    }
+  ];
+
   if (loading) {
     return (
       <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -203,111 +281,105 @@ const Clientes = () => {
 
         {/* Main content */}
         <div className="p-8">
-          {clientes.length === 0 ? (
+          <SearchAndFilter
+            onSearch={handleSearch}
+            onFilter={handleFilter}
+            filterOptions={filterOptions}
+            searchPlaceholder="Buscar por nombre, email, dirección..."
+          />
+
+          {filteredClientes.length === 0 ? (
             <Card className="max-w-2xl mx-auto">
               <CardContent className="p-8 text-center">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No hay clientes</h3>
                 <p className="text-gray-600">
-                  No se encontraron clientes en proceso de contacto.
+                  No se encontraron clientes que coincidan con los criterios de búsqueda.
                 </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {clientes.map((cliente) => (
-                <Card key={cliente.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg font-semibold text-gray-900">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Comunidad</TableHead>
+                      <TableHead>Administrador</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Dirección</TableHead>
+                      <TableHead>Unidades</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredClientes.map((cliente) => (
+                      <TableRow key={cliente.id}>
+                        <TableCell className="font-medium">
                           {cliente.communityname}
-                        </CardTitle>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {cliente.buildingtype} • {cliente.units} unidades
-                        </p>
-                      </div>
-                      <Badge className={`${getEstadoBadgeColor(cliente.estado_contacto)} text-xs`}>
-                        {cliente.estado_contacto}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-600">Admin:</span>
-                        <span className="font-medium">{cliente.adminname}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-600">{cliente.adminemail}</span>
-                      </div>
-                      
-                      {cliente.buildingaddress && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPin className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600">{cliente.buildingaddress}</span>
-                        </div>
-                      )}
-                      
-                      {cliente.managementcompany && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Building className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600">{cliente.managementcompany}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-600">
+                        </TableCell>
+                        <TableCell>{cliente.adminname}</TableCell>
+                        <TableCell>{cliente.adminemail}</TableCell>
+                        <TableCell>{cliente.buildingaddress || "N/A"}</TableCell>
+                        <TableCell>{cliente.units}</TableCell>
+                        <TableCell>
+                          <Badge className={`${getEstadoBadgeColor(cliente.estado_contacto)} text-xs`}>
+                            {cliente.estado_contacto}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
                           {new Date(cliente.created_at).toLocaleDateString('es-ES')}
-                        </span>
-                      </div>
-                      
-                      {cliente.vendedor && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Users className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600">Vendedor:</span>
-                          <span className="font-medium">{cliente.vendedor}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="pt-4 border-t">
-                      <Button
-                        onClick={() => {
-                          const nextEstado = getNextEstado(cliente.estado_contacto);
-                          if (nextEstado) {
-                            updateEstadoContacto(cliente.id, nextEstado);
-                          }
-                        }}
-                        disabled={updatingCliente === cliente.id}
-                        className="w-full flex items-center gap-2"
-                        size="sm"
-                      >
-                        {updatingCliente === cliente.id ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            Actualizando...
-                          </>
-                        ) : (
-                          <>
-                            {getNextActionLabel(cliente.estado_contacto)}
-                            <ArrowRight className="h-4 w-4" />
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditClick(cliente)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const nextEstado = getNextEstado(cliente.estado_contacto);
+                                if (nextEstado) {
+                                  updateEstadoContacto(cliente.id, nextEstado);
+                                }
+                              }}
+                              disabled={updatingCliente === cliente.id}
+                            >
+                              {updatingCliente === cliente.id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              ) : (
+                                <>
+                                  <ArrowRight className="h-4 w-4 mr-1" />
+                                  Siguiente
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
+
+      <EditDialog
+        isOpen={isEditDialogOpen}
+        onClose={handleCloseEditDialog}
+        record={editingCliente}
+        onUpdate={fetchClientes}
+        type="cliente"
+      />
     </div>
   );
 };
