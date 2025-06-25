@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   adminName: z.string().min(1, { message: "El nombre del administrador es obligatorio" }),
@@ -40,8 +41,6 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 type BuildingType = "Edificio" | "Escuela" | "Industria";
-
-const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
 
 const SellerProspects = () => {
   const { toast } = useToast();
@@ -90,47 +89,52 @@ const SellerProspects = () => {
       const currentSeller = user?.name || null;
       console.log("Using seller name from auth context:", currentSeller);
       
-      // Prepare webhook data with seller information
-      const webhookData = {
-        ...data,
+      // Prepare data for Supabase
+      const supabaseData = {
+        adminname: data.adminName,
+        adminemail: data.adminEmail,
+        managementcompany: data.managementCompany || null,
+        legalrepresentative: data.legalRepresentative || null,
+        additional_at: additionalATs,
+        communityname: data.communityName,
+        buildingaddress: data.buildingAddress || null,
+        comuna: data.comuna || null,
+        region: data.region || null,
+        buildingtype: data.buildingType,
+        units: data.units,
         vendedor: currentSeller,
-        timestamp: new Date().toISOString(),
-        source: "Kristalina CRM - Seller"
+        estado_contacto: "Primer Contacto"
       };
       
-      console.log("Webhook data to send:", webhookData);
+      console.log("Supabase data to save:", supabaseData);
       
-      // Send to webhook only
-      try {
-        await fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          mode: "no-cors",
-          body: JSON.stringify(webhookData),
-        });
-        
-        console.log("Webhook triggered successfully");
-
-        toast({
-          title: "Presupuesto enviado",
-          description: "El presupuesto ha sido enviado correctamente para procesamiento.",
-        });
-
-        form.reset();
-        setSelectedBuildingType(null);
-        
-      } catch (webhookError) {
-        console.error("Error triggering webhook:", webhookError);
-        throw new Error("Error al enviar el presupuesto");
+      // Save to Supabase
+      const { data: insertedData, error: supabaseError } = await supabase
+        .from('presupuestos')
+        .insert([supabaseData])
+        .select()
+        .single();
+      
+      if (supabaseError) {
+        console.error("Error saving to Supabase:", supabaseError);
+        throw new Error("Error al guardar en la base de datos");
       }
+      
+      console.log("Data saved to Supabase:", insertedData);
 
+      toast({
+        title: "Cliente guardado",
+        description: "Los datos del cliente han sido guardados correctamente.",
+      });
+
+      form.reset();
+      setSelectedBuildingType(null);
+        
     } catch (error) {
       console.error("Error processing prospect:", error);
       toast({
         title: "Error",
-        description: "Ocurrió un error al enviar el presupuesto. Por favor, intente nuevamente.",
+        description: "Ocurrió un error al guardar los datos del cliente. Por favor, intente nuevamente.",
         variant: "destructive",
       });
     } finally {
@@ -180,10 +184,10 @@ const SellerProspects = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Creación presupuesto Viviendas
+                Captura Cliente
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Registra los datos del prospecto para generar una cotización
+                Registra los datos del cliente para generar una cotización
                 {user?.name && (
                   <span className="ml-2 text-blue-600 font-medium">
                     • Vendedor: {user.name}
@@ -243,7 +247,7 @@ const SellerProspects = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    Datos del Prospecto - {getBuildingTypeLabel(selectedBuildingType)}
+                    Datos del Cliente - {getBuildingTypeLabel(selectedBuildingType)}
                   </CardTitle>
                   <Button
                     variant="outline"
@@ -481,7 +485,7 @@ const SellerProspects = () => {
                         className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-base font-medium"
                         disabled={isSubmitting}
                       >
-                        {isSubmitting ? "Enviando..." : "Guardar Presupuesto"}
+                        {isSubmitting ? "Guardando..." : "Guardar Cliente"}
                       </Button>
                     </div>
                     

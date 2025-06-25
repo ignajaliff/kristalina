@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -36,8 +35,6 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
 
 type BuildingType = "Edificio" | "Escuela" | "Industria";
 
@@ -110,51 +107,56 @@ const ProspectForm = () => {
       // Format additional ATs for storage
       const additionalATs = data.additionalATs || [];
       
-      // Prepare webhook data with seller information
-      const webhookData = {
-        ...data,
+      // Prepare data for Supabase
+      const supabaseData = {
+        adminname: data.adminName,
+        adminemail: data.adminEmail,
+        managementcompany: data.managementCompany || null,
+        legalrepresentative: data.legalRepresentative || null,
+        additional_at: additionalATs,
+        communityname: data.communityName,
+        buildingaddress: data.buildingAddress || null,
+        comuna: data.comuna || null,
+        region: data.region || null,
+        buildingtype: data.buildingType,
+        units: data.units,
         vendedor: currentSeller,
-        timestamp: new Date().toISOString(),
-        source: "Kristalina CRM"
+        estado_contacto: "Primer Contacto"
       };
       
-      // Send to webhook only
-      try {
-        await fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          mode: "no-cors",
-          body: JSON.stringify(webhookData),
-        });
-        
-        console.log("Webhook triggered successfully");
-        
-        toast({
-          title: "Presupuesto enviado",
-          description: "El presupuesto ha sido enviado correctamente para procesamiento.",
-        });
-        
-        // Reset form and selection
-        form.reset();
-        setSelectedBuildingType(null);
-        
-        // Navigate to quotes page after a short delay
-        setTimeout(() => {
-          navigate("/admin/quotes");
-        }, 1500);
-        
-      } catch (webhookError) {
-        console.error("Error triggering webhook:", webhookError);
-        throw new Error("Error al enviar el presupuesto");
+      // Save to Supabase
+      const { data: insertedData, error: supabaseError } = await supabase
+        .from('presupuestos')
+        .insert([supabaseData])
+        .select()
+        .single();
+      
+      if (supabaseError) {
+        console.error("Error saving to Supabase:", supabaseError);
+        throw new Error("Error al guardar en la base de datos");
       }
+      
+      console.log("Data saved to Supabase:", insertedData);
+      
+      toast({
+        title: "Cliente guardado",
+        description: "Los datos del cliente han sido guardados correctamente.",
+      });
+      
+      // Reset form and selection
+      form.reset();
+      setSelectedBuildingType(null);
+      
+      // Navigate to clientes page after a short delay
+      setTimeout(() => {
+        navigate("/admin/clientes");
+      }, 1500);
       
     } catch (error) {
       console.error("Error processing prospect:", error);
       toast({
         title: "Error",
-        description: "Ocurrió un error al enviar el presupuesto. Por favor, intente nuevamente.",
+        description: "Ocurrió un error al guardar los datos del cliente. Por favor, intente nuevamente.",
         variant: "destructive",
       });
     } finally {
@@ -204,10 +206,10 @@ const ProspectForm = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Creación presupuesto Viviendas
+                Captura Cliente
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Registra los datos del prospecto para generar una cotización
+                Registra los datos del cliente para generar una cotización
                 {currentSeller && (
                   <span className="ml-2 text-blue-600 font-medium">
                     • Vendedor: {currentSeller}
@@ -267,7 +269,7 @@ const ProspectForm = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-semibold text-gray-800 flex items-center gap-2">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    Datos del Prospecto - {getBuildingTypeLabel(selectedBuildingType)}
+                    Datos del Cliente - {getBuildingTypeLabel(selectedBuildingType)}
                   </CardTitle>
                   <Button
                     variant="outline"
@@ -505,7 +507,7 @@ const ProspectForm = () => {
                         className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-base font-medium"
                         disabled={isSubmitting}
                       >
-                        {isSubmitting ? "Enviando..." : "Guardar Presupuesto"}
+                        {isSubmitting ? "Guardando..." : "Guardar Cliente"}
                       </Button>
                     </div>
                     

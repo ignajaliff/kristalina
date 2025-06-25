@@ -18,6 +18,7 @@ import ProspectForm from "./pages/ProspectForm";
 import QuotesTable from "./pages/QuotesTable";
 import AcceptedQuotes from "./pages/AcceptedQuotes";
 import GestionEdificios from "./pages/GestionEdificios";
+import Clientes from "./pages/Clientes";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,12 @@ const App = () => (
             <Route path="/admin/prospects" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <ProspectForm />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/clientes" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Clientes />
               </ProtectedRoute>
             } />
             

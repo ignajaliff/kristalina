@@ -9,7 +9,8 @@ import {
   CheckSquare,
   Droplet,
   CheckCircle,
-  Building2
+  Building2,
+  Users
 } from "lucide-react";
 
 const AdminSidebar = () => {
@@ -50,7 +51,16 @@ const AdminSidebar = () => {
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors text-slate-700 font-medium"
               >
                 <FileText className="h-4 w-4 text-blue-600" />
-                Captura Prospectos
+                Captura Cliente
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/admin/clientes" 
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors text-slate-700 font-medium"
+              >
+                <Users className="h-4 w-4 text-blue-600" />
+                Clientes
               </Link>
             </li>
             <li>
@@ -59,7 +69,7 @@ const AdminSidebar = () => {
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors text-slate-700 font-medium"
               >
                 <CheckSquare className="h-4 w-4 text-blue-600" />
-                Presupuestos
+                Presupuestos Enviados
               </Link>
             </li>
             <li>
