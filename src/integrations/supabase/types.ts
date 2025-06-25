@@ -70,6 +70,8 @@ export type Database = {
           legalrepresentativerut: string | null
           managementcompany: string | null
           monto: number | null
+          nombre_portero: string | null
+          notas: string | null
           por_unidad: number | null
           presupuesto_aceptado: boolean
           region: string | null
@@ -101,6 +103,8 @@ export type Database = {
           legalrepresentativerut?: string | null
           managementcompany?: string | null
           monto?: number | null
+          nombre_portero?: string | null
+          notas?: string | null
           por_unidad?: number | null
           presupuesto_aceptado?: boolean
           region?: string | null
@@ -132,6 +136,8 @@ export type Database = {
           legalrepresentativerut?: string | null
           managementcompany?: string | null
           monto?: number | null
+          nombre_portero?: string | null
+          notas?: string | null
           por_unidad?: number | null
           presupuesto_aceptado?: boolean
           region?: string | null

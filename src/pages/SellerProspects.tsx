@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +39,8 @@ const formSchema = z.object({
   region: z.string().optional(),
   buildingType: z.string().default("Edificio"),
   units: z.number().min(1, { message: "La cantidad de unidades es obligatoria" }),
+  nombrePortero: z.string().optional(),
+  notas: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -62,6 +66,8 @@ const SellerProspects = () => {
       region: "",
       buildingType: "Edificio",
       units: 0,
+      nombrePortero: "",
+      notas: "",
     },
   });
 
@@ -103,7 +109,9 @@ const SellerProspects = () => {
         buildingtype: data.buildingType,
         units: data.units,
         vendedor: currentSeller,
-        estado_contacto: "Primer Contacto"
+        estado_contacto: "Primer Contacto",
+        nombre_portero: data.nombrePortero || null,
+        notas: data.notas || null,
       };
       
       console.log("Supabase data to save:", supabaseData);
@@ -156,6 +164,8 @@ const SellerProspects = () => {
       region: "",
       buildingType: type,
       units: 0,
+      nombrePortero: "",
+      notas: "",
     });
   };
 
@@ -267,10 +277,7 @@ const SellerProspects = () => {
                         name="adminName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-1">
-                              Nombre del Administrador
-                              <span className="text-red-500">*</span>
-                            </FormLabel>
+                            <FormLabel>Nombre del Administrador</FormLabel>
                             <FormControl>
                               <Input placeholder="Nombre completo" {...field} />
                             </FormControl>
@@ -284,10 +291,7 @@ const SellerProspects = () => {
                         name="adminEmail"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-1">
-                              Correo del Administrador
-                              <span className="text-red-500">*</span>
-                            </FormLabel>
+                            <FormLabel>Correo del Administrador</FormLabel>
                             <FormControl>
                               <Input type="email" placeholder="correo@ejemplo.com" {...field} />
                             </FormControl>
@@ -382,10 +386,7 @@ const SellerProspects = () => {
                           name="communityName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center gap-1">
-                                Nombre de la Comunidad ({getBuildingTypeLabel(selectedBuildingType)})
-                                <span className="text-red-500">*</span>
-                              </FormLabel>
+                              <FormLabel>Nombre de la Comunidad ({getBuildingTypeLabel(selectedBuildingType)})</FormLabel>
                               <FormControl>
                                 <Input placeholder={`Ej: ${getBuildingTypeLabel(selectedBuildingType)} Los Alpes`} {...field} />
                               </FormControl>
@@ -460,16 +461,47 @@ const SellerProspects = () => {
                           name="units"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center gap-1">
-                                Cantidad de Unidades
-                                <span className="text-red-500">*</span>
-                              </FormLabel>
+                              <FormLabel>Cantidad de Unidades</FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number" 
                                   placeholder={selectedBuildingType === "Escuela" ? "Número de aulas" : selectedBuildingType === "Industria" ? "Número de secciones" : "Número de departamentos"}
                                   {...field} 
                                   onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="nombrePortero"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nombre Portero</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Nombre del portero" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="mt-6">
+                        <FormField
+                          control={form.control}
+                          name="notas"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Notas</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Notas adicionales sobre el cliente o proyecto..."
+                                  className="min-h-[100px]"
+                                  {...field} 
                                 />
                               </FormControl>
                               <FormMessage />
@@ -487,12 +519,6 @@ const SellerProspects = () => {
                       >
                         {isSubmitting ? "Guardando..." : "Guardar Cliente"}
                       </Button>
-                    </div>
-                    
-                    {/* Required fields note */}
-                    <div className="text-sm text-gray-500 flex items-center gap-2 pt-4">
-                      <AlertCircle className="h-4 w-4" />
-                      Los campos marcados con <span className="text-red-500 font-medium">*</span> son obligatorios
                     </div>
                   </form>
                 </Form>

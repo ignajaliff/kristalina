@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import AdminSidebar from "@/components/AdminSidebar";
@@ -305,11 +304,10 @@ const Clientes = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Comunidad</TableHead>
+                      <TableHead>Dirección</TableHead>
                       <TableHead>Administrador</TableHead>
                       <TableHead>Email</TableHead>
-                      <TableHead>Dirección</TableHead>
                       <TableHead>Unidades</TableHead>
-                      <TableHead>Estado</TableHead>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Acciones</TableHead>
                     </TableRow>
@@ -320,15 +318,10 @@ const Clientes = () => {
                         <TableCell className="font-medium">
                           {cliente.communityname}
                         </TableCell>
+                        <TableCell>{cliente.buildingaddress || "N/A"}</TableCell>
                         <TableCell>{cliente.adminname}</TableCell>
                         <TableCell>{cliente.adminemail}</TableCell>
-                        <TableCell>{cliente.buildingaddress || "N/A"}</TableCell>
                         <TableCell>{cliente.units}</TableCell>
-                        <TableCell>
-                          <Badge className={`${getEstadoBadgeColor(cliente.estado_contacto)} text-xs`}>
-                            {cliente.estado_contacto}
-                          </Badge>
-                        </TableCell>
                         <TableCell>
                           {new Date(cliente.created_at).toLocaleDateString('es-ES')}
                         </TableCell>
