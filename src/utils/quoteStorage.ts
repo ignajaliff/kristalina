@@ -31,3 +31,17 @@ export interface Quote {
   estado_contacto?: string;
   status: "Enviado" | "Aceptado";
 }
+
+export const addAcceptedQuote = async (quote: Quote) => {
+  // This function would typically save the accepted quote to the database
+  // For now, it's a placeholder
+  console.log('Adding accepted quote:', quote);
+  return quote;
+};
+
+export const sendAcceptedQuoteToWebhook = async (quote: Quote) => {
+  // This function would typically send the quote to a webhook
+  // For now, it's a placeholder
+  console.log('Sending accepted quote to webhook:', quote);
+  return quote;
+};

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Eye, CheckCircle, FileText, Edit } from "lucide-react";
@@ -47,6 +46,7 @@ const SellerQuotes = () => {
     setIsLoading(true);
     try {
       console.log('Buscando presupuestos para vendedor:', user.name);
+      console.log('Filtrando por estado_contacto: "Presupuesto Enviado"');
       
       const { data, error } = await supabase
         .from("presupuestos")
@@ -56,10 +56,24 @@ const SellerQuotes = () => {
         .order("created_at", { ascending: false });
 
       if (error) {
+        console.error('Error en la consulta de Supabase:', error);
         throw error;
       }
 
-      console.log('Datos encontrados:', data);
+      console.log('Datos encontrados en Supabase:', data);
+      console.log('Número de registros encontrados:', data?.length || 0);
+      
+      // Log each record's estado_contacto to debug
+      if (data) {
+        data.forEach((record, index) => {
+          console.log(`Registro ${index + 1}:`, {
+            id: record.id,
+            communityname: record.communityname,
+            estado_contacto: record.estado_contacto,
+            vendedor: record.vendedor
+          });
+        });
+      }
 
       if (data) {
         const processedQuotes: Quote[] = data.map(quote => {
@@ -91,9 +105,9 @@ const SellerQuotes = () => {
           } as Quote;
         });
 
+        console.log('Presupuestos procesados:', processedQuotes);
         setQuotes(processedQuotes);
         setFilteredQuotes(processedQuotes);
-        console.log('Presupuestos procesados:', processedQuotes);
       }
     } catch (error) {
       console.error("Error fetching quotes:", error);
@@ -256,6 +270,7 @@ const SellerQuotes = () => {
                         <TableHead>Administrador</TableHead>
                         <TableHead>Monto</TableHead>
                         <TableHead>Unidades</TableHead>
+                        <TableHead>Estado Contacto</TableHead>
                         <TableHead>Fecha Creación</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Acciones</TableHead>
@@ -270,6 +285,11 @@ const SellerQuotes = () => {
                           <TableCell>{quote.adminname}</TableCell>
                           <TableCell>{formatCurrency(quote.monto)}</TableCell>
                           <TableCell>{quote.units}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {quote.estado_contacto || 'No definido'}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{formatDate(quote.created_at)}</TableCell>
                           <TableCell>
                             <Badge 
