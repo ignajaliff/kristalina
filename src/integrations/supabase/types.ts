@@ -59,6 +59,7 @@ export type Database = {
           comuna: string | null
           created_at: string
           equipos_instalados: string | null
+          estado_contacto: string | null
           fecha_aprobacion_presupuesto: string | null
           fecha_firma_contrato: string | null
           fecha_instalacion_equipos: string | null
@@ -89,6 +90,7 @@ export type Database = {
           comuna?: string | null
           created_at?: string
           equipos_instalados?: string | null
+          estado_contacto?: string | null
           fecha_aprobacion_presupuesto?: string | null
           fecha_firma_contrato?: string | null
           fecha_instalacion_equipos?: string | null
@@ -119,6 +121,7 @@ export type Database = {
           comuna?: string | null
           created_at?: string
           equipos_instalados?: string | null
+          estado_contacto?: string | null
           fecha_aprobacion_presupuesto?: string | null
           fecha_firma_contrato?: string | null
           fecha_instalacion_equipos?: string | null
