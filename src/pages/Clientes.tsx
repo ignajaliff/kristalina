@@ -1,12 +1,12 @@
-
 import { useState, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import AdminSidebar from "@/components/AdminSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, Phone, Mail, Building, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 
 const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
 
@@ -23,7 +23,7 @@ interface Cliente {
   created_at: string;
   managementcompany: string | null;
   legalrepresentative: string | null;
-  additional_at: any[] | null;
+  additional_at: Json | null;
   comuna: string | null;
   region: string | null;
 }
