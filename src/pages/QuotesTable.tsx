@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Eye, CheckCircle } from "lucide-react";
@@ -5,6 +6,7 @@ import { Eye, CheckCircle } from "lucide-react";
 import { Quote } from "@/utils/quoteStorage";
 import AdminSidebar from "@/components/AdminSidebar";
 import QuotesTableHeader from "@/components/QuotesTableHeader";
+import SearchAndFilter from "@/components/SearchAndFilter";
 import AcceptQuoteDialog from "@/components/AcceptQuoteDialog";
 import { Button } from "@/components/ui/button";
 import { 
@@ -29,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 const QuotesTable = () => {
   const { toast } = useToast();
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,16 +40,23 @@ const QuotesTable = () => {
   const fetchQuotes = async () => {
     setIsLoading(true);
     try {
+      console.log('Fetching quotes with estado_contacto = "Presupuesto Enviado"...');
+      
       const { data, error } = await supabase
         .from("presupuestos")
         .select("*")
+        .eq("estado_contacto", "Presupuesto Enviado")
         .order("created_at", { ascending: false });
+
+      console.log('Supabase query result:', { data, error });
 
       if (error) {
         throw error;
       }
 
       if (data) {
+        console.log(`Found ${data.length} quotes with estado_contacto = "Presupuesto Enviado"`);
+        
         const processedQuotes: Quote[] = data.map(quote => {
           const monto = quote.monto || quote.units * 50000;
           const por_unidad = quote.por_unidad || 50000;
@@ -76,7 +86,9 @@ const QuotesTable = () => {
           } as Quote;
         });
 
+        console.log('Processed quotes:', processedQuotes);
         setQuotes(processedQuotes);
+        setFilteredQuotes(processedQuotes);
       }
     } catch (error) {
       console.error("Error fetching quotes:", error);
@@ -94,6 +106,45 @@ const QuotesTable = () => {
     fetchQuotes();
   }, []);
 
+  const handleSearch = (query: string) => {
+    console.log('Search query:', query);
+    
+    if (!query.trim()) {
+      setFilteredQuotes(quotes);
+      return;
+    }
+
+    const filtered = quotes.filter(quote =>
+      quote.communityname.toLowerCase().includes(query.toLowerCase()) ||
+      quote.adminname.toLowerCase().includes(query.toLowerCase()) ||
+      (quote.buildingaddress && quote.buildingaddress.toLowerCase().includes(query.toLowerCase())) ||
+      (quote.vendedor && quote.vendedor.toLowerCase().includes(query.toLowerCase()))
+    );
+    
+    console.log('Filtered quotes after search:', filtered);
+    setFilteredQuotes(filtered);
+  };
+
+  const handleFilter = (filters: any) => {
+    console.log('Applied filters:', filters);
+    let filtered = quotes;
+
+    if (filters.buildingtype) {
+      filtered = filtered.filter(quote => quote.buildingtype === filters.buildingtype);
+    }
+
+    if (filters.vendedor) {
+      filtered = filtered.filter(quote => quote.vendedor === filters.vendedor);
+    }
+
+    if (filters.status) {
+      filtered = filtered.filter(quote => quote.status === filters.status);
+    }
+
+    console.log('Filtered quotes after filters:', filtered);
+    setFilteredQuotes(filtered);
+  };
+
   const handleAcceptQuote = (quote: Quote) => {
     setSelectedQuote(quote);
     setIsDialogOpen(true);
@@ -108,6 +159,34 @@ const QuotesTable = () => {
     }
   };
 
+  // Get unique vendors for filter
+  const uniqueVendors = [...new Set(quotes.filter(q => q.vendedor).map(q => q.vendedor))];
+
+  const filterOptions = [
+    {
+      label: "Tipo de Edificio",
+      key: "buildingtype",
+      options: [
+        { value: "Edificio", label: "Edificio" },
+        { value: "Condominio", label: "Condominio" },
+        { value: "Casa", label: "Casa" },
+      ]
+    },
+    {
+      label: "Estado",
+      key: "status",
+      options: [
+        { value: "Enviado", label: "Enviado" },
+        { value: "Aceptado", label: "Aceptado" },
+      ]
+    },
+    {
+      label: "Vendedor",
+      key: "vendedor",
+      options: uniqueVendors.map(vendor => ({ value: vendor!, label: vendor! }))
+    }
+  ];
+
   return (
     <div className="flex h-screen bg-gray-50">
       <AdminSidebar />
@@ -117,6 +196,13 @@ const QuotesTable = () => {
         
         <div className="flex-1 p-8 overflow-auto">
           <div className="max-w-6xl mx-auto">
+            <SearchAndFilter
+              onSearch={handleSearch}
+              onFilter={handleFilter}
+              filterOptions={filterOptions}
+              searchPlaceholder="Buscar por comunidad, administrador, dirección, vendedor..."
+            />
+
             {isLoading ? (
               <Card>
                 <CardHeader>
@@ -126,12 +212,12 @@ const QuotesTable = () => {
                   </CardDescription>
                 </CardHeader>
               </Card>
-            ) : quotes.length === 0 ? (
+            ) : filteredQuotes.length === 0 ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>No hay presupuestos</CardTitle>
+                  <CardTitle>No hay presupuestos enviados</CardTitle>
                   <CardDescription>
-                    Los presupuestos creados aparecerán aquí.
+                    Los presupuestos enviados aparecerán aquí.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -146,12 +232,13 @@ const QuotesTable = () => {
                           <TableHead>Dirección</TableHead>
                           <TableHead>Fecha Creación</TableHead>
                           <TableHead>Nombre Administrador</TableHead>
+                          <TableHead>Vendedor</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead>Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {quotes.map((quote) => (
+                        {filteredQuotes.map((quote) => (
                           <TableRow key={quote.id}>
                             <TableCell className="font-medium">
                               {quote.communityname}
@@ -159,6 +246,7 @@ const QuotesTable = () => {
                             <TableCell>{quote.buildingaddress}</TableCell>
                             <TableCell>{formatDate(quote.created_at)}</TableCell>
                             <TableCell>{quote.adminname}</TableCell>
+                            <TableCell>{quote.vendedor || "N/A"}</TableCell>
                             <TableCell>
                               <Badge 
                                 variant={quote.status === "Aceptado" ? "default" : "secondary"}
@@ -208,7 +296,7 @@ const QuotesTable = () => {
                     </CardHeader>
                     <CardContent>
                       {(() => {
-                        const selectedQuote = quotes.find(q => q.id === selectedQuoteId);
+                        const selectedQuote = filteredQuotes.find(q => q.id === selectedQuoteId);
                         
                         if (!selectedQuote) {
                           return <p>No se encontró la información del presupuesto.</p>;
@@ -292,6 +380,10 @@ const QuotesTable = () => {
                                       {selectedQuote.status}
                                     </Badge>
                                   </dd>
+                                </div>
+                                <div>
+                                  <dt className="text-sm font-medium text-gray-500">Vendedor:</dt>
+                                  <dd>{selectedQuote.vendedor || 'No asignado'}</dd>
                                 </div>
                                 <div>
                                   <dt className="text-sm font-medium text-gray-500">Fecha Creación:</dt>
