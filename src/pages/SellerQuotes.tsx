@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Eye, CheckCircle, FileText, Edit } from "lucide-react";
@@ -33,12 +34,10 @@ const SellerQuotes = () => {
   const { user } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
-  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
-  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const fetchQuotes = async () => {
     if (!user?.name) return;
@@ -158,14 +157,14 @@ const SellerQuotes = () => {
     setIsDialogOpen(true);
   };
 
-  const handleEditClick = (quote: Quote) => {
-    setEditingQuote(quote);
-    setIsEditDialogOpen(true);
+  const handleViewQuote = (quote: Quote) => {
+    setSelectedQuote(quote);
+    setIsViewDialogOpen(true);
   };
 
-  const handleCloseEditDialog = () => {
-    setIsEditDialogOpen(false);
-    setEditingQuote(null);
+  const handleCloseViewDialog = () => {
+    setIsViewDialogOpen(false);
+    setSelectedQuote(null);
   };
 
   const formatDate = (dateString?: string | null): string => {
@@ -306,10 +305,10 @@ const SellerQuotes = () => {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleEditClick(quote)}
+                                onClick={() => handleViewQuote(quote)}
                               >
-                                <Edit className="mr-1 h-4 w-4" />
-                                Editar
+                                <Eye className="mr-1 h-4 w-4" />
+                                Ver
                               </Button>
                               {quote.status === "Enviado" && (
                                 <Button 
@@ -346,9 +345,9 @@ const SellerQuotes = () => {
       />
 
       <EditDialog
-        isOpen={isEditDialogOpen}
-        onClose={handleCloseEditDialog}
-        record={editingQuote}
+        isOpen={isViewDialogOpen}
+        onClose={handleCloseViewDialog}
+        record={selectedQuote}
         onUpdate={fetchQuotes}
         type="presupuesto"
       />

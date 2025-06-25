@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,9 +50,12 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
   const onSubmit = async (data: any) => {
     setIsLoading(true);
     try {
+      // Remove the status field from data as it doesn't exist in the database
+      const { status, ...updateData } = data;
+      
       const { error } = await supabase
         .from('presupuestos')
-        .update(data)
+        .update(updateData)
         .eq('id', record.id);
 
       if (error) {
@@ -79,13 +83,18 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
 
   if (!record) return null;
 
+  const isViewOnly = type === "presupuesto";
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Editar {type === "cliente" ? "Cliente" : "Presupuesto"}
+            {isViewOnly ? "Ver" : "Editar"} {type === "cliente" ? "Cliente" : "Presupuesto"}
           </DialogTitle>
+          <DialogDescription>
+            {isViewOnly ? "Información detallada del presupuesto" : "Edita la información del registro"}
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -98,7 +107,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Nombre de la Comunidad</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -112,7 +121,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Dirección</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} />
+                      <Input {...field} value={field.value || ""} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -126,7 +135,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Nombre del Administrador</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -140,7 +149,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Email del Administrador</FormLabel>
                     <FormControl>
-                      <Input type="email" {...field} />
+                      <Input type="email" {...field} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -154,7 +163,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Unidades</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} value={field.value || ""} />
+                      <Input type="number" {...field} value={field.value || ""} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -168,7 +177,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Tipo de Edificio</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -182,7 +191,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Comuna</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} />
+                      <Input {...field} value={field.value || ""} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -196,7 +205,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Región</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} />
+                      <Input {...field} value={field.value || ""} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -210,7 +219,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Representante Legal</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} />
+                      <Input {...field} value={field.value || ""} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -224,7 +233,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Empresa Administradora</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} />
+                      <Input {...field} value={field.value || ""} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -238,7 +247,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   <FormItem>
                     <FormLabel>Vendedor</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} />
+                      <Input {...field} value={field.value || ""} disabled={isViewOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -252,18 +261,26 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Estado de Contacto</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar estado" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Primer Contacto">Primer Contacto</SelectItem>
-                          <SelectItem value="Segundo Contacto">Segundo Contacto</SelectItem>
-                          <SelectItem value="Presupuesto Enviado">Presupuesto Enviado</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {isViewOnly ? (
+                        <div className="p-2">
+                          <Badge variant="outline">
+                            {field.value || "No definido"}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccionar estado" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Primer Contacto">Primer Contacto</SelectItem>
+                            <SelectItem value="Segundo Contacto">Segundo Contacto</SelectItem>
+                            <SelectItem value="Presupuesto Enviado">Presupuesto Enviado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -277,9 +294,15 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                     name="monto"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Monto</FormLabel>
+                        <FormLabel>Monto Total</FormLabel>
                         <FormControl>
-                          <Input type="number" {...field} value={field.value || ""} />
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            value={field.value || ""} 
+                            disabled={true}
+                            className="bg-gray-100"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -291,9 +314,15 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                     name="por_unidad"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Por Unidad</FormLabel>
+                        <FormLabel>Monto por Unidad</FormLabel>
                         <FormControl>
-                          <Input type="number" {...field} value={field.value || ""} />
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            value={field.value || ""} 
+                            disabled={true}
+                            className="bg-gray-100"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -305,9 +334,15 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                     name="inversion"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Inversión</FormLabel>
+                        <FormLabel>Valor Inversión</FormLabel>
                         <FormControl>
-                          <Input type="number" {...field} value={field.value || ""} />
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            value={field.value || ""} 
+                            disabled={true}
+                            className="bg-gray-100"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -319,11 +354,13 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {isViewOnly ? "Cerrar" : "Cancelar"}
               </Button>
-              <Button type="submit" isLoading={isLoading}>
-                Guardar Cambios
-              </Button>
+              {!isViewOnly && (
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Guardando..." : "Guardar Cambios"}
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </Form>

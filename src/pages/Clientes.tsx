@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import AdminSidebar from "@/components/AdminSidebar";
@@ -126,7 +127,39 @@ const Clientes = () => {
     setEditingCliente(null);
   };
 
+  const validateClienteData = (cliente: Cliente) => {
+    const missingFields = [];
+    
+    if (!cliente.adminname || cliente.adminname.trim() === '') {
+      missingFields.push('Nombre del Administrador');
+    }
+    
+    if (!cliente.adminemail || cliente.adminemail.trim() === '') {
+      missingFields.push('Email del Administrador');
+    }
+    
+    if (!cliente.units || cliente.units <= 0) {
+      missingFields.push('Unidades');
+    }
+    
+    return missingFields;
+  };
+
   const updateEstadoContacto = async (clienteId: string, nuevoEstado: string) => {
+    const cliente = clientes.find(c => c.id === clienteId);
+    if (!cliente) return;
+
+    // Validate required fields before updating status
+    const missingFields = validateClienteData(cliente);
+    if (missingFields.length > 0) {
+      toast({
+        title: "Campos requeridos incompletos",
+        description: `Los siguientes campos son obligatorios: ${missingFields.join(', ')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUpdatingCliente(clienteId);
     
     try {
@@ -147,29 +180,26 @@ const Clientes = () => {
 
       // If changing to "Presupuesto Enviado", trigger webhook
       if (nuevoEstado === "Presupuesto Enviado") {
-        const cliente = clientes.find(c => c.id === clienteId);
-        if (cliente) {
-          try {
-            const webhookData = {
-              ...cliente,
-              estado_contacto: nuevoEstado,
-              timestamp: new Date().toISOString(),
-              source: "Kristalina CRM - Cliente Status Update"
-            };
+        try {
+          const webhookData = {
+            ...cliente,
+            estado_contacto: nuevoEstado,
+            timestamp: new Date().toISOString(),
+            source: "Kristalina CRM - Cliente Status Update"
+          };
 
-            await fetch(WEBHOOK_URL, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              mode: "no-cors",
-              body: JSON.stringify(webhookData),
-            });
+          await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            mode: "no-cors",
+            body: JSON.stringify(webhookData),
+          });
 
-            console.log("Webhook triggered for presupuesto enviado");
-          } catch (webhookError) {
-            console.error("Error triggering webhook:", webhookError);
-          }
+          console.log("Webhook triggered for presupuesto enviado");
+        } catch (webhookError) {
+          console.error("Error triggering webhook:", webhookError);
         }
       }
 
@@ -308,6 +338,7 @@ const Clientes = () => {
                       <TableHead>Administrador</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Unidades</TableHead>
+                      <TableHead>Estado</TableHead>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Acciones</TableHead>
                     </TableRow>
@@ -322,6 +353,11 @@ const Clientes = () => {
                         <TableCell>{cliente.adminname}</TableCell>
                         <TableCell>{cliente.adminemail}</TableCell>
                         <TableCell>{cliente.units}</TableCell>
+                        <TableCell>
+                          <Badge className={getEstadoBadgeColor(cliente.estado_contacto)}>
+                            {cliente.estado_contacto}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           {new Date(cliente.created_at).toLocaleDateString('es-ES')}
                         </TableCell>

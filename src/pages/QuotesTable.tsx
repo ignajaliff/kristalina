@@ -8,6 +8,7 @@ import AdminSidebar from "@/components/AdminSidebar";
 import QuotesTableHeader from "@/components/QuotesTableHeader";
 import SearchAndFilter from "@/components/SearchAndFilter";
 import AcceptQuoteDialog from "@/components/AcceptQuoteDialog";
+import EditDialog from "@/components/EditDialog";
 import { Button } from "@/components/ui/button";
 import { 
   Card, 
@@ -32,10 +33,10 @@ const QuotesTable = () => {
   const { toast } = useToast();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
-  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const fetchQuotes = async () => {
     setIsLoading(true);
@@ -150,6 +151,16 @@ const QuotesTable = () => {
     setIsDialogOpen(true);
   };
 
+  const handleViewQuote = (quote: Quote) => {
+    setSelectedQuote(quote);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleCloseViewDialog = () => {
+    setIsViewDialogOpen(false);
+    setSelectedQuote(null);
+  };
+
   const formatDate = (dateString?: string | null): string => {
     if (!dateString) return "No establecido";
     try {
@@ -222,188 +233,68 @@ const QuotesTable = () => {
                 </CardHeader>
               </Card>
             ) : (
-              <>
-                <Card className="mb-6">
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Edificio</TableHead>
-                          <TableHead>Dirección</TableHead>
-                          <TableHead>Fecha Creación</TableHead>
-                          <TableHead>Nombre Administrador</TableHead>
-                          <TableHead>Vendedor</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead>Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredQuotes.map((quote) => (
-                          <TableRow key={quote.id}>
-                            <TableCell className="font-medium">
-                              {quote.communityname}
-                            </TableCell>
-                            <TableCell>{quote.buildingaddress}</TableCell>
-                            <TableCell>{formatDate(quote.created_at)}</TableCell>
-                            <TableCell>{quote.adminname}</TableCell>
-                            <TableCell>{quote.vendedor || "N/A"}</TableCell>
-                            <TableCell>
-                              <Badge 
-                                variant={quote.status === "Aceptado" ? "default" : "secondary"}
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Edificio</TableHead>
+                        <TableHead>Dirección</TableHead>
+                        <TableHead>Fecha Creación</TableHead>
+                        <TableHead>Nombre Administrador</TableHead>
+                        <TableHead>Vendedor</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredQuotes.map((quote) => (
+                        <TableRow key={quote.id}>
+                          <TableCell className="font-medium">
+                            {quote.communityname}
+                          </TableCell>
+                          <TableCell>{quote.buildingaddress}</TableCell>
+                          <TableCell>{formatDate(quote.created_at)}</TableCell>
+                          <TableCell>{quote.adminname}</TableCell>
+                          <TableCell>{quote.vendedor || "N/A"}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={quote.status === "Aceptado" ? "default" : "secondary"}
+                            >
+                              {quote.status === "Aceptado" && (
+                                <CheckCircle className="mr-1 h-3 w-3" />
+                              )}
+                              {quote.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleViewQuote(quote)}
                               >
-                                {quote.status === "Aceptado" && (
-                                  <CheckCircle className="mr-1 h-3 w-3" />
-                                )}
-                                {quote.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
+                                <Eye className="mr-1 h-4 w-4" />
+                                Ver
+                              </Button>
+                              {quote.status === "Enviado" && (
                                 <Button 
-                                  variant="outline" 
+                                  variant="default" 
                                   size="sm"
-                                  onClick={() => setSelectedQuoteId(quote.id === selectedQuoteId ? null : quote.id)}
+                                  onClick={() => handleAcceptQuote(quote)}
                                 >
-                                  <Eye className="mr-1 h-4 w-4" />
-                                  {quote.id === selectedQuoteId ? "Cerrar" : "Ver"}
+                                  <CheckCircle className="mr-1 h-4 w-4" />
+                                  Aceptar
                                 </Button>
-                                {quote.status === "Enviado" && (
-                                  <Button 
-                                    variant="default" 
-                                    size="sm"
-                                    onClick={() => handleAcceptQuote(quote)}
-                                  >
-                                    <CheckCircle className="mr-1 h-4 w-4" />
-                                    Aceptar
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-
-                {selectedQuoteId && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Detalles del Presupuesto</CardTitle>
-                      <CardDescription>
-                        Información completa del presupuesto seleccionado
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {(() => {
-                        const selectedQuote = filteredQuotes.find(q => q.id === selectedQuoteId);
-                        
-                        if (!selectedQuote) {
-                          return <p>No se encontró la información del presupuesto.</p>;
-                        }
-                        
-                        return (
-                          <div className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <h3 className="font-medium text-gray-700">Información de la Comunidad</h3>
-                                <dl className="mt-2 space-y-1">
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
-                                    <dd>{selectedQuote.communityname}</dd>
-                                  </div>
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">Dirección:</dt>
-                                    <dd>{selectedQuote.buildingaddress}</dd>
-                                  </div>
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">Comuna:</dt>
-                                    <dd>{selectedQuote.comuna}</dd>
-                                  </div>
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">RUT Comunidad:</dt>
-                                    <dd>{selectedQuote.communityrut || 'No especificado'}</dd>
-                                  </div>
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">Email:</dt>
-                                    <dd>{selectedQuote.communityemail || selectedQuote.adminemail}</dd>
-                                  </div>
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">Teléfono:</dt>
-                                    <dd>{selectedQuote.legalrepresentativephone || 'No especificado'}</dd>
-                                  </div>
-                                </dl>
-                              </div>
-                              
-                              <div>
-                                <h3 className="font-medium text-gray-700">Información del Representante Legal</h3>
-                                <dl className="mt-2 space-y-1">
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">Nombre:</dt>
-                                    <dd>{selectedQuote.legalrepresentative || 'No especificado'}</dd>
-                                  </div>
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">RUT:</dt>
-                                    <dd>{selectedQuote.legalrepresentativerut || 'No especificado'}</dd>
-                                  </div>
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">Teléfono:</dt>
-                                    <dd>{selectedQuote.legalrepresentativephone || 'No especificado'}</dd>
-                                  </div>
-                                </dl>
-                              </div>
+                              )}
                             </div>
-                            
-                            <div>
-                              <h3 className="font-medium text-gray-700">Información del Presupuesto</h3>
-                              <dl className="mt-2 space-y-1">
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">Unidades:</dt>
-                                  <dd>{selectedQuote.units}</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">Monto Total:</dt>
-                                  <dd>{selectedQuote.monto?.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">Monto por Unidad:</dt>
-                                  <dd>{selectedQuote.por_unidad?.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">Valor Inversión:</dt>
-                                  <dd>{selectedQuote.inversion?.toLocaleString('es-CL', { style: 'currency', currency: 'CLP' })}</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">Estado:</dt>
-                                  <dd>
-                                    <Badge variant={selectedQuote.status === "Aceptado" ? "default" : "secondary"}>
-                                      {selectedQuote.status}
-                                    </Badge>
-                                  </dd>
-                                </div>
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">Vendedor:</dt>
-                                  <dd>{selectedQuote.vendedor || 'No asignado'}</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-sm font-medium text-gray-500">Fecha Creación:</dt>
-                                  <dd>{formatDate(selectedQuote.created_at)}</dd>
-                                </div>
-                                {selectedQuote.fecha_aprobacion_presupuesto && (
-                                  <div>
-                                    <dt className="text-sm font-medium text-gray-500">Fecha Aprobación:</dt>
-                                    <dd>{formatDate(selectedQuote.fecha_aprobacion_presupuesto)}</dd>
-                                  </div>
-                                )}
-                              </dl>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </CardContent>
-                  </Card>
-                )}
-              </>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
@@ -418,6 +309,14 @@ const QuotesTable = () => {
           setSelectedQuote(null);
           fetchQuotes();
         }}
+      />
+
+      <EditDialog
+        isOpen={isViewDialogOpen}
+        onClose={handleCloseViewDialog}
+        record={selectedQuote}
+        onUpdate={fetchQuotes}
+        type="presupuesto"
       />
     </div>
   );
