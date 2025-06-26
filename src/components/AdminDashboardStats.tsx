@@ -92,7 +92,7 @@ const AdminDashboardStats = () => {
         value={nuevosClientesAgregados.toString()}
         description="Este mes"
         icon={<UserPlus className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-        className="stat-card-gradient-4"
+        className="bg-gradient-to-br from-orange-400 to-orange-500 text-white"
         trend="+18%"
       />
 
@@ -101,7 +101,7 @@ const AdminDashboardStats = () => {
         value={presupuestosEnviados.toString()}
         description={`${presupuestosEnviados > 0 ? Math.round((presupuestosEnviados / (presupuestosData?.length || 1)) * 100) : 0}% del total`}
         icon={<FileText className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-        className="stat-card-gradient-1"
+        className="bg-gradient-to-br from-purple-400 to-purple-500 text-white"
         trend="+15%"
       />
       
@@ -110,7 +110,7 @@ const AdminDashboardStats = () => {
         value={presupuestosAceptados.toString()}
         description={`${presupuestosData?.length ? Math.round((presupuestosAceptados / presupuestosData.length) * 100) : 0}% de conversión`}
         icon={<CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-        className="stat-card-gradient-2"
+        className="bg-gradient-to-br from-pink-400 to-pink-500 text-white"
         trend="+8%"
       />
       
@@ -119,7 +119,7 @@ const AdminDashboardStats = () => {
         value={clientesGestionandose.toString()}
         description="Equipos completados"
         icon={<Users className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-        className="stat-card-gradient-3"
+        className="bg-gradient-to-br from-cyan-400 to-cyan-500 text-white"
         trend="+22%"
       />
       
@@ -128,7 +128,7 @@ const AdminDashboardStats = () => {
         value={formatCurrency(ingresosMensuales)}
         description="+12% vs. mes anterior"
         icon={<DollarSign className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-        className="stat-card-gradient-green"
+        className="bg-gradient-to-br from-green-400 to-green-500 text-white"
         trend="+12%"
       />
     </div>
@@ -145,7 +145,7 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, description, icon, className, trend }: StatCardProps) => (
-  <Card className={`metric-card border-0 shadow ${className}`}>
+  <Card className={`metric-card border-0 shadow-lg rounded-xl ${className}`}>
     <CardContent className="p-4 md:p-6">
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
