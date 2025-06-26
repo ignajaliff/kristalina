@@ -7,7 +7,9 @@ import {
   LogOut, 
   CheckSquare,
   CheckCircle,
-  PlusCircle
+  PlusCircle,
+  Users,
+  BarChart3
 } from "lucide-react";
 
 const SellerSidebar = () => {
@@ -22,6 +24,21 @@ const SellerSidebar = () => {
       
       <nav className="flex-1 p-4">
         <div className="mb-4">
+          <p className="text-xs uppercase tracking-wider text-blue-300 mb-2 pl-3">Dashboard</p>
+          <ul className="space-y-2">
+            <li>
+              <Link 
+                to="/seller/dashboard" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <BarChart3 className="h-5 w-5" />
+                Dashboard
+              </Link>
+            </li>
+          </ul>
+        </div>
+        
+        <div className="mb-4">
           <p className="text-xs uppercase tracking-wider text-blue-300 mb-2 pl-3">Gestión de Ventas</p>
           <ul className="space-y-2">
             <li>
@@ -31,6 +48,15 @@ const SellerSidebar = () => {
               >
                 <PlusCircle className="h-5 w-5" />
                 Captura Prospectos
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/seller/clientes" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Users className="h-5 w-5" />
+                Clientes
               </Link>
             </li>
             <li>

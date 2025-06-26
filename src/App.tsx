@@ -13,6 +13,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import SellerProspects from "./pages/SellerProspects";
 import SellerQuotes from "./pages/SellerQuotes";
 import SellerAcceptedQuotes from "./pages/SellerAcceptedQuotes";
+import SellerClientes from "./pages/SellerClientes";
+import SellerDashboardMain from "./pages/SellerDashboardMain";
 import NotFound from "./pages/NotFound";
 import ProspectForm from "./pages/ProspectForm";
 import QuotesTable from "./pages/QuotesTable";
@@ -74,13 +76,25 @@ const App = () => (
             {/* Rutas protegidas para vendedor */}
             <Route path="/seller" element={
               <ProtectedRoute allowedRoles={['seller']}>
-                <SellerProspects />
+                <SellerDashboardMain />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/seller/dashboard" element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerDashboardMain />
               </ProtectedRoute>
             } />
             
             <Route path="/seller/prospects" element={
               <ProtectedRoute allowedRoles={['seller']}>
                 <SellerProspects />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/seller/clientes" element={
+              <ProtectedRoute allowedRoles={['seller']}>
+                <SellerClientes />
               </ProtectedRoute>
             } />
             
