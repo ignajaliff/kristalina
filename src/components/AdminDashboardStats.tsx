@@ -88,6 +88,15 @@ const AdminDashboardStats = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-5">
       <StatCard 
+        title="Nuevos Clientes Agregados"
+        value={nuevosClientesAgregados.toString()}
+        description="Este mes"
+        icon={<UserPlus className="h-5 w-5 md:h-6 md:w-6 text-white" />}
+        className="stat-card-gradient-4"
+        trend="+18%"
+      />
+
+      <StatCard 
         title="Presupuestos Enviados"
         value={presupuestosEnviados.toString()}
         description={`${presupuestosEnviados > 0 ? Math.round((presupuestosEnviados / (presupuestosData?.length || 1)) * 100) : 0}% del total`}
@@ -113,15 +122,6 @@ const AdminDashboardStats = () => {
         className="stat-card-gradient-3"
         trend="+22%"
       />
-
-      <StatCard 
-        title="Nuevos Clientes Agregados"
-        value={nuevosClientesAgregados.toString()}
-        description="Este mes"
-        icon={<UserPlus className="h-5 w-5 md:h-6 md:w-6 text-white" />}
-        className="stat-card-gradient-4"
-        trend="+18%"
-      />
       
       <StatCard 
         title="Ingresos Mensuales"
@@ -145,7 +145,7 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, description, icon, className, trend }: StatCardProps) => (
-  <Card className={`border-0 shadow overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${className}`}>
+  <Card className={`metric-card border-0 shadow ${className}`}>
     <CardContent className="p-4 md:p-6">
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
