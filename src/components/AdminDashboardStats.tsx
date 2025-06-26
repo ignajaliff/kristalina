@@ -1,6 +1,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, CheckSquare, Users, DollarSign, TrendingUp } from "lucide-react";
+import { FileText, CheckSquare, Users, DollarSign, TrendingUp, UserPlus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,6 +15,30 @@ const AdminDashboardStats = () => {
       
       if (error) {
         console.error('Error fetching presupuestos stats:', error);
+        throw error;
+      }
+      
+      return data;
+    },
+  });
+
+  // Fetch nuevos clientes data for current month
+  const { data: nuevosClientesData } = useQuery({
+    queryKey: ['nuevos-clientes-stats'],
+    queryFn: async () => {
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const { data, error } = await supabase
+        .from('presupuestos')
+        .select('estado_contacto, created_at')
+        .in('estado_contacto', ['Primer Contacto', 'Segundo Contacto'])
+        .gte('created_at', firstDayOfMonth.toISOString())
+        .lte('created_at', lastDayOfMonth.toISOString());
+      
+      if (error) {
+        console.error('Error fetching nuevos clientes stats:', error);
         throw error;
       }
       
@@ -43,6 +67,7 @@ const AdminDashboardStats = () => {
   const presupuestosEnviados = presupuestosData?.filter(p => !p.presupuesto_aceptado).length || 0;
   const presupuestosAceptados = presupuestosData?.filter(p => p.presupuesto_aceptado).length || 0;
   const clientesGestionandose = presupuestosData?.filter(p => p.equipos_instalados === 'completed').length || 0;
+  const nuevosClientesAgregados = nuevosClientesData?.length || 0;
   
   // Calculate monthly income from mesrenting where estadopago is "Mes pagado"
   const ingresosMensuales = gestionData?.reduce((total, item) => {
@@ -61,7 +86,7 @@ const AdminDashboardStats = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-5">
       <StatCard 
         title="Presupuestos Enviados"
         value={presupuestosEnviados.toString()}
@@ -87,6 +112,15 @@ const AdminDashboardStats = () => {
         icon={<Users className="h-5 w-5 md:h-6 md:w-6 text-white" />}
         className="stat-card-gradient-3"
         trend="+22%"
+      />
+
+      <StatCard 
+        title="Nuevos Clientes Agregados"
+        value={nuevosClientesAgregados.toString()}
+        description="Este mes"
+        icon={<UserPlus className="h-5 w-5 md:h-6 md:w-6 text-white" />}
+        className="stat-card-gradient-4"
+        trend="+18%"
       />
       
       <StatCard 
