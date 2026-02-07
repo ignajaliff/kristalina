@@ -36,16 +36,16 @@ const SellerAcceptedQuotes = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchQuotes = async () => {
-    if (!userProfile?.nombre) return;
+    if (!userProfile?.id) return;
     
     setIsLoading(true);
     try {
-      console.log('Fetching accepted quotes for seller:', userProfile.nombre);
+      console.log('Fetching accepted quotes for seller ID:', userProfile.id);
       
       const { data, error } = await supabase
         .from("presupuestos")
         .select("*")
-        .eq("vendedor", userProfile.nombre)
+        .eq("vendedor_id", userProfile.id)
         .eq("presupuesto_aceptado", true)
         .order("created_at", { ascending: false });
 
@@ -56,7 +56,7 @@ const SellerAcceptedQuotes = () => {
       }
 
       if (data) {
-        console.log(`Found ${data.length} accepted quotes for seller ${userProfile.nombre}`);
+        console.log(`Found ${data.length} accepted quotes for seller ID ${userProfile.id}`);
         
         const processedQuotes: Quote[] = data.map(quote => {
           const monto = quote.monto || quote.units * 50000;
@@ -105,7 +105,7 @@ const SellerAcceptedQuotes = () => {
 
   useEffect(() => {
     fetchQuotes();
-  }, [userProfile?.nombre]);
+  }, [userProfile?.id]);
 
   const handleSearch = (query: string) => {
     console.log('Search query:', query);

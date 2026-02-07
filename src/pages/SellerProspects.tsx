@@ -91,10 +91,6 @@ const SellerProspects = () => {
       
       const additionalATs = data.additionalATs || [];
       
-      // Use the authenticated user's name directly as the seller
-      const currentSeller = userProfile?.nombre || null;
-      console.log("Using seller name from auth context:", currentSeller);
-      
       // Prepare data for Supabase
       const supabaseData = {
         adminname: data.adminName,
@@ -108,7 +104,8 @@ const SellerProspects = () => {
         region: data.region || null,
         buildingtype: data.buildingType,
         units: data.units,
-        vendedor: currentSeller,
+        vendedor_id: userProfile?.id || null,
+        vendedor: userProfile?.nombre || null, // Keep for display purposes
         estado_contacto: "Primer Contacto",
         nombre_portero: data.nombrePortero || null,
         notas: data.notas || null,

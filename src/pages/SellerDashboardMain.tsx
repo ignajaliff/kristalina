@@ -13,50 +13,50 @@ const SellerDashboardMain = () => {
 
   // Fetch presupuestos enviados del vendedor
   const { data: presupuestosEnviados } = useQuery({
-    queryKey: ['seller-quotes-sent', userProfile?.nombre],
+    queryKey: ['seller-quotes-sent', userProfile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
         .eq('estado_contacto', 'Presupuesto Enviado')
-        .eq('vendedor', userProfile?.nombre || '');
+        .eq('vendedor_id', userProfile?.id || '');
       
       if (error) throw error;
       return data || [];
     },
-    enabled: !!userProfile?.nombre,
+    enabled: !!userProfile?.id,
   });
 
   // Fetch presupuestos aceptados del vendedor
   const { data: presupuestosAceptados } = useQuery({
-    queryKey: ['seller-quotes-accepted', userProfile?.nombre],
+    queryKey: ['seller-quotes-accepted', userProfile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
         .eq('presupuesto_aceptado', true)
-        .eq('vendedor', userProfile?.nombre || '');
+        .eq('vendedor_id', userProfile?.id || '');
       
       if (error) throw error;
       return data || [];
     },
-    enabled: !!userProfile?.nombre,
+    enabled: !!userProfile?.id,
   });
 
   // Fetch clientes del vendedor
   const { data: clientes } = useQuery({
-    queryKey: ['seller-clients', userProfile?.nombre],
+    queryKey: ['seller-clients', userProfile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
         .in('estado_contacto', ['Primer Contacto', 'Segundo Contacto'])
-        .eq('vendedor', userProfile?.nombre || '');
+        .eq('vendedor_id', userProfile?.id || '');
       
       if (error) throw error;
       return data || [];
     },
-    enabled: !!userProfile?.nombre,
+    enabled: !!userProfile?.id,
   });
 
   // Calculate stats

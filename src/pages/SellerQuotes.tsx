@@ -40,17 +40,17 @@ const SellerQuotes = () => {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const fetchQuotes = async () => {
-    if (!userProfile?.nombre) return;
+    if (!userProfile?.id) return;
     
     setIsLoading(true);
     try {
-      console.log('Buscando presupuestos para vendedor:', userProfile.nombre);
+      console.log('Buscando presupuestos para vendedor ID:', userProfile.id);
       console.log('Filtrando por estado_contacto: "Presupuesto Enviado"');
       
       const { data, error } = await supabase
         .from("presupuestos")
         .select("*")
-        .eq("vendedor", userProfile.nombre)
+        .eq("vendedor_id", userProfile.id)
         .eq("estado_contacto", "Presupuesto Enviado")
         .order("created_at", { ascending: false });
 
@@ -122,7 +122,7 @@ const SellerQuotes = () => {
 
   useEffect(() => {
     fetchQuotes();
-  }, [userProfile?.nombre]);
+  }, [userProfile?.id]);
 
   const handleSearch = (query: string) => {
     if (!query.trim()) {

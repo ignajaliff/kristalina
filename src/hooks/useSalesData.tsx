@@ -22,18 +22,18 @@ interface RecentSale {
 export const useSalesData = () => {
   const { userProfile } = useAuth();
 
-  // Fetch sales data using user name directly
+  // Fetch sales data using user ID
   const { data: salesData, isLoading, error } = useQuery({
-    queryKey: ['salesData', userProfile?.nombre],
+    queryKey: ['salesData', userProfile?.id],
     queryFn: async () => {
-      if (!userProfile?.nombre) return null;
+      if (!userProfile?.id) return null;
 
-      console.log('Fetching sales data for:', userProfile.nombre);
+      console.log('Fetching sales data for user ID:', userProfile.id);
 
       const { data: presupuestos, error } = await supabase
         .from('presupuestos')
         .select('*')
-        .eq('vendedor', userProfile.nombre)
+        .eq('vendedor_id', userProfile.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -74,7 +74,7 @@ export const useSalesData = () => {
 
       return { stats, recentSales };
     },
-    enabled: !!userProfile?.nombre,
+    enabled: !!userProfile?.id,
   });
 
   return {
