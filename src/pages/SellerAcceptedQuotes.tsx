@@ -29,23 +29,23 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const SellerAcceptedQuotes = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchQuotes = async () => {
-    if (!user?.name) return;
+    if (!userProfile?.nombre) return;
     
     setIsLoading(true);
     try {
-      console.log('Fetching accepted quotes for seller:', user.name);
+      console.log('Fetching accepted quotes for seller:', userProfile.nombre);
       
       const { data, error } = await supabase
         .from("presupuestos")
         .select("*")
-        .eq("vendedor", user.name)
+        .eq("vendedor", userProfile.nombre)
         .eq("presupuesto_aceptado", true)
         .order("created_at", { ascending: false });
 
@@ -56,7 +56,7 @@ const SellerAcceptedQuotes = () => {
       }
 
       if (data) {
-        console.log(`Found ${data.length} accepted quotes for seller ${user.name}`);
+        console.log(`Found ${data.length} accepted quotes for seller ${userProfile.nombre}`);
         
         const processedQuotes: Quote[] = data.map(quote => {
           const monto = quote.monto || quote.units * 50000;
@@ -105,7 +105,7 @@ const SellerAcceptedQuotes = () => {
 
   useEffect(() => {
     fetchQuotes();
-  }, [user?.name]);
+  }, [userProfile?.nombre]);
 
   const handleSearch = (query: string) => {
     console.log('Search query:', query);
@@ -222,9 +222,9 @@ const SellerAcceptedQuotes = () => {
               </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Gestiona todos los presupuestos que han sido aceptados por los clientes
-                {user?.name && (
+                {userProfile?.nombre && (
                   <span className="ml-2 text-blue-600 font-medium">
-                    • Vendedor: {user.name}
+                    • Vendedor: {userProfile.nombre}
                   </span>
                 )}
               </p>
@@ -256,9 +256,9 @@ const SellerAcceptedQuotes = () => {
                   <CardTitle>No hay presupuestos aceptados</CardTitle>
                   <CardDescription>
                     Los presupuestos aceptados aparecerán aquí.
-                    {user?.name && (
+                    {userProfile?.nombre && (
                       <span className="block text-xs text-gray-500 mt-1">
-                        Buscando para vendedor: {user.name}
+                        Buscando para vendedor: {userProfile.nombre}
                       </span>
                     )}
                   </CardDescription>

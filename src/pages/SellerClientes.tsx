@@ -42,7 +42,7 @@ interface Cliente {
 
 const SellerClientes = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,19 +52,21 @@ const SellerClientes = () => {
 
   useEffect(() => {
     fetchClientes();
-  }, []);
+  }, [userProfile?.nombre]);
 
   useEffect(() => {
     setFilteredClientes(clientes);
   }, [clientes]);
 
   const fetchClientes = async () => {
+    if (!userProfile?.nombre) return;
+    
     try {
       const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
         .in('estado_contacto', ['Primer Contacto', 'Segundo Contacto'])
-        .eq('vendedor', user?.name || '')
+        .eq('vendedor', userProfile.nombre)
         .order('created_at', { ascending: false });
 
       if (error) {

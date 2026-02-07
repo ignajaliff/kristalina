@@ -48,7 +48,7 @@ type BuildingType = "Edificio" | "Escuela" | "Industria";
 
 const SellerProspects = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedBuildingType, setSelectedBuildingType] = useState<BuildingType | null>(null);
 
@@ -87,12 +87,12 @@ const SellerProspects = () => {
     
     try {
       console.log("Form data:", data);
-      console.log("Current user:", user);
+      console.log("Current user profile:", userProfile);
       
       const additionalATs = data.additionalATs || [];
       
       // Use the authenticated user's name directly as the seller
-      const currentSeller = user?.name || null;
+      const currentSeller = userProfile?.nombre || null;
       console.log("Using seller name from auth context:", currentSeller);
       
       // Prepare data for Supabase
@@ -198,9 +198,9 @@ const SellerProspects = () => {
               </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Registra los datos del cliente para generar una cotización
-                {user?.name && (
+                {userProfile?.nombre && (
                   <span className="ml-2 text-blue-600 font-medium">
-                    • Vendedor: {user.name}
+                    • Vendedor: {userProfile.nombre}
                   </span>
                 )}
               </p>
@@ -439,34 +439,15 @@ const SellerProspects = () => {
                         
                         <FormField
                           control={form.control}
-                          name="buildingType"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Tipo de Edificio</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder={getBuildingTypeLabel(selectedBuildingType)}
-                                  value={getBuildingTypeLabel(selectedBuildingType)}
-                                  disabled 
-                                  className="bg-gray-100" 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
                           name="units"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Cantidad de Unidades</FormLabel>
                               <FormControl>
-                                <Input 
-                                  type="number" 
-                                  placeholder={selectedBuildingType === "Escuela" ? "Número de aulas" : selectedBuildingType === "Industria" ? "Número de secciones" : "Número de departamentos"}
-                                  {...field} 
+                                <Input
+                                  type="number"
+                                  placeholder="Número de unidades"
+                                  {...field}
                                   onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                                 />
                               </FormControl>
@@ -474,13 +455,13 @@ const SellerProspects = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="nombrePortero"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Nombre Portero</FormLabel>
+                              <FormLabel>Nombre del Portero (Opcional)</FormLabel>
                               <FormControl>
                                 <Input placeholder="Nombre del portero" {...field} />
                               </FormControl>
@@ -489,19 +470,19 @@ const SellerProspects = () => {
                           )}
                         />
                       </div>
-                      
+
                       <div className="mt-6">
                         <FormField
                           control={form.control}
                           name="notas"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Notas</FormLabel>
+                              <FormLabel>Notas (Opcional)</FormLabel>
                               <FormControl>
-                                <Textarea 
-                                  placeholder="Notas adicionales sobre el cliente o proyecto..."
+                                <Textarea
+                                  placeholder="Añade notas adicionales sobre el cliente o el edificio..."
                                   className="min-h-[100px]"
-                                  {...field} 
+                                  {...field}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -511,11 +492,11 @@ const SellerProspects = () => {
                       </div>
                     </div>
                     
-                    <div className="flex justify-end pt-6 border-t border-gray-200">
-                      <Button 
-                        type="submit" 
-                        className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-base font-medium"
+                    <div className="flex justify-end pt-4 border-t border-gray-200">
+                      <Button
+                        type="submit"
                         disabled={isSubmitting}
+                        className="bg-blue-600 hover:bg-blue-700"
                       >
                         {isSubmitting ? "Guardando..." : "Guardar Cliente"}
                       </Button>

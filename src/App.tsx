@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -38,74 +37,74 @@ const App = () => (
             
             {/* Rutas protegidas para administrador */}
             <Route path="/admin" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['administrador']}>
                 <AdminDashboard />
               </ProtectedRoute>
             } />
             
             <Route path="/admin/prospects" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['administrador']}>
                 <ProspectForm />
               </ProtectedRoute>
             } />
             
             <Route path="/admin/clientes" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['administrador']}>
                 <Clientes />
               </ProtectedRoute>
             } />
             
             <Route path="/admin/quotes" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['administrador']}>
                 <QuotesTable />
               </ProtectedRoute>
             } />
             
             <Route path="/admin/accepted-quotes" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['administrador']}>
                 <PresupuestosAceptados />
               </ProtectedRoute>
             } />
             
             <Route path="/admin/gestion" element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['administrador']}>
                 <GestionEdificios />
               </ProtectedRoute>
             } />
             
             {/* Rutas protegidas para vendedor */}
             <Route path="/seller" element={
-              <ProtectedRoute allowedRoles={['seller']}>
+              <ProtectedRoute allowedRoles={['vendedor']}>
                 <SellerDashboardMain />
               </ProtectedRoute>
             } />
             
             <Route path="/seller/dashboard" element={
-              <ProtectedRoute allowedRoles={['seller']}>
+              <ProtectedRoute allowedRoles={['vendedor']}>
                 <SellerDashboardMain />
               </ProtectedRoute>
             } />
             
             <Route path="/seller/prospects" element={
-              <ProtectedRoute allowedRoles={['seller']}>
+              <ProtectedRoute allowedRoles={['vendedor']}>
                 <SellerProspects />
               </ProtectedRoute>
             } />
             
             <Route path="/seller/clientes" element={
-              <ProtectedRoute allowedRoles={['seller']}>
+              <ProtectedRoute allowedRoles={['vendedor']}>
                 <SellerClientes />
               </ProtectedRoute>
             } />
             
             <Route path="/seller/quotes" element={
-              <ProtectedRoute allowedRoles={['seller']}>
+              <ProtectedRoute allowedRoles={['vendedor']}>
                 <SellerQuotes />
               </ProtectedRoute>
             } />
             
             <Route path="/seller/accepted-quotes" element={
-              <ProtectedRoute allowedRoles={['seller']}>
+              <ProtectedRoute allowedRoles={['vendedor']}>
                 <SellerAcceptedQuotes />
               </ProtectedRoute>
             } />

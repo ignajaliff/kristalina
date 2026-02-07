@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Key, UserRound } from "lucide-react";
+import { Key, UserRound, Loader2 } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -50,10 +49,11 @@ const Login = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@example.com o seller@example.com"
+                  placeholder="correo@ejemplo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={isLoading}
                   className="border-sistema-gray-light"
                 />
               </div>
@@ -68,6 +68,7 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={isLoading}
                   className="border-sistema-gray-light"
                 />
               </div>
@@ -78,19 +79,18 @@ const Login = () => {
                 className="w-full bg-sistema-blue hover:bg-sistema-blue-dark"
                 disabled={isLoading}
               >
-                {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Iniciando sesión...
+                  </>
+                ) : (
+                  "Iniciar sesión"
+                )}
               </Button>
             </CardFooter>
           </form>
         </Card>
-        
-        <div className="mt-6 text-center text-sm text-sistema-gray">
-          <p>
-            Admin: admin@example.com / admin123
-            <br />
-            Vendedor: seller@example.com / seller123
-          </p>
-        </div>
       </div>
     </div>
   );

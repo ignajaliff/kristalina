@@ -13,13 +13,13 @@ import {
 } from "lucide-react";
 
 const SellerSidebar = () => {
-  const { user, logout } = useAuth();
+  const { userProfile, logout } = useAuth();
 
   return (
     <div className="min-h-screen w-64 bg-blue-900 text-white flex flex-col">
       <div className="p-4 border-b border-blue-700">
         <h2 className="text-xl font-bold">Panel Vendedor</h2>
-        <p className="text-sm opacity-80">{user?.name}</p>
+        <p className="text-sm opacity-80">{userProfile?.nombre}</p>
       </div>
       
       <nav className="flex-1 p-4">

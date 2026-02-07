@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 const AdminSidebar = () => {
-  const { user, logout } = useAuth();
+  const { userProfile, logout } = useAuth();
 
   return (
     <div className="h-screen bg-white border-r border-gray-100 shadow-sm sidebar-slim flex flex-col">
@@ -22,7 +22,7 @@ const AdminSidebar = () => {
         <Droplet className="h-5 w-5 text-blue-600" />
         <div>
           <h2 className="text-base font-semibold text-slate-800">Kristalina</h2>
-          <p className="text-xs text-slate-500">{user?.name}</p>
+          <p className="text-xs text-slate-500">{userProfile?.nombre}</p>
         </div>
       </div>
       
