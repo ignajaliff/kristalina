@@ -52,21 +52,21 @@ const SellerClientes = () => {
 
   useEffect(() => {
     fetchClientes();
-  }, [userProfile?.nombre]);
+  }, [userProfile?.id]);
 
   useEffect(() => {
     setFilteredClientes(clientes);
   }, [clientes]);
 
   const fetchClientes = async () => {
-    if (!userProfile?.nombre) return;
+    if (!userProfile?.id) return;
     
     try {
       const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
         .in('estado_contacto', ['Primer Contacto', 'Segundo Contacto'])
-        .eq('vendedor', userProfile.nombre)
+        .eq('vendedor_id', userProfile.id)
         .order('created_at', { ascending: false });
 
       if (error) {

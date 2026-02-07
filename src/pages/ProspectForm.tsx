@@ -104,7 +104,8 @@ const ProspectForm = () => {
         region: data.region || null,
         buildingtype: data.buildingType,
         units: data.units,
-        vendedor: userProfile?.nombre || null,
+        vendedor_id: userProfile?.id || null,
+        vendedor: userProfile?.nombre || null, // Keep for display purposes
         estado_contacto: "Primer Contacto",
         nombre_portero: data.nombrePortero || null,
         notas: data.notas || null,

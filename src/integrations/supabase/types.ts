@@ -25,6 +25,7 @@ export type Database = {
           legalrepresentative: string
           mesrenting: number
           updated_at: string
+          vendedor_id: string | null
         }
         Insert: {
           buildingaddress?: string
@@ -36,6 +37,7 @@ export type Database = {
           legalrepresentative: string
           mesrenting?: number
           updated_at?: string
+          vendedor_id?: string | null
         }
         Update: {
           buildingaddress?: string
@@ -47,8 +49,17 @@ export type Database = {
           legalrepresentative?: string
           mesrenting?: number
           updated_at?: string
+          vendedor_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gestion_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "user_roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       presupuestos: {
         Row: {
@@ -83,6 +94,7 @@ export type Database = {
           terminos_contrato: string | null
           units: number
           vendedor: string | null
+          vendedor_id: string | null
         }
         Insert: {
           additional_at?: Json | null
@@ -116,6 +128,7 @@ export type Database = {
           terminos_contrato?: string | null
           units: number
           vendedor?: string | null
+          vendedor_id?: string | null
         }
         Update: {
           additional_at?: Json | null
@@ -149,8 +162,17 @@ export type Database = {
           terminos_contrato?: string | null
           units?: number
           vendedor?: string | null
+          vendedor_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "presupuestos_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "user_roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
