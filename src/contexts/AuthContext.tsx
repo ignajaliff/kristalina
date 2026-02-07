@@ -1,23 +1,27 @@
-
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import type { User } from '@supabase/supabase-js';
 
 // Definimos los tipos para nuestro contexto
-export type UserRole = 'admin' | 'seller' | null;
+export type UserRole = 'administrador' | 'vendedor' | null;
 
-interface User {
+interface UserProfile {
   id: string;
-  name: string;
+  nombre: string;
   email: string;
+  telefono: string | null;
   role: UserRole;
 }
 
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 // Creamos el contexto
@@ -32,97 +36,162 @@ export const useAuth = () => {
   return context;
 };
 
-// Datos de usuario simulados para demostración
-const mockUsers = [
-  {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    password: 'admin123',
-    role: 'admin' as UserRole
-  },
-  {
-    id: '2',
-    name: 'Seller User',
-    email: 'seller@example.com',
-    password: 'seller123',
-    role: 'seller' as UserRole
-  },
-  {
-    id: '3',
-    name: 'Pablo Ruiz',
-    email: 'pablo.ruiz@example.com',
-    password: 'pablo123',
-    role: 'seller' as UserRole
-  },
-  {
-    id: '4',
-    name: 'Carlos Lopez',
-    email: 'carlos.lopez@example.com',
-    password: 'carlos123',
-    role: 'seller' as UserRole
-  }
-];
-
 // Proveedor del contexto
 export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Verificamos si hay una sesión guardada al cargar
-  React.useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, [navigate]);
+  // Función para obtener el perfil del usuario
+  const fetchUserProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-  const login = async (email: string, password: string) => {
-    // Simulación de autenticación
-    const foundUser = mockUsers.find(
-      (user) => user.email === email && user.password === password
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+
+    if (data) {
+      return {
+        id: data.id,
+        nombre: data.nombre,
+        email: data.email,
+        telefono: data.telefono,
+        role: data.role as UserRole,
+      };
+    }
+
+    return null;
+  };
+
+  // Configurar listener de autenticación
+  useEffect(() => {
+    // Primero configuramos el listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        
+        if (session?.user) {
+          setUser(session.user);
+          // Usar setTimeout para evitar problemas de concurrencia con Supabase
+          setTimeout(async () => {
+            const profile = await fetchUserProfile(session.user.id);
+            setUserProfile(profile);
+            setIsLoading(false);
+          }, 0);
+        } else {
+          setUser(null);
+          setUserProfile(null);
+          setIsLoading(false);
+        }
+      }
     );
 
-    if (foundUser) {
-      // Omitimos la contraseña por seguridad
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
+    // Luego verificamos si hay una sesión existente
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        const profile = await fetchUserProfile(session.user.id);
+        setUserProfile(profile);
+      }
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setIsLoading(false);
+      toast({
+        variant: "destructive",
+        title: "Error de autenticación",
+        description: error.message === 'Invalid login credentials' 
+          ? "Correo o contraseña incorrectos" 
+          : error.message,
+      });
+      throw error;
+    }
+
+    if (data.user) {
+      const profile = await fetchUserProfile(data.user.id);
+      
+      if (!profile) {
+        setIsLoading(false);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No se encontró el perfil del usuario. Contacte al administrador.",
+        });
+        await supabase.auth.signOut();
+        throw new Error('User profile not found');
+      }
+
+      setUserProfile(profile);
       
       toast({
         title: "Inicio de sesión exitoso",
-        description: `Bienvenido, ${userWithoutPassword.name}`,
+        description: `Bienvenido, ${profile.nombre}`,
       });
 
       // Redirigir según el rol
-      if (userWithoutPassword.role === 'admin') {
+      if (profile.role === 'administrador') {
         navigate('/admin');
       } else {
         navigate('/seller');
       }
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Error de autenticación",
-        description: "Correo o contraseña incorrectos",
-      });
-      throw new Error('Credenciales inválidas');
     }
+    
+    setIsLoading(false);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Error al cerrar sesión",
+      });
+      return;
+    }
+
     setUser(null);
-    localStorage.removeItem('user');
+    setUserProfile(null);
+    
     toast({
       title: "Sesión cerrada",
       description: "Has cerrado sesión correctamente",
     });
+    
     navigate('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      userProfile, 
+      isAuthenticated: !!user && !!userProfile, 
+      isLoading,
+      login, 
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );

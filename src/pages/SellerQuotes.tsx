@@ -31,7 +31,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const SellerQuotes = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
@@ -40,17 +40,17 @@ const SellerQuotes = () => {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const fetchQuotes = async () => {
-    if (!user?.name) return;
+    if (!userProfile?.nombre) return;
     
     setIsLoading(true);
     try {
-      console.log('Buscando presupuestos para vendedor:', user.name);
+      console.log('Buscando presupuestos para vendedor:', userProfile.nombre);
       console.log('Filtrando por estado_contacto: "Presupuesto Enviado"');
       
       const { data, error } = await supabase
         .from("presupuestos")
         .select("*")
-        .eq("vendedor", user.name)
+        .eq("vendedor", userProfile.nombre)
         .eq("estado_contacto", "Presupuesto Enviado")
         .order("created_at", { ascending: false });
 
@@ -122,7 +122,7 @@ const SellerQuotes = () => {
 
   useEffect(() => {
     fetchQuotes();
-  }, [user?.name]);
+  }, [userProfile?.nombre]);
 
   const handleSearch = (query: string) => {
     if (!query.trim()) {
@@ -217,9 +217,9 @@ const SellerQuotes = () => {
               </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Gestiona y supervisa todos tus presupuestos enviados a clientes
-                {user?.name && (
+                {userProfile?.nombre && (
                   <span className="ml-2 text-blue-600 font-medium">
-                    • Vendedor: {user.name}
+                    • Vendedor: {userProfile.nombre}
                   </span>
                 )}
               </p>
@@ -251,9 +251,9 @@ const SellerQuotes = () => {
                   <CardTitle>No hay presupuestos enviados</CardTitle>
                   <CardDescription>
                     Los presupuestos con estado "Presupuesto Enviado" aparecerán aquí.
-                    {user?.name && (
+                    {userProfile?.nombre && (
                       <span className="block text-xs text-gray-500 mt-1">
-                        Buscando para vendedor: {user.name}
+                        Buscando para vendedor: {userProfile.nombre}
                       </span>
                     )}
                   </CardDescription>

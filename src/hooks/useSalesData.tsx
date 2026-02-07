@@ -1,5 +1,4 @@
 
-import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,20 +20,20 @@ interface RecentSale {
 }
 
 export const useSalesData = () => {
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
 
   // Fetch sales data using user name directly
   const { data: salesData, isLoading, error } = useQuery({
-    queryKey: ['salesData', user?.name],
+    queryKey: ['salesData', userProfile?.nombre],
     queryFn: async () => {
-      if (!user?.name) return null;
+      if (!userProfile?.nombre) return null;
 
-      console.log('Fetching sales data for:', user.name);
+      console.log('Fetching sales data for:', userProfile.nombre);
 
       const { data: presupuestos, error } = await supabase
         .from('presupuestos')
         .select('*')
-        .eq('vendedor', user.name)
+        .eq('vendedor', userProfile.nombre)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -75,13 +74,13 @@ export const useSalesData = () => {
 
       return { stats, recentSales };
     },
-    enabled: !!user?.name,
+    enabled: !!userProfile?.nombre,
   });
 
   return {
     salesData,
     isLoading,
     error,
-    currentSeller: user?.name || null,
+    currentSeller: userProfile?.nombre || null,
   };
 };

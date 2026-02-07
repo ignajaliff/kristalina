@@ -1,5 +1,4 @@
 
-import { useEffect, useState } from "react";
 import SellerSidebar from "@/components/SellerSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,66 +8,55 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
-interface Quote {
-  id: string;
-  communityname: string;
-  adminname: string;
-  buildingaddress: string | null;
-  monto: number | null;
-  created_at: string;
-  estado_contacto: string;
-  presupuesto_aceptado: boolean;
-}
-
 const SellerDashboardMain = () => {
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
 
   // Fetch presupuestos enviados del vendedor
   const { data: presupuestosEnviados } = useQuery({
-    queryKey: ['seller-quotes-sent', user?.name],
+    queryKey: ['seller-quotes-sent', userProfile?.nombre],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
         .eq('estado_contacto', 'Presupuesto Enviado')
-        .eq('vendedor', user?.name || '');
+        .eq('vendedor', userProfile?.nombre || '');
       
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user?.name,
+    enabled: !!userProfile?.nombre,
   });
 
   // Fetch presupuestos aceptados del vendedor
   const { data: presupuestosAceptados } = useQuery({
-    queryKey: ['seller-quotes-accepted', user?.name],
+    queryKey: ['seller-quotes-accepted', userProfile?.nombre],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
         .eq('presupuesto_aceptado', true)
-        .eq('vendedor', user?.name || '');
+        .eq('vendedor', userProfile?.nombre || '');
       
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user?.name,
+    enabled: !!userProfile?.nombre,
   });
 
   // Fetch clientes del vendedor
   const { data: clientes } = useQuery({
-    queryKey: ['seller-clients', user?.name],
+    queryKey: ['seller-clients', userProfile?.nombre],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('presupuestos')
         .select('*')
         .in('estado_contacto', ['Primer Contacto', 'Segundo Contacto'])
-        .eq('vendedor', user?.name || '');
+        .eq('vendedor', userProfile?.nombre || '');
       
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user?.name,
+    enabled: !!userProfile?.nombre,
   });
 
   // Calculate stats
