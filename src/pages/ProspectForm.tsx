@@ -45,10 +45,9 @@ type BuildingType = "Edificio" | "Escuela" | "Industria";
 const ProspectForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedBuildingType, setSelectedBuildingType] = useState<BuildingType | null>(null);
-  const [currentSeller, setCurrentSeller] = useState<string | null>(null);
   
   // Initialize the form
   const form = useForm<FormValues>({
@@ -75,27 +74,6 @@ const ProspectForm = () => {
     control: form.control,
     name: "additionalATs",
   });
-
-  // Fetch current seller information when component mounts
-  useEffect(() => {
-    const fetchCurrentSeller = async () => {
-      if (user?.email) {
-        const { data: seller, error } = await supabase
-          .from('vendedores')
-          .select('nombre')
-          .eq('email', user.email)
-          .single();
-        
-        if (seller && !error) {
-          setCurrentSeller(seller.nombre);
-        } else {
-          console.log('No seller found for current user email:', user.email);
-        }
-      }
-    };
-
-    fetchCurrentSeller();
-  }, [user?.email]);
 
   // Update form when building type is selected
   useEffect(() => {
@@ -126,7 +104,7 @@ const ProspectForm = () => {
         region: data.region || null,
         buildingtype: data.buildingType,
         units: data.units,
-        vendedor: currentSeller,
+        vendedor: userProfile?.nombre || null,
         estado_contacto: "Primer Contacto",
         nombre_portero: data.nombrePortero || null,
         notas: data.notas || null,
@@ -220,9 +198,9 @@ const ProspectForm = () => {
               </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Registra los datos del cliente para generar una cotización
-                {currentSeller && (
+                {userProfile?.nombre && (
                   <span className="ml-2 text-blue-600 font-medium">
-                    • Vendedor: {currentSeller}
+                    • Vendedor: {userProfile.nombre}
                   </span>
                 )}
               </p>
