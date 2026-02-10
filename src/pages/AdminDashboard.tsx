@@ -1,15 +1,16 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import AdminSidebar from "@/components/AdminSidebar";
 import AdminDashboardStats from "@/components/AdminDashboardStats";
 import AdminDashboardCharts from "@/components/AdminDashboardCharts";
 import MobileDrawer from "@/components/MobileDrawer";
-import { Bell, Filter, Download, Droplet, Calendar, Plus } from "lucide-react";
+import { Bell, Filter, Download, Droplet, Calendar, Plus, ExternalLink, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const AdminDashboard = () => {
   const isMobile = useIsMobile();
@@ -59,7 +60,7 @@ const AdminDashboard = () => {
           color: g.estadopago === 'Mes pagado' ? 'green' : 'purple'
         }))
       ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-       .slice(0, 6);
+        .slice(0, 6);
 
       return allActivities;
     },
@@ -69,117 +70,116 @@ const AdminDashboard = () => {
     const now = new Date();
     const date = parseISO(timestamp);
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
+
     if (diffInMinutes < 60) {
-      return `Hace ${diffInMinutes} minutos`;
+      return `Hace ${diffInMinutes}m`;
     } else if (diffInMinutes < 1440) {
       const hours = Math.floor(diffInMinutes / 60);
-      return `Hace ${hours} hora${hours > 1 ? 's' : ''}`;
+      return `Hace ${hours}h`;
     } else {
       const days = Math.floor(diffInMinutes / 1440);
-      return `Hace ${days} día${days > 1 ? 's' : ''}`;
+      return `Hace ${days}d`;
     }
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#1E293B]">
       {!isMobile && <AdminSidebar />}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-3 md:p-6">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="max-w-[1440px] mx-auto p-4 md:p-8 space-y-8">
           {/* Header Section */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-4">
-            <div className="flex items-center gap-3">
-              <MobileDrawer />
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+            <div className="flex items-center gap-4">
+              {isMobile && <MobileDrawer />}
               <div>
-                <h1 className="text-lg md:text-xl font-semibold text-slate-800">
-                  Dashboard Financiero
+                <h1 className="text-2xl md:text-[26px] font-bold text-[#1E293B] tracking-tight leading-none mb-2">
+                  Panel de Control Kristalina
                 </h1>
-                <p className="text-xs md:text-sm text-slate-500 mt-1">
-                  Resumen de rendimiento y métricas clave
+                <p className="text-sm font-medium text-[#64748B] flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Monitoreo de rendimiento y métricas operativas
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-              <Button size="sm" variant="ghost" className="text-slate-600 h-8 w-8 md:h-9 md:w-9 p-0">
-                <Bell className="h-3 w-3 md:h-4 md:w-4" />
-              </Button>
-              
-              <Button size="sm" variant="outline" className="text-slate-700 h-8 md:h-9 gap-1 md:gap-2 text-xs">
-                <Calendar className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="hidden sm:inline">Últimos 30 días</span>
-                <span className="sm:hidden">30d</span>
-              </Button>
-              
-              <Button size="sm" variant="outline" className="text-slate-700 h-8 md:h-9 gap-1 md:gap-2 text-xs">
-                <Filter className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="hidden sm:inline">Filtros</span>
-              </Button>
-              
-              <Button size="sm" variant="outline" className="text-slate-700 h-8 md:h-9 gap-1 md:gap-2 text-xs">
-                <Download className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="hidden sm:inline">Exportar</span>
-              </Button>
+              <div className="hidden md:flex items-center bg-white border border-[#E2E8F0] rounded-lg p-1 mr-2 shadow-sm">
+                <Button variant="ghost" size="sm" className="h-8 text-xs font-bold text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF]">Hoy</Button>
+                <Button variant="ghost" size="sm" className="h-8 text-xs font-bold text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF]">Semana</Button>
+                <Button variant="ghost" size="sm" className="h-8 text-xs font-bold text-[#1A367F] bg-[#EFF6FF]">Mes</Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button variant="outline" className="h-10 px-4 border-[#E2E8F0] bg-white text-[#1E293B] font-semibold text-xs gap-2 rounded-lg shadow-sm hover:bg-slate-50">
+                  <Filter className="h-4 w-4 text-[#64748B]" />
+                  Filtros Avanzados
+                </Button>
+
+                <Button className="h-10 px-4 bg-[#1A367F] hover:bg-[#12285e] text-white font-bold text-xs gap-2 rounded-lg shadow-sm transition-all active:scale-[0.98]">
+                  <Plus className="h-4 w-4" strokeWidth={2.5} />
+                  Registrar Cliente
+                </Button>
+              </div>
             </div>
           </div>
-          
+
           {/* Stats Cards */}
           <AdminDashboardStats />
-          
-          {/* Charts */}
-          <AdminDashboardCharts />
-          
-          {/* Recent Activity */}
-          <div className="mt-6 md:mt-8">
-            <Card className="border-0 shadow-sm">
-              <CardHeader className="border-b p-3 md:p-5">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm md:text-base font-medium text-slate-800">Actividad Reciente</CardTitle>
-                  <Button variant="outline" size="sm" className="text-xs h-7 md:h-8 gap-1">
-                    <Plus className="h-3 w-3" />
-                    <span className="hidden sm:inline">Nueva actividad</span>
-                    <span className="sm:hidden">Nueva</span>
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-gray-100">
+
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Charts Section - Takes 2/3 on desktop */}
+            <div className="lg:col-span-2 space-y-8">
+              <AdminDashboardCharts />
+            </div>
+
+            {/* Sidebar Content Area - Takes 1/3 on desktop */}
+            <div className="space-y-8">
+              {/* Recent Activity Card */}
+              <Card className="border border-[#E2E8F0] shadow-[0_4px_6px_-1px_rgb(0_0_0_/_0.1)] bg-white rounded-xl overflow-hidden flex flex-col h-full">
+                <CardHeader className="border-b border-[#F1F5F9] p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+                        <History className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
+                      </div>
+                      <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Actividad Reciente</CardTitle>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF]">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0 flex-1 flex flex-col">
                   {recentActivity?.length ? (
-                    recentActivity.map((activity) => (
-                      <ActivityItem
-                        key={`${activity.type}-${activity.id}`}
-                        title={activity.title}
-                        detail={activity.detail}
-                        time={formatTimeAgo(activity.timestamp)}
-                        color={activity.color as "blue" | "green" | "purple" | "orange"}
-                      />
-                    ))
+                    <div className="divide-y divide-[#F1F5F9] flex-1">
+                      {recentActivity.map((activity) => (
+                        <ActivityItem
+                          key={`${activity.type}-${activity.id}`}
+                          title={activity.title}
+                          detail={activity.detail}
+                          time={formatTimeAgo(activity.timestamp)}
+                          color={activity.color as "blue" | "green" | "purple" | "orange"}
+                        />
+                      ))}
+                    </div>
                   ) : (
-                    <div className="p-6 md:p-8 text-center text-slate-500">
-                      <p className="text-sm">No hay actividad reciente</p>
+                    <div className="p-12 text-center text-slate-500 flex-1 flex flex-col items-center justify-center gap-2">
+                      <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-2">
+                        <History className="h-6 w-6 text-slate-300" />
+                      </div>
+                      <p className="text-xs font-bold text-[#64748B] uppercase tracking-widest">Sin actividad registrada</p>
+                      <p className="text-[11px] text-[#94A3B8]">Los registros aparecerán automáticamente</p>
                     </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Financial Promotion Card */}
-          <div className="mt-4 md:mt-6 mb-6 md:mb-8">
-            <Card className="border-0 shadow-md bg-gradient-to-r from-blue-600 to-blue-700 text-white overflow-hidden">
-              <CardContent className="p-4 md:p-5 flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="text-base md:text-lg font-medium mb-2">Promoción de Verano</h3>
-                  <p className="text-blue-100 mb-3 md:mb-4 text-xs md:text-sm">Descuento especial para instalaciones en edificios nuevos</p>
-                  <Button size="sm" className="bg-white text-blue-600 hover:bg-blue-50 px-3 md:px-4 text-xs h-7 md:h-8">
-                    Ver detalles
-                  </Button>
-                </div>
-                <div className="hidden md:block ml-4">
-                  <Droplet className="h-16 w-16 md:h-20 md:w-20 text-blue-300 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="p-4 border-t border-[#F1F5F9] bg-[#F8FAFC]/50 mt-auto">
+                    <Button variant="outline" className="w-full text-[10px] font-bold uppercase tracking-[0.1em] text-[#64748B] border-[#E2E8F0] bg-white h-9 rounded-md">
+                      Ver todo el historial
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
@@ -196,18 +196,29 @@ interface ActivityItemProps {
 
 const ActivityItem = ({ title, detail, time, color }: ActivityItemProps) => {
   const colorMap = {
-    blue: "bg-blue-500",
-    green: "bg-green-500",
-    purple: "bg-purple-500",
-    orange: "bg-orange-500",
+    blue: { bg: "bg-[#EFF6FF]", text: "text-[#1A367F]", indicator: "bg-[#3B82F6]" },
+    green: { bg: "bg-[#F0FDF4]", text: "text-[#10B981]", indicator: "bg-[#10B981]" },
+    purple: { bg: "bg-[#F5F3FF]", text: "text-[#7C3AED]", indicator: "bg-[#7C3AED]" },
+    orange: { bg: "bg-[#FFFBEB]", text: "text-[#F59E0B]", indicator: "bg-[#F59E0B]" },
   };
-  
+
+  const styles = colorMap[color] || colorMap.blue;
+
   return (
-    <div className="flex items-center px-3 md:px-5 py-2 md:py-3 hover:bg-slate-50">
-      <div className={`w-2 h-2 rounded-full ${colorMap[color]} mr-2 md:mr-3`}></div>
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-xs md:text-sm text-slate-800 truncate">{title} - {detail}</p>
-        <p className="text-xs text-slate-500">{time}</p>
+    <div className="px-5 py-4 transition-colors hover:bg-slate-50 group border-l-2 border-transparent hover:border-l-[#1A367F]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider whitespace-nowrap", styles.bg, styles.text)}>
+              {title}
+            </span>
+            <span className="text-[10px] font-bold text-[#94A3B8] tracking-widest uppercase shrink-0">
+              • {time}
+            </span>
+          </div>
+          <p className="text-[13px] font-semibold text-[#1E293B] truncate tracking-tight">{detail}</p>
+        </div>
+        <div className={cn("w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity", styles.indicator)}></div>
       </div>
     </div>
   );

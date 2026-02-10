@@ -16,6 +16,7 @@ import AddGestionDialog from "@/components/AddGestionDialog";
 import EditGestionDialog from "@/components/EditGestionDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 interface GestionItem {
   id: string;
@@ -52,7 +53,7 @@ const GestionEdificios = () => {
         const month = parseInt(monthFilter);
         const startDate = new Date(year, month, 1);
         const endDate = new Date(year, month + 1, 0);
-        
+
         query = query
           .gte('fechapago', format(startDate, 'yyyy-MM-dd'))
           .lte('fechapago', format(endDate, 'yyyy-MM-dd'));
@@ -64,12 +65,12 @@ const GestionEdificios = () => {
       }
 
       const { data, error } = await query;
-      
+
       if (error) {
         console.error('Error fetching gestion data:', error);
         throw error;
       }
-      
+
       return data as GestionItem[];
     },
   });
@@ -88,7 +89,7 @@ const GestionEdificios = () => {
 
       // Send webhook data
       const webhookUrl = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/8cdde499-cc85-4d5a-b5b4-c40545844fdc";
-      
+
       try {
         await fetch(webhookUrl, {
           method: "POST",
@@ -110,7 +111,7 @@ const GestionEdificios = () => {
             timestamp: new Date().toISOString()
           }),
         });
-        
+
         console.log("Webhook sent successfully for payment confirmation");
       } catch (webhookError) {
         console.error("Error sending webhook:", webhookError);
@@ -119,7 +120,7 @@ const GestionEdificios = () => {
 
       const { error } = await supabase
         .from('gestion')
-        .update({ 
+        .update({
           estadopago: 'Mes pagado',
           updated_at: new Date().toISOString()
         })
@@ -154,13 +155,13 @@ const GestionEdificios = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Mes pagado':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Mes pagado</Badge>;
+        return <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] font-bold text-[10px] uppercase tracking-wider">Mes pagado</Badge>;
       case 'En fecha/No pagado':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">En fecha/No pagado</Badge>;
+        return <Badge className="bg-[#FEF2F2] text-[#EF4444] border-[#FEE2E2] hover:bg-[#FEF2F2] font-bold text-[10px] uppercase tracking-wider">En fecha/No pagado</Badge>;
       case 'No en fecha':
-        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">No en fecha</Badge>;
+        return <Badge className="bg-[#F5F3FF] text-[#7C3AED] border-[#EDE9FE] hover:bg-[#F5F3FF] font-bold text-[10px] uppercase tracking-wider">No en fecha</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary" className="font-bold text-[10px] uppercase tracking-wider">{status}</Badge>;
     }
   };
 
@@ -205,250 +206,230 @@ const GestionEdificios = () => {
   const noEnFecha = filteredItems.filter(item => item.estadopago === 'No en fecha').length;
 
   return (
-    <div className="min-h-screen bg-corporate-slate-50">
-      <div className="flex w-full">
-        {!isMobile && <AdminSidebar />}
-        <div className="flex-1 overflow-hidden">
-          <div className="h-screen overflow-y-auto">
-            <div className="p-3 md:p-8">
-              {/* Header */}
-              <div className="mb-4 md:mb-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <MobileDrawer />
-                    <div>
-                      <h1 className="text-xl md:text-3xl font-bold text-corporate-slate-900 mb-1 md:mb-2">
-                        Gestión de Edificios
-                      </h1>
-                      <p className="text-sm md:text-base text-corporate-slate-600">
-                        Administra los pagos de renta y estado de edificios instalados
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    onClick={() => setIsAddDialogOpen(true)}
-                    className="bg-corporate-blue-600 hover:bg-corporate-blue-700 text-white shadow-lg transition-all duration-200 hover:shadow-xl"
-                    size={isMobile ? "sm" : "lg"}
-                  >
-                    <PlusIcon className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" />
-                    <span className="hidden sm:inline">Agregar Edificio</span>
-                    <span className="sm:hidden">Agregar</span>
-                  </Button>
-                </div>
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#1E293B]">
+      {!isMobile && <AdminSidebar />}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="max-w-[1440px] mx-auto p-4 md:p-8 space-y-8">
+          {/* Header Section */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+            <div className="flex items-center gap-4">
+              {isMobile && <MobileDrawer />}
+              <div>
+                <h1 className="text-2xl md:text-[26px] font-bold text-[#1E293B] tracking-tight leading-none mb-2">
+                  Gestión de Edificios
+                </h1>
+                <p className="text-sm font-medium text-[#64748B] flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Administra los pagos de renta y estado de edificios instalados
+                </p>
               </div>
+            </div>
 
-              {/* Stats Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-8">
-                <Card className="border-0 shadow-lg overflow-hidden stat-card-gradient-3 hover:shadow-xl transition-all duration-300">
-                  <CardContent className="p-3 md:p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-xs md:text-sm font-medium opacity-90 text-white">Total Edificios</p>
-                        <p className="text-xl md:text-3xl font-bold mt-1 text-white">{totalEdificios}</p>
-                        <p className="text-xs md:text-sm mt-1 md:mt-2 opacity-80 text-white">En gestión</p>
-                      </div>
-                      <div className="rounded-full p-2 md:p-3 bg-white/20">
-                        <Building2 className="h-4 w-4 md:h-7 md:w-7 text-white" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-0 shadow-lg overflow-hidden stat-card-gradient-2 hover:shadow-xl transition-all duration-300">
-                  <CardContent className="p-3 md:p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-xs md:text-sm font-medium opacity-90 text-white">Mes Pagado</p>
-                        <p className="text-xl md:text-3xl font-bold mt-1 text-white">{mesPagado}</p>
-                        <p className="text-xs md:text-sm mt-1 md:mt-2 opacity-80 text-white">Este período</p>
-                      </div>
-                      <div className="rounded-full p-2 md:p-3 bg-white/20">
-                        <CheckCircle className="h-4 w-4 md:h-7 md:w-7 text-white" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-0 shadow-lg overflow-hidden stat-card-gradient-4 hover:shadow-xl transition-all duration-300">
-                  <CardContent className="p-3 md:p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-xs md:text-sm font-medium opacity-90 text-white">En Fecha/No Pagado</p>
-                        <p className="text-xl md:text-3xl font-bold mt-1 text-white">{enFechaNoPagado}</p>
-                        <p className="text-xs md:text-sm mt-1 md:mt-2 opacity-80 text-white">En fecha</p>
-                      </div>
-                      <div className="rounded-full p-2 md:p-3 bg-white/20">
-                        <Users className="h-4 w-4 md:h-7 md:w-7 text-white" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-0 shadow-lg overflow-hidden stat-card-gradient-1 hover:shadow-xl transition-all duration-300">
-                  <CardContent className="p-3 md:p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-xs md:text-sm font-medium opacity-90 text-white">No en Fecha</p>
-                        <p className="text-xl md:text-3xl font-bold mt-1 text-white">{noEnFecha}</p>
-                        <p className="text-xs md:text-sm mt-1 md:mt-2 opacity-80 text-white">Requieren atención</p>
-                      </div>
-                      <div className="rounded-full p-2 md:p-3 bg-white/20">
-                        <TrendingUp className="h-4 w-4 md:h-7 md:w-7 text-white" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Filters */}
-              <Card className="mb-4 md:mb-8 border-0 shadow-lg bg-white">
-                <CardContent className="p-3 md:p-6">
-                  <div className="flex flex-col gap-3 md:flex-row md:gap-4">
-                    <div className="flex-1">
-                      <div className="relative">
-                        <SearchIcon className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-corporate-slate-400 h-4 w-4 md:h-5 md:w-5" />
-                        <Input
-                          placeholder="Buscar por representante legal, tipo de edificio o dirección..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-10 md:pl-12 h-10 md:h-12 border-corporate-slate-200 focus:border-corporate-blue-500 focus:ring-corporate-blue-500 text-sm"
-                        />
-                      </div>
-                    </div>
-                    
-                    <Select value={monthFilter} onValueChange={setMonthFilter}>
-                      <SelectTrigger className="w-full md:w-56 h-10 md:h-12 border-corporate-slate-200">
-                        <CalendarIcon className="h-4 w-4 md:h-5 md:w-5 mr-2 text-corporate-slate-500" />
-                        <SelectValue placeholder="Filtrar por mes" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {months.map((month) => (
-                          <SelectItem key={month.value} value={month.value}>
-                            {month.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-full md:w-56 h-10 md:h-12 border-corporate-slate-200">
-                        <FilterIcon className="h-4 w-4 md:h-5 md:w-5 mr-2 text-corporate-slate-500" />
-                        <SelectValue placeholder="Filtrar por estado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos los estados</SelectItem>
-                        <SelectItem value="Mes pagado">Mes pagado</SelectItem>
-                        <SelectItem value="En fecha/No pagado">En fecha/No pagado</SelectItem>
-                        <SelectItem value="No en fecha">No en fecha</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Table */}
-              <Card className="border-0 shadow-lg bg-white">
-                <CardHeader className="border-b border-corporate-slate-100 bg-corporate-slate-50 p-3 md:p-6">
-                  <CardTitle className="text-lg md:text-xl font-semibold text-corporate-slate-900 flex items-center gap-2">
-                    <Building2 className="h-5 w-5 md:h-6 md:w-6 text-corporate-blue-600" />
-                    Lista de Edificios ({filteredItems.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-corporate-slate-50/50 hover:bg-corporate-slate-50/50">
-                          <TableHead className="font-semibold text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm">Representante Legal</TableHead>
-                          <TableHead className="font-semibold text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm">Tipo de Edificio</TableHead>
-                          <TableHead className="font-semibold text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm hidden md:table-cell">Dirección del Edificio</TableHead>
-                          <TableHead className="font-semibold text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm hidden lg:table-cell">Mes Renting</TableHead>
-                          <TableHead className="font-semibold text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm hidden lg:table-cell">Fecha de Pago</TableHead>
-                          <TableHead className="font-semibold text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm">Estado del Pago</TableHead>
-                          <TableHead className="font-semibold text-corporate-slate-700 py-3 md:py-4 text-right text-xs md:text-sm">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {isLoading ? (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center py-8 md:py-12">
-                              <div className="flex items-center justify-center">
-                                <div className="animate-spin rounded-full h-6 w-6 md:h-8 md:w-8 border-b-2 border-corporate-blue-600"></div>
-                                <span className="ml-3 text-corporate-slate-600 text-sm md:text-base">Cargando...</span>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ) : filteredItems.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center py-8 md:py-12">
-                              <div className="text-corporate-slate-500">
-                                <Building2 className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 text-corporate-slate-300" />
-                                <p className="text-base md:text-lg font-medium mb-2">No se encontraron edificios</p>
-                                <p className="text-xs md:text-sm">Intenta ajustar los filtros de búsqueda</p>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          filteredItems.map((item) => (
-                            <TableRow 
-                              key={item.id} 
-                              className={`transition-colors duration-150 ${
-                                item.estadopago === 'Mes pagado' 
-                                  ? 'bg-green-50 hover:bg-green-100 border-l-4 border-green-500' 
-                                  : 'hover:bg-corporate-slate-50/50'
-                              }`}
-                            >
-                              <TableCell className="font-medium text-corporate-slate-900 py-3 md:py-4 text-xs md:text-sm">
-                                {item.legalrepresentative}
-                              </TableCell>
-                              <TableCell className="text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm">{item.buildingtype}</TableCell>
-                              <TableCell className="text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm hidden md:table-cell">{item.buildingaddress}</TableCell>
-                              <TableCell className="text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm hidden lg:table-cell">{item.mesrenting}</TableCell>
-                              <TableCell className="text-corporate-slate-700 py-3 md:py-4 text-xs md:text-sm hidden lg:table-cell">
-                                {formatPaymentDate(item.fechapago)}
-                              </TableCell>
-                              <TableCell className="py-3 md:py-4">
-                                {getStatusBadge(item.estadopago)}
-                              </TableCell>
-                              <TableCell className="py-3 md:py-4">
-                                <div className="flex items-center justify-end gap-1 md:gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setEditingItem(item)}
-                                    className="border-corporate-slate-200 text-corporate-slate-700 hover:bg-corporate-slate-50 h-7 md:h-8 px-2 md:px-3 text-xs"
-                                  >
-                                    <Edit className="h-3 w-3 md:h-4 md:w-4 md:mr-1" />
-                                    <span className="hidden md:inline">Editar</span>
-                                  </Button>
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    onClick={() => handleConfirmPayment(item.id)}
-                                    disabled={item.estadopago !== 'En fecha/No pagado'}
-                                    className="bg-green-600 hover:bg-green-700 text-white disabled:bg-corporate-slate-300 h-7 md:h-8 px-2 md:px-3 text-xs"
-                                  >
-                                    <CheckCircle className="h-3 w-3 md:h-4 md:w-4 md:mr-1" />
-                                    <span className="hidden md:inline">Confirmar Pago</span>
-                                    <span className="md:hidden">Pago</span>
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="h-10 px-4 bg-[#1A367F] hover:bg-[#12285e] text-white font-bold text-xs gap-2 rounded-lg shadow-sm transition-all active:scale-[0.98]"
+              >
+                <PlusIcon className="h-4 w-4" strokeWidth={2.5} />
+                Registrar Edificio
+              </Button>
             </div>
           </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard
+              title="Total Edificios"
+              value={totalEdificios.toString()}
+              description="En gestión"
+              icon={Building2}
+              iconColor="text-[#1A367F]"
+              iconBg="bg-[#F1F3F9]"
+            />
+            <StatCard
+              title="Mes Pagado"
+              value={mesPagado.toString()}
+              description="Este período"
+              icon={CheckCircle}
+              iconColor="text-[#10B981]"
+              iconBg="bg-[#F0FDF4]"
+            />
+            <StatCard
+              title="En Fecha/No Pagado"
+              value={enFechaNoPagado.toString()}
+              description="En fecha"
+              icon={Users}
+              iconColor="text-[#F59E0B]"
+              iconBg="bg-[#FFFBEB]"
+            />
+            <StatCard
+              title="No en Fecha"
+              value={noEnFecha.toString()}
+              description="Requieren atención"
+              icon={TrendingUp}
+              iconColor="text-[#7C3AED]"
+              iconBg="bg-[#F5F3FF]"
+            />
+          </div>
+
+          {/* Filters Card */}
+          <Card className="border border-[#E2E8F0] shadow-sm bg-white rounded-xl overflow-hidden">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                <div className="flex-1 relative">
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+                  <Input
+                    placeholder="Buscar por representante legal, tipo de edificio o dirección..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 h-10 border-[#E2E8F0] bg-[#F8FAFC] text-sm focus:ring-1 focus:ring-[#1A367F]"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Select value={monthFilter} onValueChange={setMonthFilter}>
+                    <SelectTrigger className="w-full sm:w-[180px] h-10 border-[#E2E8F0] bg-white text-xs font-semibold">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-3.5 w-3.5 text-[#64748B]" />
+                        <SelectValue placeholder="Filtrar por mes" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {months.map((month) => (
+                        <SelectItem key={month.value} value={month.value} className="text-xs">
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full sm:w-[180px] h-10 border-[#E2E8F0] bg-white text-xs font-semibold">
+                      <div className="flex items-center gap-2">
+                        <FilterIcon className="h-3.5 w-3.5 text-[#64748B]" />
+                        <SelectValue placeholder="Filtrar por estado" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-xs">Todos los estados</SelectItem>
+                      <SelectItem value="Mes pagado" className="text-xs">Mes pagado</SelectItem>
+                      <SelectItem value="En fecha/No pagado" className="text-xs">En fecha/No pagado</SelectItem>
+                      <SelectItem value="No en fecha" className="text-xs">No en fecha</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Table Card */}
+          <Card className="border border-[#E2E8F0] shadow-[0_4px_6px_-1px_rgb(0_0_0_/_0.1)] bg-white rounded-xl overflow-hidden">
+            <CardHeader className="border-b border-[#F1F5F9] p-5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+                  <Building2 className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
+                </div>
+                <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">
+                  Lista de Edificios ({filteredItems.length})
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-[#F8FAFC] border-b border-[#F1F5F9] hover:bg-[#F8FAFC]">
+                      <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 pl-6">Representante Legal</TableHead>
+                      <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4">Tipo</TableHead>
+                      <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden md:table-cell">Dirección</TableHead>
+                      <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Renting</TableHead>
+                      <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Fecha Pago</TableHead>
+                      <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 text-center">Estado</TableHead>
+                      <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 text-right pr-6">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-32 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#1A367F]"></div>
+                            <span className="text-xs font-bold text-[#64748B] uppercase tracking-widest">Cargando...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-48 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Building2 className="h-8 w-8 text-[#E2E8F0]" />
+                            <p className="text-xs font-bold text-[#64748B] uppercase tracking-widest">No se encontraron edificios</p>
+                            <p className="text-[11px] text-[#94A3B8]">Intenta ajustar los filtros de búsqueda</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredItems.map((item) => (
+                        <TableRow
+                          key={item.id}
+                          className="group border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors"
+                        >
+                          <TableCell className="py-4 pl-6">
+                            <p className="text-[13px] font-semibold text-[#1E293B]">{item.legalrepresentative}</p>
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <p className="text-[12px] font-medium text-[#64748B]">{item.buildingtype}</p>
+                          </TableCell>
+                          <TableCell className="py-4 hidden md:table-cell">
+                            <p className="text-[12px] text-[#64748B] truncate max-w-[200px]">{item.buildingaddress}</p>
+                          </TableCell>
+                          <TableCell className="py-4 hidden lg:table-cell">
+                            <p className="text-[12px] font-semibold text-[#1E293B]">${item.mesrenting.toLocaleString()}</p>
+                          </TableCell>
+                          <TableCell className="py-4 hidden lg:table-cell">
+                            <p className="text-[12px] text-[#64748B]">{formatPaymentDate(item.fechapago)}</p>
+                          </TableCell>
+                          <TableCell className="py-4 text-center">
+                            {getStatusBadge(item.estadopago)}
+                          </TableCell>
+                          <TableCell className="py-4 text-right pr-6">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingItem(item)}
+                                className="h-8 w-8 p-0 text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF] rounded-md"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleConfirmPayment(item.id)}
+                                disabled={item.estadopago !== 'En fecha/No pagado'}
+                                className={cn(
+                                  "h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
+                                  item.estadopago === 'En fecha/No pagado'
+                                    ? "border-[#10B981] text-[#10B981] hover:bg-[#F0FDF4]"
+                                    : "border-[#E2E8F0] text-[#94A3B8] cursor-not-allowed"
+                                )}
+                              >
+                                <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                Confirmar
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Dialogs */}
       <AddGestionDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
@@ -470,5 +451,36 @@ const GestionEdificios = () => {
     </div>
   );
 };
+
+interface StatCardProps {
+  title: string;
+  value: string;
+  description: string;
+  icon: typeof Building2;
+  iconColor: string;
+  iconBg: string;
+}
+
+const StatCard = ({ title, value, description, icon: Icon, iconColor, iconBg }: StatCardProps) => (
+  <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white overflow-hidden transition-all hover:shadow-md">
+    <CardContent className="p-6">
+      <div className="flex justify-between items-start mb-4">
+        <div className={cn("p-2.5 rounded-lg shrink-0", iconBg)}>
+          <Icon className={cn("h-5 w-5", iconColor)} strokeWidth={2.5} />
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">{title}</p>
+        <div className="flex items-baseline gap-1">
+          <h3 className="text-[28px] font-bold text-[#1E293B] leading-tight truncate tracking-tight">
+            {value}
+          </h3>
+        </div>
+        <p className="text-[11px] font-medium text-[#64748B] tracking-tight">{description}</p>
+      </div>
+    </CardContent>
+  </Card>
+);
 
 export default GestionEdificios;

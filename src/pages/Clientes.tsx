@@ -5,11 +5,12 @@ import AdminSidebar from "@/components/AdminSidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Phone, Mail, Building, MapPin, Calendar, ArrowRight, Edit, Search } from "lucide-react";
+import { Users, Phone, Mail, Building, MapPin, Calendar, ArrowRight, Edit, Search, Filter, UserRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import EditDialog from "@/components/EditDialog";
 import SearchAndFilter from "@/components/SearchAndFilter";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -129,19 +130,19 @@ const Clientes = () => {
 
   const validateClienteData = (cliente: Cliente) => {
     const missingFields = [];
-    
+
     if (!cliente.adminname || cliente.adminname.trim() === '') {
       missingFields.push('Nombre del Administrador');
     }
-    
+
     if (!cliente.adminemail || cliente.adminemail.trim() === '') {
       missingFields.push('Email del Administrador');
     }
-    
+
     if (!cliente.units || cliente.units <= 0) {
       missingFields.push('Unidades');
     }
-    
+
     return missingFields;
   };
 
@@ -161,7 +162,7 @@ const Clientes = () => {
     }
 
     setUpdatingCliente(clienteId);
-    
+
     try {
       const { error } = await supabase
         .from('presupuestos')
@@ -225,11 +226,11 @@ const Clientes = () => {
   const getEstadoBadgeColor = (estado: string) => {
     switch (estado) {
       case "Primer Contacto":
-        return "bg-blue-100 text-blue-800";
+        return "bg-[#EFF6FF] text-[#1A367F]";
       case "Segundo Contacto":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-[#FFFBEB] text-[#F59E0B]";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-slate-100 text-slate-600";
     }
   };
 
@@ -277,12 +278,12 @@ const Clientes = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-gray-50">
+      <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
         <AdminSidebar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Cargando clientes...</p>
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1A367F] mx-auto"></div>
+            <p className="mt-4 text-xs font-bold text-[#64748B] uppercase tracking-widest">Cargando clientes...</p>
           </div>
         </div>
       </div>
@@ -290,106 +291,127 @@ const Clientes = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#1E293B]">
       <AdminSidebar />
-      <div className="flex-1 overflow-y-auto">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-8 py-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Gestiona el seguimiento de clientes y actualiza su estado de contacto
-              </p>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        {/* Header Section */}
+        <div className="max-w-[1440px] mx-auto p-8 pt-10 pb-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-[#EFF6FF] rounded-[14px]">
+                <UserRound className="h-7 w-7 text-[#1A367F]" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-[#1E293B]">
+                  Gestión de Clientes
+                </h1>
+                <p className="text-[#64748B] text-sm font-medium mt-0.5 flex items-center gap-2">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Administra tu cartera y haz seguimiento de prospectos
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="p-8">
-          <SearchAndFilter
-            onSearch={handleSearch}
-            onFilter={handleFilter}
-            filterOptions={filterOptions}
-            searchPlaceholder="Buscar por nombre, email, dirección..."
-          />
+        {/* Main Content Area */}
+        <div className="max-w-[1440px] mx-auto p-8 space-y-8">
+          <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm p-4">
+            <SearchAndFilter
+              onSearch={handleSearch}
+              onFilter={handleFilter}
+              filterOptions={filterOptions}
+              searchPlaceholder="Buscar por comunidad, administrador o dirección..."
+            />
+          </div>
 
           {filteredClientes.length === 0 ? (
-            <Card className="max-w-2xl mx-auto">
-              <CardContent className="p-8 text-center">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay clientes</h3>
-                <p className="text-gray-600">
-                  No se encontraron clientes que coincidan con los criterios de búsqueda.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="py-20 text-center bg-white border border-[#E2E8F0] rounded-xl shadow-sm">
+              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="h-8 w-8 text-slate-300" />
+              </div>
+              <h3 className="text-sm font-bold text-[#1E293B] uppercase tracking-widest mb-1">No se encontraron registros</h3>
+              <p className="text-[12px] text-[#94A3B8]">Intenta ajustar los filtros de búsqueda</p>
+            </div>
           ) : (
-            <Card>
+            <Card className="border border-[#E2E8F0] shadow-[0_4px_6px_-1px_rgb(0_0_0_/_0.05)] bg-white rounded-xl overflow-hidden">
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Comunidad</TableHead>
-                      <TableHead>Dirección</TableHead>
-                      <TableHead>Administrador</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Unidades</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Acciones</TableHead>
+                  <TableHeader className="bg-[#F8FAFC]">
+                    <TableRow className="border-b border-[#F1F5F9] hover:bg-transparent">
+                      <TableHead className="h-12 px-6 text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Comunidad</TableHead>
+                      <TableHead className="h-12 px-6 text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Dirección</TableHead>
+                      <TableHead className="h-12 px-6 text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Administrador</TableHead>
+                      <TableHead className="h-12 px-6 text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Email</TableHead>
+                      <TableHead className="h-12 px-4 text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em] text-center">Und.</TableHead>
+                      <TableHead className="h-12 px-6 text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Estado</TableHead>
+                      <TableHead className="h-12 px-6 text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Fecha</TableHead>
+                      <TableHead className="h-12 px-6 text-[10px] font-bold text-[#94A3B8] uppercase tracking-[0.1em] text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredClientes.map((cliente) => (
-                      <TableRow key={cliente.id}>
-                        <TableCell className="font-medium">
-                          {cliente.communityname}
+                      <TableRow key={cliente.id} className="border-b border-[#F1F5F9] hover:bg-slate-50/50 transition-colors group">
+                        <TableCell className="px-6 py-4">
+                          <span className="text-[13px] font-bold text-[#1E293B] tracking-tight">{cliente.communityname}</span>
                         </TableCell>
-                        <TableCell>{cliente.buildingaddress || "N/A"}</TableCell>
-                        <TableCell>{cliente.adminname}</TableCell>
-                        <TableCell>{cliente.adminemail}</TableCell>
-                        <TableCell>{cliente.units}</TableCell>
-                        <TableCell>
-                          <Badge className={getEstadoBadgeColor(cliente.estado_contacto)}>
+                        <TableCell className="px-6 py-4">
+                          <span className="text-[12px] text-[#64748B] font-medium leading-tight">
+                            {cliente.buildingaddress || "No registrada"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-6 py-4">
+                          <span className="text-[13px] font-semibold text-[#1E293B]">{cliente.adminname}</span>
+                        </TableCell>
+                        <TableCell className="px-6 py-4">
+                          <span className="text-[12px] text-[#64748B] font-medium">{cliente.adminemail}</span>
+                        </TableCell>
+                        <TableCell className="px-4 py-4 text-center">
+                          <span className="text-[12px] font-bold text-[#1E293B]">{cliente.units}</span>
+                        </TableCell>
+                        <TableCell className="px-6 py-4">
+                          <Badge className={cn("px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider border-0 shadow-none", getEstadoBadgeColor(cliente.estado_contacto))}>
                             {cliente.estado_contacto}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          {new Date(cliente.created_at).toLocaleDateString('es-ES')}
+                        <TableCell className="px-6 py-4">
+                          <span className="text-[12px] text-[#94A3B8] font-medium">
+                            {new Date(cliente.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                          </span>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
+                        <TableCell className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2 transition-opacity">
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
+                              className="h-8 w-8 p-0 text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF] rounded-md"
                               onClick={() => handleEditClick(cliente)}
                             >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Editar
+                              <Edit className="h-3.5 w-3.5" />
                             </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                const nextEstado = getNextEstado(cliente.estado_contacto);
-                                if (nextEstado) {
-                                  updateEstadoContacto(cliente.id, nextEstado);
-                                }
-                              }}
-                              disabled={updatingCliente === cliente.id}
-                            >
-                              {updatingCliente === cliente.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              ) : (
-                                <>
-                                  <ArrowRight className="h-4 w-4 mr-1" />
-                                  {getNextActionLabel(cliente.estado_contacto)}
-                                </>
-                              )}
-                            </Button>
+
+                            {getNextEstado(cliente.estado_contacto) && (
+                              <Button
+                                size="sm"
+                                className="h-8 px-3 bg-[#10B981] hover:bg-[#059669] text-white font-bold text-[10px] uppercase tracking-wider gap-2 rounded-md transition-all active:scale-[0.98]"
+                                onClick={() => {
+                                  const nextEstado = getNextEstado(cliente.estado_contacto);
+                                  if (nextEstado) {
+                                    updateEstadoContacto(cliente.id, nextEstado);
+                                  }
+                                }}
+                                disabled={updatingCliente === cliente.id}
+                              >
+                                {updatingCliente === cliente.id ? (
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                ) : (
+                                  <>
+                                    <span>{getNextActionLabel(cliente.estado_contacto).split(' ')[0]}</span>
+                                    <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
+                                  </>
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

@@ -1,7 +1,18 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, CheckCircle, ExternalLink, FileText, Edit } from "lucide-react";
+import {
+  CalendarIcon,
+  CheckCircle,
+  ExternalLink,
+  FileText,
+  Edit,
+  ArrowRight,
+  Loader2,
+  Building2,
+  ChevronRight,
+  Settings2
+} from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -11,12 +22,9 @@ import AdminSidebar from "@/components/AdminSidebar";
 import EditDialog from "@/components/EditDialog";
 import SearchAndFilter from "@/components/SearchAndFilter";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
 } from "@/components/ui/card";
 import {
   Form,
@@ -61,23 +69,23 @@ const quoteUpdateSchema = z.object({
 
 type QuoteUpdateFormValues = z.infer<typeof quoteUpdateSchema>;
 
-const QuoteUpdateForm = ({ 
-  quoteId, 
-  onUpdate 
-}: { 
+const QuoteUpdateForm = ({
+  quoteId,
+  onUpdate
+}: {
   quoteId: string;
   onUpdate: () => void;
 }) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const form = useForm<QuoteUpdateFormValues>({
     resolver: zodResolver(quoteUpdateSchema),
     defaultValues: {
       equipmentStatus: "not_installed"
     }
   });
-  
+
   const sendWebhook = async (quoteData: Quote) => {
     try {
       const webhookData = {
@@ -88,8 +96,6 @@ const QuoteUpdateForm = ({
         legalrepresentative: quoteData.legalrepresentative,
         buildingtype: quoteData.buildingtype
       };
-
-      console.log('Enviando datos al webhook:', webhookData);
 
       const response = await fetch('https://n8n-n8n.qqtfab.easypanel.host/webhook-test/aa9be5f3-adfc-4eb1-9ca3-d87d6d79fc3f', {
         method: 'POST',
@@ -103,25 +109,24 @@ const QuoteUpdateForm = ({
         throw new Error(`Error en webhook: ${response.status}`);
       }
 
-      console.log('Webhook enviado exitosamente');
       toast({
-        title: "Webhook enviado",
-        description: "Los datos han sido enviados exitosamente al webhook.",
+        title: "Sincronización Exitosa",
+        description: "Los datos operativos han sido actualizados en la plataforma central.",
         variant: "default",
       });
     } catch (error) {
       console.error('Error enviando webhook:', error);
       toast({
-        title: "Error en webhook",
-        description: "No se pudo enviar los datos al webhook, pero la actualización se guardó.",
+        title: "Error de Sincronización",
+        description: "No se pudo actualizar el sistema central, pero los cambios locales se guardaron.",
         variant: "destructive",
       });
     }
   };
-  
+
   const onSubmit = async (data: QuoteUpdateFormValues) => {
     setIsSubmitting(true);
-    
+
     try {
       const { error } = await supabase
         .from("presupuestos")
@@ -131,14 +136,14 @@ const QuoteUpdateForm = ({
           equipos_instalados: data.equipmentStatus
         })
         .eq("id", quoteId);
-      
+
       if (error) {
         throw error;
       }
-      
+
       toast({
-        title: "Actualización exitosa",
-        description: "La información del presupuesto ha sido actualizada.",
+        title: "Información Actualizada",
+        description: "El estado operativo del proyecto ha sido registrado.",
         variant: "default",
       });
 
@@ -178,7 +183,7 @@ const QuoteUpdateForm = ({
           await sendWebhook(convertedQuote);
         }
       }
-      
+
       onUpdate();
     } catch (error) {
       console.error("Error al actualizar el presupuesto:", error);
@@ -191,33 +196,33 @@ const QuoteUpdateForm = ({
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
             name="contractSignDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Fecha Firma Contrato</FormLabel>
+                <FormLabel className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-2">Fecha Firma Contrato</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
+                          "w-full h-11 pl-3 text-left font-semibold text-[13px] border-[#E2E8F0] rounded-xl bg-slate-50/50 hover:bg-white transition-all",
+                          !field.value && "text-[#94A3B8]"
                         )}
                       >
                         {field.value ? (
-                          format(field.value, "PPP")
+                          format(field.value, "dd 'de' MMMM, yyyy")
                         ) : (
                           <span>Seleccionar fecha</span>
                         )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        <CalendarIcon className="ml-auto h-4 w-4 text-[#1A367F]" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
@@ -235,29 +240,29 @@ const QuoteUpdateForm = ({
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="equipmentInstallDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Fecha Instalación Equipos</FormLabel>
+                <FormLabel className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-2">Fecha Instalación Equipos</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
+                          "w-full h-11 pl-3 text-left font-semibold text-[13px] border-[#E2E8F0] rounded-xl bg-slate-50/50 hover:bg-white transition-all",
+                          !field.value && "text-[#94A3B8]"
                         )}
                       >
                         {field.value ? (
-                          format(field.value, "PPP")
+                          format(field.value, "dd 'de' MMMM, yyyy")
                         ) : (
                           <span>Seleccionar fecha</span>
                         )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        <CalendarIcon className="ml-auto h-4 w-4 text-[#1A367F]" />
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
@@ -276,35 +281,46 @@ const QuoteUpdateForm = ({
             )}
           />
         </div>
-        
+
         <FormField
           control={form.control}
           name="equipmentStatus"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Estado de Equipos</FormLabel>
+              <FormLabel className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider mb-2">Estado de Equipos / Instalación</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccione estado" />
+                  <SelectTrigger className="h-11 border-[#E2E8F0] rounded-xl bg-slate-50/50 hover:bg-white transition-all font-semibold text-[13px]">
+                    <SelectValue placeholder="Seleccione estado operativo" />
                   </SelectTrigger>
                 </FormControl>
-                <SelectContent>
-                  <SelectItem value="not_installed">Contrato no firmado y equipos no instalados</SelectItem>
-                  <SelectItem value="contract_signed">Contrato firmado, equipos no instalados</SelectItem>
-                  <SelectItem value="completed">Instalación completada y verificada</SelectItem>
+                <SelectContent className="rounded-xl border-[#E2E8F0]">
+                  <SelectItem value="not_installed" className="text-[13px] font-medium py-2.5">Contrato no firmado / Equipos sin instalar</SelectItem>
+                  <SelectItem value="contract_signed" className="text-[13px] font-medium py-2.5">Contrato firmado / En espera de instalación</SelectItem>
+                  <SelectItem value="completed" className="text-[13px] font-medium py-2.5 text-emerald-600 focus:text-emerald-700">Instalación completada y verificada</SelectItem>
                 </SelectContent>
               </Select>
-              <FormDescription>
-                Estado actual de la instalación de equipos
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        
-        <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Actualizando..." : "Actualizar Información"}
+
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full h-12 bg-[#1A367F] hover:bg-[#12285e] text-white font-bold text-[13px] rounded-xl gap-2 shadow-sm transition-all active:scale-[0.98]"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Sincronizando...
+            </>
+          ) : (
+            <>
+              Actualizar Estado del Proyecto
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
         </Button>
       </form>
     </Form>
@@ -338,7 +354,7 @@ const PresupuestosAceptados = () => {
           const monto = quote.monto || quote.units * 50000;
           const por_unidad = quote.por_unidad || 50000;
           const inversion = quote.inversion || Math.round(monto * 0.8);
-          
+
           let additional_at: Array<{ name: string; email: string }> = [];
           if (quote.additional_at) {
             try {
@@ -429,17 +445,16 @@ const PresupuestosAceptados = () => {
     if (quote.terminos_contrato) {
       window.open(quote.terminos_contrato, '_blank');
     } else {
-      // Default contract URL
       window.open("https://drive.google.com/file/d/1mvjvKucoS22aKcRtoXwhExcynTbFxvTs2oG1QDPeyGA/view", '_blank');
     }
   };
 
   const formatDate = (dateString?: string | null): string => {
-    if (!dateString) return "No establecido";
+    if (!dateString) return "n/a";
     try {
-      return format(new Date(dateString), "dd/MM/yyyy");
+      return format(new Date(dateString), "dd MMM");
     } catch (error) {
-      return "Fecha inválida";
+      return "n/a";
     }
   };
 
@@ -451,24 +466,29 @@ const PresupuestosAceptados = () => {
   const getEquipmentStatusText = (status?: string | null): string => {
     switch (status) {
       case "not_installed":
-        return "Contrato no firmado y equipos no instalados";
+        return "Pendiente contrato / Instalación";
       case "contract_signed":
-        return "Contrato firmado, equipos no instalados";
+        return "Contrato Firmado / En proceso";
       case "installed":
-        return "Equipos instalados";
+        return "Equipos en sitio";
       case "completed":
-        return "Instalación completada y verificada";
+        return "Instalación Verificada";
       default:
-        return "Contrato no firmado y equipos no instalados";
+        return "Estado Desconocido";
     }
   };
 
-  // Get unique vendors for filter
+  const getStatusBadgeColor = (status?: string | null) => {
+    if (status === "completed") return "bg-emerald-50 text-emerald-600 border border-emerald-100 font-bold";
+    if (status === "contract_signed") return "bg-blue-50 text-[#1A367F] border border-blue-100 font-bold";
+    return "bg-slate-50 text-[#64748B] border border-slate-100 font-bold";
+  };
+
   const uniqueVendors = [...new Set(quotes.filter(q => q.vendedor).map(q => q.vendedor))];
 
   const filterOptions = [
     {
-      label: "Tipo de Edificio",
+      label: "Tipo",
       key: "buildingtype",
       options: [
         { value: "Edificio", label: "Edificio" },
@@ -484,113 +504,138 @@ const PresupuestosAceptados = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[#F8FAFC] font-sans">
       <AdminSidebar />
-      
-      <div className="flex-1 flex flex-col">
-        <div className="bg-white border-b border-gray-200 px-8 py-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Presupuestos Aceptados
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Gestiona todos los presupuestos aceptados por los clientes
-              </p>
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header Section */}
+        <div className="max-w-[1440px] ml-0 p-8 pt-10 pb-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-emerald-50 rounded-[14px] border border-emerald-100">
+                <CheckCircle className="h-7 w-7 text-emerald-600" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-[#1E293B]">
+                  Presupuestos Aceptados
+                </h1>
+                <p className="text-[#64748B] text-sm font-medium mt-0.5 flex items-center gap-2">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Cartera de Clientes Activos - Gestión y Seguimiento Operativo
+                </p>
+              </div>
             </div>
           </div>
         </div>
-        
-        <div className="flex-1 p-8 overflow-auto">
-          <div className="max-w-6xl mx-auto">
-            <SearchAndFilter
-              onSearch={handleSearch}
-              onFilter={handleFilter}
-              filterOptions={filterOptions}
-              searchPlaceholder="Buscar por comunidad, administrador, dirección..."
-            />
+
+        <div className="flex-1 px-8 pt-8 pb-8 overflow-y-auto">
+          <div className="max-w-[1440px] mx-auto space-y-8">
+            <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
+              <SearchAndFilter
+                onSearch={handleSearch}
+                onFilter={handleFilter}
+                filterOptions={filterOptions}
+                searchPlaceholder="Buscar comunidad, administrador o vendedor..."
+              />
+            </div>
 
             {isLoading ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cargando...</CardTitle>
-                  <CardDescription>
-                    Obteniendo los presupuestos aceptados...
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
+                <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
+                <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Sincronizando Proyectos...</p>
+              </div>
             ) : filteredQuotes.length === 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>No hay presupuestos aceptados</CardTitle>
-                  <CardDescription>
-                    Los presupuestos aceptados por los clientes aparecerán aquí.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
+                <div className="p-4 bg-slate-50 rounded-full mb-4">
+                  <Building2 className="h-8 w-8 text-slate-300" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">No se encontraron proyectos activos</h3>
+                <p className="text-sm text-slate-500 mt-1 uppercase tracking-wider font-bold text-[11px]">Ajusta los filtros de búsqueda</p>
+              </div>
             ) : (
-              <>
-                <Card className="mb-6">
+              <div className="space-y-6">
+                <Card className="border-[#E2E8F0] shadow-sm overflow-hidden rounded-xl bg-white">
                   <CardContent className="p-0">
                     <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Edificio</TableHead>
-                          <TableHead>Administrador</TableHead>
-                          <TableHead>Vendedor</TableHead>
-                          <TableHead>Monto</TableHead>
-                          <TableHead>Unidades</TableHead>
-                          <TableHead>Fecha Aceptación</TableHead>
-                          <TableHead>Estado Equipos</TableHead>
-                          <TableHead>Acciones</TableHead>
+                      <TableHeader className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Comunidad</TableHead>
+                          <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Administrador / Vendedor</TableHead>
+                          <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Comercial</TableHead>
+                          <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Estado Operativo</TableHead>
+                          <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-widest">Fecha</TableHead>
+                          <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-widest text-right">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filteredQuotes.map((quote) => (
-                          <TableRow key={quote.id}>
-                            <TableCell className="font-medium">
-                              {quote.communityname}
+                          <TableRow key={quote.id} className="border-b border-[#F1F5F9] hover:bg-slate-50/50 transition-colors group">
+                            <TableCell className="px-6 py-5">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[13px] font-bold text-[#1E293B] tracking-tight">{quote.communityname}</span>
+                                <span className="text-[11px] text-[#94A3B8] font-medium leading-tight line-clamp-1 truncate max-w-[200px]">
+                                  {quote.buildingaddress || "No registrada"}
+                                </span>
+                              </div>
                             </TableCell>
-                            <TableCell>{quote.adminname}</TableCell>
-                            <TableCell>{quote.vendedor || "N/A"}</TableCell>
-                            <TableCell>{formatCurrency(quote.monto)}</TableCell>
-                            <TableCell>{quote.units}</TableCell>
-                            <TableCell>
-                              {formatDate(quote.fecha_aprobacion_presupuesto)}
+                            <TableCell className="px-6 py-5">
+                              <div className="flex flex-col">
+                                <span className="text-[12px] font-semibold text-[#1E293B]">{quote.adminname}</span>
+                                <span className="text-[11px] text-[#64748B] font-medium mt-0.5">Vend: {quote.vendedor || "n/a"}</span>
+                              </div>
                             </TableCell>
-                            <TableCell>
-                              <Badge variant="default">
-                                <CheckCircle className="mr-1 h-3 w-3" />
+                            <TableCell className="px-6 py-5">
+                              <div className="flex flex-col">
+                                <span className="text-[13px] font-bold text-[#1A367F]">{formatCurrency(quote.monto)}</span>
+                                <span className="text-[11px] font-bold text-[#64748B]">{quote.units} Unidades</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-6 py-5">
+                              <Badge className={cn("px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider shadow-none flex items-center w-fit gap-1.5", getStatusBadgeColor(quote.equipos_instalados))}>
+                                {quote.equipos_instalados === "completed" && <CheckCircle className="h-3 w-3" />}
                                 {getEquipmentStatusText(quote.equipos_instalados)}
                               </Badge>
                             </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
+                            <TableCell className="px-6 py-5">
+                              <div className="flex flex-col">
+                                <span className="text-[12px] text-[#1E293B] font-bold">Aceptado</span>
+                                <span className="text-[11px] text-[#94A3B8] font-medium">
+                                  {formatDate(quote.fecha_aprobacion_presupuesto)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-6 py-5 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="ghost"
                                   size="sm"
+                                  className="h-8 w-8 p-0 text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF] rounded-lg"
                                   onClick={() => handleEditClick(quote)}
+                                  title="Editar Registro"
                                 >
-                                  <Edit className="mr-1 h-4 w-4" />
-                                  Editar
+                                  <Edit className="h-3.5 w-3.5" />
                                 </Button>
-                                <Button 
-                                  variant="outline" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
+                                  className="h-8 w-8 p-0 text-[#64748B] hover:text-[#059669] hover:bg-emerald-50 rounded-lg"
+                                  onClick={() => handleOpenContract(quote)}
+                                  title="Ver Contrato"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant={quote.id === selectedQuoteId ? "default" : "outline"}
+                                  className={cn(
+                                    "h-8 px-3 font-bold text-[10px] uppercase tracking-wider rounded-lg border-[#E2E8F0] transition-all",
+                                    quote.id === selectedQuoteId
+                                      ? "bg-[#1A367F] text-white"
+                                      : "bg-white text-[#1E293B] hover:bg-slate-50"
+                                  )}
                                   onClick={() => handleUpdateClick(quote)}
                                 >
-                                  {quote.id === selectedQuoteId ? "Cerrar" : "Actualizar"}
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleOpenContract(quote)}
-                                >
-                                  <FileText className="mr-1 h-4 w-4" />
-                                  Contrato
+                                  {quote.id === selectedQuoteId ? "Cerrar" : "Operaciones"}
                                 </Button>
                               </div>
                             </TableCell>
@@ -600,21 +645,28 @@ const PresupuestosAceptados = () => {
                     </Table>
                   </CardContent>
                 </Card>
-                
+
                 {selectedQuoteId && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Actualizar Estado del Presupuesto</CardTitle>
-                      <CardDescription>
-                        Actualizar información adicional del presupuesto aceptado
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <QuoteUpdateForm quoteId={selectedQuoteId} onUpdate={fetchQuotes} />
+                  <Card className="border-2 border-[#1A367F] shadow-xl overflow-hidden rounded-2xl animate-in fade-in slide-in-from-top-4 duration-300">
+                    <CardContent className="p-0">
+                      <div className="bg-[#1A367F] p-5 flex items-center gap-4 text-white">
+                        <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20">
+                          <Settings2 className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-[15px] font-bold leading-none">Gestión Operativa del Proyecto</h3>
+                          <p className="text-[11px] text-blue-100 mt-1.5 font-medium uppercase tracking-widest">
+                            {filteredQuotes.find(q => q.id === selectedQuoteId)?.communityname}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="p-8 bg-white">
+                        <QuoteUpdateForm quoteId={selectedQuoteId} onUpdate={fetchQuotes} />
+                      </div>
                     </CardContent>
                   </Card>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
