@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Eye, CheckCircle, FileText, Edit } from "lucide-react";
+import { Eye, CheckCircle, FileText } from "lucide-react";
 
 import { Quote } from "@/utils/quoteStorage";
 import SellerSidebar from "@/components/SellerSidebar";
@@ -9,21 +9,8 @@ import AcceptQuoteDialog from "@/components/AcceptQuoteDialog";
 import EditDialog from "@/components/EditDialog";
 import SearchAndFilter from "@/components/SearchAndFilter";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,139 +28,86 @@ const SellerQuotes = () => {
 
   const fetchQuotes = async () => {
     if (!userProfile?.id) return;
-    
     setIsLoading(true);
     try {
-      console.log('Buscando presupuestos para vendedor ID:', userProfile.id);
-      console.log('Filtrando por estado_contacto: "Presupuesto Enviado"');
-      
       const { data, error } = await supabase
         .from("presupuestos")
-        .select("*")
-        .eq("vendedor_id", userProfile.id)
-        .eq("estado_contacto", "Presupuesto Enviado")
+        .select("*, prospectos!inner(*)")
+        .eq("prospectos.vendedor_id", userProfile.id)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error('Error en la consulta de Supabase:', error);
-        throw error;
-      }
-
-      console.log('Datos encontrados en Supabase:', data);
-      console.log('Número de registros encontrados:', data?.length || 0);
-      
-      // Log each record's estado_contacto to debug
-      if (data) {
-        data.forEach((record, index) => {
-          console.log(`Registro ${index + 1}:`, {
-            id: record.id,
-            communityname: record.communityname,
-            estado_contacto: record.estado_contacto,
-            vendedor: record.vendedor
-          });
-        });
-      }
+      if (error) throw error;
 
       if (data) {
-        const processedQuotes: Quote[] = data.map(quote => {
-          const monto = quote.monto || quote.units * 50000;
-          const por_unidad = quote.por_unidad || 50000;
-          const inversion = quote.inversion || Math.round(monto * 0.8);
-          
+        const processedQuotes: Quote[] = data.map(item => {
+          const prospecto = item.prospectos as any;
           let additional_at: Array<{ name: string; email: string }> = [];
-          if (quote.additional_at) {
+          if (prospecto?.additional_at) {
             try {
-              if (typeof quote.additional_at === 'string') {
-                additional_at = JSON.parse(quote.additional_at);
-              } else if (Array.isArray(quote.additional_at)) {
-                additional_at = quote.additional_at as Array<{ name: string; email: string }>;
-              }
-            } catch (e) {
-              console.error("Error parsing additional_at:", e);
-              additional_at = [];
-            }
+              if (typeof prospecto.additional_at === 'string') additional_at = JSON.parse(prospecto.additional_at);
+              else if (Array.isArray(prospecto.additional_at)) additional_at = prospecto.additional_at;
+            } catch (e) { additional_at = []; }
           }
 
           return {
-            ...quote,
+            id: prospecto?.id || item.id,
+            presupuesto_id: item.id,
+            adminname: prospecto?.adminname || '',
+            adminemail: prospecto?.adminemail || '',
+            managementcompany: prospecto?.managementcompany,
+            communityname: prospecto?.communityname || '',
+            buildingaddress: prospecto?.buildingaddress,
+            comuna: prospecto?.comuna,
+            region: prospecto?.region,
+            buildingtype: prospecto?.buildingtype || '',
+            units: prospecto?.units || 0,
+            vendedor: prospecto?.vendedor,
+            vendedor_id: prospecto?.vendedor_id,
+            estado_contacto: prospecto?.estado_contacto,
             additional_at,
-            monto,
-            por_unidad,
-            inversion,
-            status: quote.presupuesto_aceptado ? "Aceptado" : "Enviado"
-          } as Quote;
+            monto: item.monto || 0,
+            por_unidad: item.por_unidad || 0,
+            inversion: item.inversion || 0,
+            estado: item.estado as "Enviado" | "Aceptado",
+            fecha_aprobacion: item.fecha_aprobacion,
+            created_at: item.created_at,
+            status: item.estado as "Enviado" | "Aceptado",
+          };
         });
 
-        console.log('Presupuestos procesados:', processedQuotes);
         setQuotes(processedQuotes);
         setFilteredQuotes(processedQuotes);
       }
     } catch (error) {
       console.error("Error fetching quotes:", error);
-      toast({
-        title: "Error",
-        description: "Hubo un error al cargar los presupuestos. Por favor, intente nuevamente.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Error al cargar los presupuestos.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchQuotes();
-  }, [userProfile?.id]);
+  useEffect(() => { fetchQuotes(); }, [userProfile?.id]);
 
   const handleSearch = (query: string) => {
-    if (!query.trim()) {
-      setFilteredQuotes(quotes);
-      return;
-    }
-
-    const filtered = quotes.filter(quote =>
-      quote.communityname.toLowerCase().includes(query.toLowerCase()) ||
-      quote.adminname.toLowerCase().includes(query.toLowerCase()) ||
-      (quote.buildingaddress && quote.buildingaddress.toLowerCase().includes(query.toLowerCase()))
+    if (!query.trim()) { setFilteredQuotes(quotes); return; }
+    const filtered = quotes.filter(q =>
+      q.communityname.toLowerCase().includes(query.toLowerCase()) ||
+      q.adminname.toLowerCase().includes(query.toLowerCase()) ||
+      (q.buildingaddress && q.buildingaddress.toLowerCase().includes(query.toLowerCase()))
     );
     setFilteredQuotes(filtered);
   };
 
   const handleFilter = (filters: any) => {
     let filtered = quotes;
-
-    if (filters.buildingtype) {
-      filtered = filtered.filter(quote => quote.buildingtype === filters.buildingtype);
-    }
-
-    if (filters.status) {
-      filtered = filtered.filter(quote => quote.status === filters.status);
-    }
-
+    if (filters.buildingtype) filtered = filtered.filter(q => q.buildingtype === filters.buildingtype);
+    if (filters.status) filtered = filtered.filter(q => q.status === filters.status);
     setFilteredQuotes(filtered);
   };
 
-  const handleAcceptQuote = (quote: Quote) => {
-    setSelectedQuote(quote);
-    setIsDialogOpen(true);
-  };
-
-  const handleViewQuote = (quote: Quote) => {
-    setSelectedQuote(quote);
-    setIsViewDialogOpen(true);
-  };
-
-  const handleCloseViewDialog = () => {
-    setIsViewDialogOpen(false);
-    setSelectedQuote(null);
-  };
-
   const formatDate = (dateString?: string | null): string => {
-    if (!dateString) return "No establecido";
-    try {
-      return format(new Date(dateString), "dd/MM/yyyy");
-    } catch (error) {
-      return "Fecha inválida";
-    }
+    if (!dateString) return "n/a";
+    try { return format(new Date(dateString), "dd/MM/yyyy"); } catch { return "n/a"; }
   };
 
   const formatCurrency = (amount: number | null | undefined): string => {
@@ -182,83 +116,35 @@ const SellerQuotes = () => {
   };
 
   const filterOptions = [
-    {
-      label: "Tipo de Edificio",
-      key: "buildingtype",
-      options: [
-        { value: "Edificio", label: "Edificio" },
-        { value: "Condominio", label: "Condominio" },
-        { value: "Casa", label: "Casa" },
-      ]
-    },
-    {
-      label: "Estado",
-      key: "status",
-      options: [
-        { value: "Enviado", label: "Enviado" },
-        { value: "Aceptado", label: "Aceptado" },
-      ]
-    }
+    { label: "Tipo", key: "buildingtype", options: [{ value: "Edificio", label: "Edificio" }, { value: "Condominio", label: "Condominio" }, { value: "Casa", label: "Casa" }] },
+    { label: "Estado", key: "status", options: [{ value: "Enviado", label: "Enviado" }, { value: "Aceptado", label: "Aceptado" }] }
   ];
 
   return (
     <div className="flex h-screen bg-gray-50">
       <SellerSidebar />
-      
       <div className="flex-1 flex flex-col">
         <div className="bg-white border-b border-gray-200 px-8 py-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-6 w-6 text-blue-600" />
-            </div>
+            <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-6 w-6 text-blue-600" /></div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Presupuestos Enviados
-              </h1>
+              <h1 className="text-2xl font-bold text-gray-900">Presupuestos Enviados</h1>
               <p className="text-sm text-gray-600 mt-1">
-                Gestiona y supervisa todos tus presupuestos enviados a clientes
-                {userProfile?.nombre && (
-                  <span className="ml-2 text-blue-600 font-medium">
-                    • Vendedor: {userProfile.nombre}
-                  </span>
-                )}
+                Gestiona tus presupuestos enviados
+                {userProfile?.nombre && <span className="ml-2 text-blue-600 font-medium">• Vendedor: {userProfile.nombre}</span>}
               </p>
             </div>
           </div>
         </div>
-        
+
         <div className="flex-1 p-8 overflow-auto">
           <div className="max-w-6xl mx-auto">
-            <SearchAndFilter
-              onSearch={handleSearch}
-              onFilter={handleFilter}
-              filterOptions={filterOptions}
-              searchPlaceholder="Buscar por comunidad, administrador, dirección..."
-            />
+            <SearchAndFilter onSearch={handleSearch} onFilter={handleFilter} filterOptions={filterOptions} searchPlaceholder="Buscar por comunidad, administrador, dirección..." />
 
             {isLoading ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cargando...</CardTitle>
-                  <CardDescription>
-                    Obteniendo tus presupuestos enviados...
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+              <Card><CardHeader><CardTitle>Cargando...</CardTitle></CardHeader></Card>
             ) : filteredQuotes.length === 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>No hay presupuestos enviados</CardTitle>
-                  <CardDescription>
-                    Los presupuestos con estado "Presupuesto Enviado" aparecerán aquí.
-                    {userProfile?.nombre && (
-                      <span className="block text-xs text-gray-500 mt-1">
-                        Buscando para vendedor: {userProfile.nombre}
-                      </span>
-                    )}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+              <Card><CardHeader><CardTitle>No hay presupuestos enviados</CardTitle><CardDescription>Los presupuestos aparecerán aquí.</CardDescription></CardHeader></Card>
             ) : (
               <Card>
                 <CardContent className="p-0">
@@ -269,55 +155,33 @@ const SellerQuotes = () => {
                         <TableHead>Administrador</TableHead>
                         <TableHead>Monto</TableHead>
                         <TableHead>Unidades</TableHead>
-                        <TableHead>Estado Contacto</TableHead>
-                        <TableHead>Fecha Creación</TableHead>
+                        <TableHead>Fecha</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredQuotes.map((quote) => (
-                        <TableRow key={quote.id}>
-                          <TableCell className="font-medium">
-                            {quote.communityname}
-                          </TableCell>
+                        <TableRow key={quote.presupuesto_id || quote.id}>
+                          <TableCell className="font-medium">{quote.communityname}</TableCell>
                           <TableCell>{quote.adminname}</TableCell>
                           <TableCell>{formatCurrency(quote.monto)}</TableCell>
                           <TableCell>{quote.units}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {quote.estado_contacto || 'No definido'}
-                            </Badge>
-                          </TableCell>
                           <TableCell>{formatDate(quote.created_at)}</TableCell>
                           <TableCell>
-                            <Badge 
-                              variant={quote.status === "Aceptado" ? "default" : "secondary"}
-                            >
-                              {quote.status === "Aceptado" && (
-                                <CheckCircle className="mr-1 h-3 w-3" />
-                              )}
+                            <Badge variant={quote.status === "Aceptado" ? "default" : "secondary"}>
+                              {quote.status === "Aceptado" && <CheckCircle className="mr-1 h-3 w-3" />}
                               {quote.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleViewQuote(quote)}
-                              >
-                                <Eye className="mr-1 h-4 w-4" />
-                                Ver
+                              <Button variant="outline" size="sm" onClick={() => { setSelectedQuote(quote); setIsViewDialogOpen(true); }}>
+                                <Eye className="mr-1 h-4 w-4" /> Ver
                               </Button>
                               {quote.status === "Enviado" && (
-                                <Button 
-                                  variant="default" 
-                                  size="sm"
-                                  onClick={() => handleAcceptQuote(quote)}
-                                >
-                                  <CheckCircle className="mr-1 h-4 w-4" />
-                                  Aceptar
+                                <Button variant="default" size="sm" onClick={() => { setSelectedQuote(quote); setIsDialogOpen(true); }}>
+                                  <CheckCircle className="mr-1 h-4 w-4" /> Aceptar
                                 </Button>
                               )}
                             </div>
@@ -333,24 +197,8 @@ const SellerQuotes = () => {
         </div>
       </div>
 
-      <AcceptQuoteDialog 
-        quote={selectedQuote}
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onAcceptComplete={() => {
-          setIsDialogOpen(false);
-          setSelectedQuote(null);
-          fetchQuotes();
-        }}
-      />
-
-      <EditDialog
-        isOpen={isViewDialogOpen}
-        onClose={handleCloseViewDialog}
-        record={selectedQuote}
-        onUpdate={fetchQuotes}
-        type="presupuesto"
-      />
+      <AcceptQuoteDialog quote={selectedQuote} open={isDialogOpen} onOpenChange={setIsDialogOpen} onAcceptComplete={() => { setIsDialogOpen(false); setSelectedQuote(null); fetchQuotes(); }} />
+      <EditDialog isOpen={isViewDialogOpen} onClose={() => { setIsViewDialogOpen(false); setSelectedQuote(null); }} record={selectedQuote} onUpdate={fetchQuotes} type="presupuesto" />
     </div>
   );
 };

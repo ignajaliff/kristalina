@@ -1,54 +1,12 @@
 
 import { useState } from "react";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-
-import { cn } from "@/lib/utils";
 import { Quote } from "@/utils/quoteStorage";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-
-// Form validation schema
-const formSchema = z.object({
-  legalRepresentativeName: z.string().min(1, "Nombre del representante legal es requerido"),
-  legalRepresentativeRut: z.string().min(1, "RUT del representante legal es requerido"),
-  communityRut: z.string().min(1, "RUT de la comunidad es requerido"),
-  communityEmail: z.string().email("Correo electrónico inválido"),
-  legalRepresentativePhone: z.string().min(1, "Número del representante legal es requerido"),
-  communityFormationDate: z.date({
-    required_error: "La fecha de constitución de la comunidad es requerida",
-  }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
 
 interface AcceptQuoteDialogProps {
   quote: Quote | null;
@@ -57,246 +15,80 @@ interface AcceptQuoteDialogProps {
   onAcceptComplete: () => void;
 }
 
-export default function AcceptQuoteDialog({
-  quote,
-  open,
-  onOpenChange,
-  onAcceptComplete,
-}: AcceptQuoteDialogProps) {
+export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptComplete }: AcceptQuoteDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Initialize form with defaults
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      legalRepresentativeName: "",
-      legalRepresentativeRut: "",
-      communityRut: "",
-      communityEmail: quote?.adminemail || "",
-      legalRepresentativePhone: "",
-    },
-  });
-  
-  // Handle form submission
-  const onSubmit = async (data: FormValues) => {
-    if (!quote) return;
-    
+
+  const handleAccept = async () => {
+    if (!quote?.presupuesto_id) return;
+
     setIsSubmitting(true);
-    
     try {
-      // Update the quote in the database with the acceptance information
-      const { error } = await supabase
+      // 1. Update presupuesto estado to "Aceptado" and set fecha_aprobacion
+      const { error: updateError } = await supabase
         .from("presupuestos")
         .update({
-          presupuesto_aceptado: true,
-          legalrepresentative: data.legalRepresentativeName,
-          legalrepresentativerut: data.legalRepresentativeRut,
-          communityrut: data.communityRut,
-          communityemail: data.communityEmail,
-          legalrepresentativephone: data.legalRepresentativePhone,
-          communityformationdate: data.communityFormationDate.toISOString(),
-          fecha_aprobacion_presupuesto: new Date().toISOString().split('T')[0],
-          estado_contacto: "Presupuesto Aceptado"
+          estado: "Aceptado",
+          fecha_aprobacion: new Date().toISOString().split('T')[0],
         })
+        .eq("id", quote.presupuesto_id);
+
+      if (updateError) throw updateError;
+
+      // 2. Auto-create contrato record
+      const { error: contratoError } = await supabase
+        .from("contratos")
+        .insert([{
+          prospecto_id: quote.id,
+          estado_contrato: "Contrato no firmado",
+          estado_equipos: "Equipos sin instalar",
+        }]);
+
+      if (contratoError) {
+        console.error("Error creating contrato:", contratoError);
+        toast({ title: "Advertencia", description: "Presupuesto aceptado pero hubo un error al crear el contrato." });
+      }
+
+      // 3. Update prospecto estado_contacto
+      await supabase
+        .from("prospectos")
+        .update({ estado_contacto: "Presupuesto Aceptado" })
         .eq("id", quote.id);
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Try to send to webhook
-      const WEBHOOK_URL = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/66abaac8-fdce-4dde-a287-df61767ba4af";
-      
-      if (WEBHOOK_URL) {
-        try {
-          // Only send the necessary information to the webhook
-          const webhookData = {
-            quoteId: quote.id,
-            legalRepresentativeName: data.legalRepresentativeName,
-            legalRepresentativeRut: data.legalRepresentativeRut,
-            communityRut: data.communityRut,
-            communityEmail: data.communityEmail,
-            legalRepresentativePhone: data.legalRepresentativePhone,
-            communityFormationDate: data.communityFormationDate.toISOString(),
-            timestamp: new Date().toISOString(),
-          };
-          
-          await fetch(WEBHOOK_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            mode: "no-cors",
-            body: JSON.stringify(webhookData),
-          });
-          
-          console.log("Webhook triggered successfully");
-        } catch (webhookError) {
-          console.error("Error triggering webhook:", webhookError);
-          // Don't throw here, we still want to show success
-        }
-      }
-      
-      // Show success message
-      toast({
-        title: "Presupuesto aceptado",
-        description: "El presupuesto ha sido aceptado y los datos enviados correctamente.",
-      });
-      
-      // Close dialog and refresh list
+
+      toast({ title: "Presupuesto aceptado", description: "El presupuesto ha sido aceptado y el contrato creado." });
       onOpenChange(false);
       onAcceptComplete();
     } catch (error) {
       console.error("Error al aceptar presupuesto:", error);
-      toast({
-        title: "Error",
-        description: "Ha ocurrido un error al procesar el presupuesto.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Ha ocurrido un error al procesar el presupuesto.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle>Aceptar Presupuesto</DialogTitle>
           <DialogDescription>
-            Complete la información adicional para aceptar el presupuesto y generar el contrato.
+            ¿Estás seguro de aceptar el presupuesto para <strong>{quote?.communityname}</strong>?
+            Esto cambiará el estado a "Aceptado" y creará automáticamente un registro de contrato.
           </DialogDescription>
         </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="legalRepresentativeName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre Representante Legal</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nombre completo" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="legalRepresentativeRut"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>RUT Representante Legal</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: 12345678-9" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="communityRut"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>RUT Comunidad</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: 12345678-9" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="communityEmail"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email Comunidad</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="comunidad@ejemplo.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="legalRepresentativePhone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número Representante Legal</FormLabel>
-                  <FormControl>
-                    <Input type="tel" placeholder="+56 9 1234 5678" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="communityFormationDate"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Fecha de Constitución Comunidad</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Seleccionar fecha</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date > new Date() || date < new Date("1900-01-01")
-                        }
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                        fromYear={1900}
-                        toYear={new Date().getFullYear()}
-                        captionLayout="dropdown-buttons"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Procesando..." : "Aceptar Presupuesto"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+
+        <div className="py-4 space-y-2 text-sm text-muted-foreground">
+          <p><strong>Comunidad:</strong> {quote?.communityname}</p>
+          <p><strong>Administrador:</strong> {quote?.adminname}</p>
+          <p><strong>Unidades:</strong> {quote?.units}</p>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={handleAccept} disabled={isSubmitting} className="bg-[#10B981] hover:bg-[#059669]">
+            {isSubmitting ? "Procesando..." : "Aceptar Presupuesto"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

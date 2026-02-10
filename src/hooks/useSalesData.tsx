@@ -15,32 +15,35 @@ interface RecentSale {
   communityname: string;
   adminname: string;
   monto: number | null;
-  presupuesto_aceptado: boolean;
+  estado: string;
   created_at: string;
 }
 
 export const useSalesData = () => {
   const { userProfile } = useAuth();
 
-  // Fetch sales data using user ID
   const { data: salesData, isLoading, error } = useQuery({
     queryKey: ['salesData', userProfile?.id],
     queryFn: async () => {
       if (!userProfile?.id) return null;
 
-      console.log('Fetching sales data for user ID:', userProfile.id);
+      // Fetch prospectos for units count
+      const { data: prospectos, error: prospectosError } = await supabase
+        .from('prospectos')
+        .select('id, units')
+        .eq('vendedor_id', userProfile.id);
 
-      const { data: presupuestos, error } = await supabase
+      if (prospectosError) throw prospectosError;
+
+      // Fetch presupuestos with prospectos data
+      const { data: presupuestos, error: presupuestosError } = await supabase
         .from('presupuestos')
-        .select('*')
-        .eq('vendedor_id', userProfile.id)
+        .select('*, prospectos!inner(communityname, adminname, vendedor_id)')
+        .eq('prospectos.vendedor_id', userProfile.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (presupuestosError) throw presupuestosError;
 
-      console.log('Sales data found:', presupuestos);
-
-      // Calculate stats
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -50,11 +53,9 @@ export const useSalesData = () => {
         return createdDate.getTime() === today.getTime();
       }) || [];
 
-      const acceptedBudgets = presupuestos?.filter(p => p.presupuesto_aceptado) || [];
-      
       const todaySales = todaysBudgets.reduce((sum, p) => sum + (p.monto || 0), 0);
-      const totalUnits = presupuestos?.reduce((sum, p) => sum + p.units, 0) || 0;
-      const commission = todaySales * 0.1; // 10% commission
+      const totalUnits = prospectos?.reduce((sum, p) => sum + p.units, 0) || 0;
+      const commission = todaySales * 0.1;
 
       const stats: SalesStats = {
         todaySales,
@@ -63,12 +64,12 @@ export const useSalesData = () => {
         commission,
       };
 
-      const recentSales: RecentSale[] = presupuestos?.slice(0, 10).map(p => ({
+      const recentSales: RecentSale[] = presupuestos?.slice(0, 10).map((p: any) => ({
         id: p.id,
-        communityname: p.communityname,
-        adminname: p.adminname,
+        communityname: p.prospectos?.communityname || '',
+        adminname: p.prospectos?.adminname || '',
         monto: p.monto,
-        presupuesto_aceptado: p.presupuesto_aceptado,
+        estado: p.estado,
         created_at: p.created_at,
       })) || [];
 

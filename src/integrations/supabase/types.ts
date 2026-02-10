@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      contratos: {
+        Row: {
+          communityemail: string | null
+          communityformationdate: string | null
+          communityrut: string | null
+          created_at: string
+          doc_contrato: string | null
+          estado_contrato: string
+          estado_equipos: string
+          fecha_contrato_firmado: string | null
+          fecha_instalacion_equipos: string | null
+          id: string
+          legalrepresentative: string | null
+          legalrepresentativephone: string | null
+          legalrepresentativerut: string | null
+          prospecto_id: string
+        }
+        Insert: {
+          communityemail?: string | null
+          communityformationdate?: string | null
+          communityrut?: string | null
+          created_at?: string
+          doc_contrato?: string | null
+          estado_contrato?: string
+          estado_equipos?: string
+          fecha_contrato_firmado?: string | null
+          fecha_instalacion_equipos?: string | null
+          id?: string
+          legalrepresentative?: string | null
+          legalrepresentativephone?: string | null
+          legalrepresentativerut?: string | null
+          prospecto_id: string
+        }
+        Update: {
+          communityemail?: string | null
+          communityformationdate?: string | null
+          communityrut?: string | null
+          created_at?: string
+          doc_contrato?: string | null
+          estado_contrato?: string
+          estado_equipos?: string
+          fecha_contrato_firmado?: string | null
+          fecha_instalacion_equipos?: string | null
+          id?: string
+          legalrepresentative?: string | null
+          legalrepresentativephone?: string | null
+          legalrepresentativerut?: string | null
+          prospecto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_prospecto_id_fkey"
+            columns: ["prospecto_id"]
+            isOneToOne: false
+            referencedRelation: "prospectos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gestion: {
         Row: {
           buildingaddress: string
@@ -63,35 +122,64 @@ export type Database = {
       }
       presupuestos: {
         Row: {
+          created_at: string
+          doc_presupuesto: string | null
+          estado: string
+          fecha_aprobacion: string | null
+          id: string
+          inversion: number | null
+          monto: number | null
+          por_unidad: number | null
+          prospecto_id: string
+        }
+        Insert: {
+          created_at?: string
+          doc_presupuesto?: string | null
+          estado?: string
+          fecha_aprobacion?: string | null
+          id?: string
+          inversion?: number | null
+          monto?: number | null
+          por_unidad?: number | null
+          prospecto_id: string
+        }
+        Update: {
+          created_at?: string
+          doc_presupuesto?: string | null
+          estado?: string
+          fecha_aprobacion?: string | null
+          id?: string
+          inversion?: number | null
+          monto?: number | null
+          por_unidad?: number | null
+          prospecto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuestos_prospecto_id_fkey"
+            columns: ["prospecto_id"]
+            isOneToOne: false
+            referencedRelation: "prospectos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospectos: {
+        Row: {
           additional_at: Json | null
           adminemail: string
           adminname: string
           buildingaddress: string | null
           buildingtype: string
-          communityemail: string | null
-          communityformationdate: string | null
           communityname: string
-          communityrut: string | null
           comuna: string | null
           created_at: string
-          equipos_instalados: string | null
           estado_contacto: string | null
-          fecha_aprobacion_presupuesto: string | null
-          fecha_firma_contrato: string | null
-          fecha_instalacion_equipos: string | null
           id: string
-          inversion: number | null
-          legalrepresentative: string | null
-          legalrepresentativephone: string | null
-          legalrepresentativerut: string | null
           managementcompany: string | null
-          monto: number | null
           nombre_portero: string | null
           notas: string | null
-          por_unidad: number | null
-          presupuesto_aceptado: boolean
           region: string | null
-          terminos_contrato: string | null
           units: number
           vendedor: string | null
           vendedor_id: string | null
@@ -102,30 +190,15 @@ export type Database = {
           adminname: string
           buildingaddress?: string | null
           buildingtype?: string
-          communityemail?: string | null
-          communityformationdate?: string | null
           communityname: string
-          communityrut?: string | null
           comuna?: string | null
           created_at?: string
-          equipos_instalados?: string | null
           estado_contacto?: string | null
-          fecha_aprobacion_presupuesto?: string | null
-          fecha_firma_contrato?: string | null
-          fecha_instalacion_equipos?: string | null
           id?: string
-          inversion?: number | null
-          legalrepresentative?: string | null
-          legalrepresentativephone?: string | null
-          legalrepresentativerut?: string | null
           managementcompany?: string | null
-          monto?: number | null
           nombre_portero?: string | null
           notas?: string | null
-          por_unidad?: number | null
-          presupuesto_aceptado?: boolean
           region?: string | null
-          terminos_contrato?: string | null
           units: number
           vendedor?: string | null
           vendedor_id?: string | null
@@ -136,30 +209,15 @@ export type Database = {
           adminname?: string
           buildingaddress?: string | null
           buildingtype?: string
-          communityemail?: string | null
-          communityformationdate?: string | null
           communityname?: string
-          communityrut?: string | null
           comuna?: string | null
           created_at?: string
-          equipos_instalados?: string | null
           estado_contacto?: string | null
-          fecha_aprobacion_presupuesto?: string | null
-          fecha_firma_contrato?: string | null
-          fecha_instalacion_equipos?: string | null
           id?: string
-          inversion?: number | null
-          legalrepresentative?: string | null
-          legalrepresentativephone?: string | null
-          legalrepresentativerut?: string | null
           managementcompany?: string | null
-          monto?: number | null
           nombre_portero?: string | null
           notas?: string | null
-          por_unidad?: number | null
-          presupuesto_aceptado?: boolean
           region?: string | null
-          terminos_contrato?: string | null
           units?: number
           vendedor?: string | null
           vendedor_id?: string | null
