@@ -178,7 +178,7 @@ const QuotesTable = () => {
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF] rounded-md" onClick={() => handleViewQuote(quote)}>
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
-                            {quote.datos_presupuesto && (
+                            {quote.datos_presupuesto ? (
                               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-[#64748B] hover:text-orange-600 hover:bg-orange-50 rounded-md" title="Descargar PDF presupuesto" onClick={() => {
                                 const datos = quote.datos_presupuesto as any;
                                 const blob = generatePresupuestoPDF({
@@ -197,6 +197,10 @@ const QuotesTable = () => {
                                 a.click();
                                 URL.revokeObjectURL(url);
                               }}>
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-[#94A3B8] cursor-not-allowed opacity-50 rounded-md" title="Sin datos de presupuesto" disabled>
                                 <Download className="h-3.5 w-3.5" />
                               </Button>
                             )}
