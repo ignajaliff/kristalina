@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { CheckCircle, Building, User, Calendar } from "lucide-react";
@@ -89,43 +88,42 @@ const AcceptedQuotes = () => {
   return (
     <>
       <AcceptedQuotesHeader />
-        <AcceptedQuotesHeader />
-        <div className="flex-1 p-8 overflow-auto">
-          <div className="max-w-6xl mx-auto">
-            <SearchAndFilter onSearch={handleSearch} onFilter={handleFilter} filterOptions={filterOptions} searchPlaceholder="Buscar por comunidad, administrador, vendedor..." />
+      <div className="flex-1 p-8 overflow-auto">
+        <div className="max-w-6xl mx-auto">
+          <SearchAndFilter onSearch={handleSearch} onFilter={handleFilter} filterOptions={filterOptions} searchPlaceholder="Buscar por comunidad, administrador, vendedor..." />
 
-            {isLoading ? (
-              <Card><CardHeader><CardTitle>Cargando...</CardTitle><CardDescription>Obteniendo presupuestos aceptados...</CardDescription></CardHeader></Card>
-            ) : filteredQuotes.length === 0 ? (
-              <Card><CardHeader><CardTitle>No hay presupuestos aceptados</CardTitle><CardDescription>Los presupuestos aceptados aparecerán aquí.</CardDescription></CardHeader></Card>
-            ) : (
-              <Card>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead><div className="flex items-center gap-2"><Building className="h-4 w-4" />Edificio</div></TableHead>
-                        <TableHead><div className="flex items-center gap-2"><User className="h-4 w-4" />Administrador</div></TableHead>
-                        <TableHead><div className="flex items-center gap-2"><User className="h-4 w-4" />Vendedor</div></TableHead>
-                        <TableHead><div className="flex items-center gap-2"><Calendar className="h-4 w-4" />Fecha Aprobación</div></TableHead>
-                        <TableHead>Estado</TableHead>
+          {isLoading ? (
+            <Card><CardHeader><CardTitle>Cargando...</CardTitle><CardDescription>Obteniendo presupuestos aceptados...</CardDescription></CardHeader></Card>
+          ) : filteredQuotes.length === 0 ? (
+            <Card><CardHeader><CardTitle>No hay presupuestos aceptados</CardTitle><CardDescription>Los presupuestos aceptados aparecerán aquí.</CardDescription></CardHeader></Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead><div className="flex items-center gap-2"><Building className="h-4 w-4" />Edificio</div></TableHead>
+                      <TableHead><div className="flex items-center gap-2"><User className="h-4 w-4" />Administrador</div></TableHead>
+                      <TableHead><div className="flex items-center gap-2"><User className="h-4 w-4" />Vendedor</div></TableHead>
+                      <TableHead><div className="flex items-center gap-2"><Calendar className="h-4 w-4" />Fecha Aprobación</div></TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredQuotes.map((quote) => (
+                      <TableRow key={quote.id}>
+                        <TableCell className="font-medium">{quote.prospectos?.communityname}</TableCell>
+                        <TableCell>{quote.prospectos?.adminname}</TableCell>
+                        <TableCell>{quote.prospectos?.vendedor || "N/A"}</TableCell>
+                        <TableCell>{formatDate(quote.fecha_aprobacion)}</TableCell>
+                        <TableCell><Badge className="bg-emerald-100 text-emerald-800"><CheckCircle className="mr-1 h-3 w-3" />Aceptado</Badge></TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredQuotes.map((quote) => (
-                        <TableRow key={quote.id}>
-                          <TableCell className="font-medium">{quote.prospectos?.communityname}</TableCell>
-                          <TableCell>{quote.prospectos?.adminname}</TableCell>
-                          <TableCell>{quote.prospectos?.vendedor || "N/A"}</TableCell>
-                          <TableCell>{formatDate(quote.fecha_aprobacion)}</TableCell>
-                          <TableCell><Badge className="bg-emerald-100 text-emerald-800"><CheckCircle className="mr-1 h-3 w-3" />Aceptado</Badge></TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </>

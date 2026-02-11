@@ -33,6 +33,14 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
     communityemail: "",
     legalrepresentativephone: "",
     communityformationdate: "",
+    communityaddress: "",
+    communityregion: "",
+    deviceinstallation: "",
+    legalrepresentativenationality: "",
+    legalrepresentativemaritalstatus: "",
+    legalrepresentativeprofession: "",
+    contractTerm: "1",
+    notary: "Santiago",
   });
 
   const handleChange = (field: keyof DatosContrato, value: string) => {
@@ -73,6 +81,7 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
           buildingtype: quote.buildingtype,
           units: quote.units,
           vendedor: quote.vendedor || null,
+          monto: quote.monto || null,
         },
         legalData
       );
@@ -134,6 +143,14 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
       communityemail: "",
       legalrepresentativephone: "",
       communityformationdate: "",
+      communityaddress: "",
+      communityregion: "",
+      deviceinstallation: "",
+      legalrepresentativenationality: "",
+      legalrepresentativemaritalstatus: "",
+      legalrepresentativeprofession: "",
+      contractTerm: "",
+      notary: "",
     });
   };
 
@@ -187,6 +204,52 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                   <Label className="text-xs font-semibold text-muted-foreground">Fecha Constitución</Label>
                   <Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Dirección Comunidad</Label>
+                  <Input placeholder="Ej: Av. Providencia 1234" value={legalData.communityaddress} onChange={e => handleChange("communityaddress", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Región</Label>
+                  <Input placeholder="Metropolitana" value={legalData.communityregion} onChange={e => handleChange("communityregion", e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Nacionalidad Rep.</Label>
+                  <Input placeholder="Chilena" value={legalData.legalrepresentativenationality} onChange={e => handleChange("legalrepresentativenationality", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Estado Civil</Label>
+                  <Input placeholder="Soltero/a" value={legalData.legalrepresentativemaritalstatus} onChange={e => handleChange("legalrepresentativemaritalstatus", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Profesión</Label>
+                  <Input placeholder="Ingeniero" value={legalData.legalrepresentativeprofession} onChange={e => handleChange("legalrepresentativeprofession", e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Años de Contrato *</Label>
+                  <Input type="number" placeholder="1" value={legalData.contractTerm || "1"} onChange={e => handleChange("contractTerm", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Notario Público</Label>
+                  <Input placeholder="Notario Público de Santiago" value={legalData.notary} onChange={e => handleChange("notary", e.target.value)} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Detalle Instalación Dispositivos</Label>
+                <textarea
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="Describe el proceso de instalación..."
+                  value={legalData.deviceinstallation}
+                  onChange={e => handleChange("deviceinstallation", e.target.value)}
+                />
               </div>
             </div>
 
@@ -257,6 +320,41 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                     <Label className="text-xs font-semibold text-muted-foreground">Fecha Constitución</Label>
                     <Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Dirección Comunidad</Label>
+                    <Input value={legalData.communityaddress} onChange={e => handleChange("communityaddress", e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Región</Label>
+                    <Input value={legalData.communityregion} onChange={e => handleChange("communityregion", e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Nacionalidad</Label>
+                    <Input value={legalData.legalrepresentativenationality} onChange={e => handleChange("legalrepresentativenationality", e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Estado Civil</Label>
+                    <Input value={legalData.legalrepresentativemaritalstatus} onChange={e => handleChange("legalrepresentativemaritalstatus", e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Profesión</Label>
+                    <Input value={legalData.legalrepresentativeprofession} onChange={e => handleChange("legalrepresentativeprofession", e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Detalle Instalación</Label>
+                  <textarea
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={legalData.deviceinstallation}
+                    onChange={e => handleChange("deviceinstallation", e.target.value)}
+                  />
                 </div>
               </div>
             </div>
