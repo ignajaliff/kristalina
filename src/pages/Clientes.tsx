@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import AdminSidebar from "@/components/AdminSidebar";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -188,36 +188,31 @@ const Clientes = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
-        <AdminSidebar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1A367F] mx-auto"></div>
-            <p className="mt-4 text-xs font-bold text-[#64748B] uppercase tracking-widest">Cargando clientes...</p>
-          </div>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1A367F] mx-auto"></div>
+          <p className="mt-4 text-xs font-bold text-[#64748B] uppercase tracking-widest">Cargando clientes...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#1E293B]">
-      <AdminSidebar />
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="max-w-[1440px] mx-auto p-8 pt-10 pb-4">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-[#EFF6FF] rounded-[14px]"><UserRound className="h-7 w-7 text-[#1A367F]" strokeWidth={2.5} /></div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-[#1E293B]">Gestión de Clientes</h1>
-                <p className="text-[#64748B] text-sm font-medium mt-0.5 flex items-center gap-2">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  Administra tu cartera y haz seguimiento de prospectos
-                </p>
-              </div>
+    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="max-w-[1440px] mx-auto p-8 pt-10 pb-4">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-[#EFF6FF] rounded-[14px]"><UserRound className="h-7 w-7 text-[#1A367F]" strokeWidth={2.5} /></div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-[#1E293B]">Gestión de Clientes</h1>
+              <p className="text-[#64748B] text-sm font-medium mt-0.5 flex items-center gap-2">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Administra tu cartera y haz seguimiento de prospectos
+              </p>
             </div>
           </div>
         </div>
+      </div>
 
         <div className="max-w-[1440px] mx-auto p-8 space-y-8">
           <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm p-4">
@@ -284,9 +279,7 @@ const Clientes = () => {
               </CardContent>
             </Card>
           )}
-        </div>
       </div>
-
       <EditDialog isOpen={isEditDialogOpen} onClose={handleCloseEditDialog} record={editingCliente} onUpdate={fetchClientes} type="cliente" />
     </div>
   );

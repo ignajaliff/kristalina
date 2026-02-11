@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import SellerSidebar from "@/components/SellerSidebar";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -172,88 +172,79 @@ const SellerClientes = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-gray-50">
-        <SellerSidebar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        </div>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      <SellerSidebar />
-      <div className="flex-1 overflow-y-auto">
-        <div className="bg-white border-b border-gray-200 px-8 py-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg"><Users className="h-6 w-6 text-blue-600" /></div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Mis Clientes</h1>
-              <p className="text-sm text-gray-600 mt-1">Gestiona el seguimiento de tus clientes</p>
-            </div>
+    <div className="flex-1 overflow-y-auto">
+      <div className="bg-white border-b border-gray-200 px-8 py-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-100 rounded-lg"><Users className="h-6 w-6 text-blue-600" /></div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Mis Clientes</h1>
+            <p className="text-sm text-gray-600 mt-1">Gestiona el seguimiento de tus clientes</p>
           </div>
         </div>
-
-        <div className="p-8">
-          <SearchAndFilter onSearch={handleSearch} onFilter={handleFilter} filterOptions={filterOptions} searchPlaceholder="Buscar por nombre, email, dirección..." />
-
-          {filteredClientes.length === 0 ? (
-            <Card className="max-w-2xl mx-auto">
-              <CardContent className="p-8 text-center">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay clientes</h3>
-                <p className="text-gray-600">No tienes clientes asignados.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Comunidad</TableHead>
-                      <TableHead>Dirección</TableHead>
-                      <TableHead>Administrador</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Unidades</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredClientes.map((cliente) => (
-                      <TableRow key={cliente.id}>
-                        <TableCell className="font-medium">{cliente.communityname}</TableCell>
-                        <TableCell>{cliente.buildingaddress || "N/A"}</TableCell>
-                        <TableCell>{cliente.adminname}</TableCell>
-                        <TableCell>{cliente.adminemail}</TableCell>
-                        <TableCell>{cliente.units}</TableCell>
-                        <TableCell><Badge className={getEstadoBadgeColor(cliente.estado_contacto)}>{cliente.estado_contacto}</Badge></TableCell>
-                        <TableCell>{new Date(cliente.created_at).toLocaleDateString('es-ES')}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEditClick(cliente)}>
-                              <Edit className="h-4 w-4 mr-1" /> Editar
-                            </Button>
-                            {getNextEstado(cliente.estado_contacto) && (
-                              <Button size="sm" onClick={() => { const next = getNextEstado(cliente.estado_contacto); if (next) updateEstadoContacto(cliente.id, next); }} disabled={updatingCliente === cliente.id}>
-                                {updatingCliente === cliente.id ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <><ArrowRight className="h-4 w-4 mr-1" />{getNextActionLabel(cliente.estado_contacto)}</>}
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-        </div>
       </div>
-
+      <div className="p-8">
+        <SearchAndFilter onSearch={handleSearch} onFilter={handleFilter} filterOptions={filterOptions} searchPlaceholder="Buscar por nombre, email, dirección..." />
+        {filteredClientes.length === 0 ? (
+          <Card className="max-w-2xl mx-auto">
+            <CardContent className="p-8 text-center">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay clientes</h3>
+              <p className="text-gray-600">No tienes clientes asignados.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Comunidad</TableHead>
+                    <TableHead>Dirección</TableHead>
+                    <TableHead>Administrador</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Unidades</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredClientes.map((cliente) => (
+                    <TableRow key={cliente.id}>
+                      <TableCell className="font-medium">{cliente.communityname}</TableCell>
+                      <TableCell>{cliente.buildingaddress || "N/A"}</TableCell>
+                      <TableCell>{cliente.adminname}</TableCell>
+                      <TableCell>{cliente.adminemail}</TableCell>
+                      <TableCell>{cliente.units}</TableCell>
+                      <TableCell><Badge className={getEstadoBadgeColor(cliente.estado_contacto)}>{cliente.estado_contacto}</Badge></TableCell>
+                      <TableCell>{new Date(cliente.created_at).toLocaleDateString('es-ES')}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditClick(cliente)}>
+                            <Edit className="h-4 w-4 mr-1" /> Editar
+                          </Button>
+                          {getNextEstado(cliente.estado_contacto) && (
+                            <Button size="sm" onClick={() => { const next = getNextEstado(cliente.estado_contacto); if (next) updateEstadoContacto(cliente.id, next); }} disabled={updatingCliente === cliente.id}>
+                              {updatingCliente === cliente.id ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <><ArrowRight className="h-4 w-4 mr-1" />{getNextActionLabel(cliente.estado_contacto)}</>}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </div>
       <EditDialog isOpen={isEditDialogOpen} onClose={handleCloseEditDialog} record={editingCliente} onUpdate={fetchClientes} type="cliente" />
     </div>
   );

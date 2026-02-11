@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import AdminSidebar from "@/components/AdminSidebar";
+
 import AdminDashboardStats from "@/components/AdminDashboardStats";
 import AdminDashboardCharts from "@/components/AdminDashboardCharts";
 import MobileDrawer from "@/components/MobileDrawer";
@@ -88,10 +88,8 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#1E293B]">
-      {!isMobile && <AdminSidebar />}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="max-w-[1440px] mx-auto p-4 md:p-8 space-y-8">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="max-w-[1440px] mx-auto p-4 md:p-8 space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
             <div className="flex items-center gap-4">
               {isMobile && <MobileDrawer />}
@@ -150,7 +148,6 @@ const AdminDashboard = () => {
               </Card>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );

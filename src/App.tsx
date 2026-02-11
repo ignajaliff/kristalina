@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminLayout from "./components/AdminLayout";
+import SellerLayout from "./components/SellerLayout";
 
 // Páginas
 import Login from "./pages/Login";
@@ -35,79 +37,33 @@ const App = () => (
             {/* Ruta pública */}
             <Route path="/login" element={<Login />} />
             
-            {/* Rutas protegidas para administrador */}
+            {/* Rutas protegidas para administrador con layout persistente */}
             <Route path="/admin" element={
               <ProtectedRoute allowedRoles={['administrador']}>
-                <AdminDashboard />
+                <AdminLayout />
               </ProtectedRoute>
-            } />
+            }>
+              <Route index element={<AdminDashboard />} />
+              <Route path="prospects" element={<ProspectForm />} />
+              <Route path="clientes" element={<Clientes />} />
+              <Route path="quotes" element={<QuotesTable />} />
+              <Route path="accepted-quotes" element={<PresupuestosAceptados />} />
+              <Route path="gestion" element={<GestionEdificios />} />
+            </Route>
             
-            <Route path="/admin/prospects" element={
-              <ProtectedRoute allowedRoles={['administrador']}>
-                <ProspectForm />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/admin/clientes" element={
-              <ProtectedRoute allowedRoles={['administrador']}>
-                <Clientes />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/admin/quotes" element={
-              <ProtectedRoute allowedRoles={['administrador']}>
-                <QuotesTable />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/admin/accepted-quotes" element={
-              <ProtectedRoute allowedRoles={['administrador']}>
-                <PresupuestosAceptados />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/admin/gestion" element={
-              <ProtectedRoute allowedRoles={['administrador']}>
-                <GestionEdificios />
-              </ProtectedRoute>
-            } />
-            
-            {/* Rutas protegidas para vendedor */}
+            {/* Rutas protegidas para vendedor con layout persistente */}
             <Route path="/seller" element={
               <ProtectedRoute allowedRoles={['vendedor']}>
-                <SellerDashboardMain />
+                <SellerLayout />
               </ProtectedRoute>
-            } />
-            
-            <Route path="/seller/dashboard" element={
-              <ProtectedRoute allowedRoles={['vendedor']}>
-                <SellerDashboardMain />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/seller/prospects" element={
-              <ProtectedRoute allowedRoles={['vendedor']}>
-                <SellerProspects />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/seller/clientes" element={
-              <ProtectedRoute allowedRoles={['vendedor']}>
-                <SellerClientes />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/seller/quotes" element={
-              <ProtectedRoute allowedRoles={['vendedor']}>
-                <SellerQuotes />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/seller/accepted-quotes" element={
-              <ProtectedRoute allowedRoles={['vendedor']}>
-                <SellerAcceptedQuotes />
-              </ProtectedRoute>
-            } />
+            }>
+              <Route index element={<SellerDashboardMain />} />
+              <Route path="dashboard" element={<SellerDashboardMain />} />
+              <Route path="prospects" element={<SellerProspects />} />
+              <Route path="clientes" element={<SellerClientes />} />
+              <Route path="quotes" element={<SellerQuotes />} />
+              <Route path="accepted-quotes" element={<SellerAcceptedQuotes />} />
+            </Route>
             
             {/* Redirección de ruta raíz a login */}
             <Route path="/" element={<Navigate to="/login" />} />

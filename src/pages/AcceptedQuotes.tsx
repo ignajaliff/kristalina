@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { CheckCircle, Building, User, Calendar } from "lucide-react";
 
-import AdminSidebar from "@/components/AdminSidebar";
+
 import AcceptedQuotesHeader from "@/components/AcceptedQuotesHeader";
 import SearchAndFilter from "@/components/SearchAndFilter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,9 +87,8 @@ const AcceptedQuotes = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <AdminSidebar />
-      <div className="flex-1 flex flex-col">
+    <>
+      <AcceptedQuotesHeader />
         <AcceptedQuotesHeader />
         <div className="flex-1 p-8 overflow-auto">
           <div className="max-w-6xl mx-auto">
@@ -127,10 +126,9 @@ const AcceptedQuotes = () => {
                 </CardContent>
               </Card>
             )}
-          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

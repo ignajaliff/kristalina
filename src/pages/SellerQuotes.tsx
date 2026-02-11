@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { Eye, CheckCircle, FileText } from "lucide-react";
 
 import { Quote } from "@/utils/quoteStorage";
-import SellerSidebar from "@/components/SellerSidebar";
+
 import AcceptQuoteDialog from "@/components/AcceptQuoteDialog";
 import EditDialog from "@/components/EditDialog";
 import SearchAndFilter from "@/components/SearchAndFilter";
@@ -121,9 +121,8 @@ const SellerQuotes = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <SellerSidebar />
-      <div className="flex-1 flex flex-col">
+    <>
+      <div className="bg-white border-b border-gray-200 px-8 py-6">
         <div className="bg-white border-b border-gray-200 px-8 py-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-6 w-6 text-blue-600" /></div>
@@ -196,10 +195,9 @@ const SellerQuotes = () => {
           </div>
         </div>
       </div>
-
       <AcceptQuoteDialog quote={selectedQuote} open={isDialogOpen} onOpenChange={setIsDialogOpen} onAcceptComplete={() => { setIsDialogOpen(false); setSelectedQuote(null); fetchQuotes(); }} />
       <EditDialog isOpen={isViewDialogOpen} onClose={() => { setIsViewDialogOpen(false); setSelectedQuote(null); }} record={selectedQuote} onUpdate={fetchQuotes} type="presupuesto" />
-    </div>
+    </>
   );
 };
 
