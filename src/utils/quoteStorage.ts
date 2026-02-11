@@ -39,12 +39,7 @@ export interface Contrato {
   fecha_instalacion_equipos?: string;
   fecha_contrato_firmado?: string;
   doc_contrato?: string;
-  legalrepresentative?: string;
-  legalrepresentativerut?: string;
-  communityrut?: string;
-  communityemail?: string;
-  legalrepresentativephone?: string;
-  communityformationdate?: string;
+  datos_contrato?: any;
   created_at?: string;
   // Joined data
   prospectos?: Prospecto;
@@ -72,6 +67,9 @@ export interface Quote {
   // Presupuesto fields (from join)
   presupuesto_id?: string;
   datos_presupuesto?: any;
+  monto?: number;
+  por_unidad?: number;
+  inversion?: number;
   estado?: "Enviado" | "Aceptado";
   fecha_aprobacion?: string;
   status: "Enviado" | "Aceptado";

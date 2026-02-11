@@ -16,51 +16,36 @@ export type Database = {
     Tables: {
       contratos: {
         Row: {
-          communityemail: string | null
-          communityformationdate: string | null
-          communityrut: string | null
           created_at: string
+          datos_contrato: Json | null
           doc_contrato: string | null
           estado_contrato: string
           estado_equipos: string
           fecha_contrato_firmado: string | null
           fecha_instalacion_equipos: string | null
           id: string
-          legalrepresentative: string | null
-          legalrepresentativephone: string | null
-          legalrepresentativerut: string | null
           prospecto_id: string
         }
         Insert: {
-          communityemail?: string | null
-          communityformationdate?: string | null
-          communityrut?: string | null
           created_at?: string
+          datos_contrato?: Json | null
           doc_contrato?: string | null
           estado_contrato?: string
           estado_equipos?: string
           fecha_contrato_firmado?: string | null
           fecha_instalacion_equipos?: string | null
           id?: string
-          legalrepresentative?: string | null
-          legalrepresentativephone?: string | null
-          legalrepresentativerut?: string | null
           prospecto_id: string
         }
         Update: {
-          communityemail?: string | null
-          communityformationdate?: string | null
-          communityrut?: string | null
           created_at?: string
+          datos_contrato?: Json | null
           doc_contrato?: string | null
           estado_contrato?: string
           estado_equipos?: string
           fecha_contrato_firmado?: string | null
           fecha_instalacion_equipos?: string | null
           id?: string
-          legalrepresentative?: string | null
-          legalrepresentativephone?: string | null
-          legalrepresentativerut?: string | null
           prospecto_id?: string
         }
         Relationships: [
