@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Building2, Settings2, Pencil } from "lucide-react";
+import { Loader2, Building2, Settings2, Pencil, Download } from "lucide-react";
 
 
 import SearchAndFilter from "@/components/SearchAndFilter";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { generateContratoPDF } from "@/utils/contractPdfGenerator";
 
 interface ContratoRow {
   id: string;
@@ -22,9 +23,11 @@ interface ContratoRow {
   fecha_instalacion_equipos: string | null;
   fecha_contrato_firmado: string | null;
   created_at: string;
+  datos_contrato: any;
   prospectos: {
     communityname: string;
     adminname: string;
+    adminemail: string;
     buildingaddress: string | null;
     vendedor: string | null;
     buildingtype: string;
@@ -45,7 +48,7 @@ const PresupuestosAceptados = () => {
     try {
       const { data, error } = await supabase
         .from("contratos")
-        .select("*, prospectos(communityname, adminname, buildingaddress, vendedor, buildingtype, units)")
+        .select("*, prospectos(communityname, adminname, adminemail, buildingaddress, vendedor, buildingtype, units)")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -160,15 +163,46 @@ const PresupuestosAceptados = () => {
                           <TableCell className="px-6 py-4"><span className="text-[12px] text-[#94A3B8] font-medium">{formatDate(contrato.fecha_contrato_firmado)}</span></TableCell>
                           <TableCell className="px-6 py-4"><span className="text-[12px] text-[#94A3B8] font-medium">{formatDate(contrato.fecha_instalacion_equipos)}</span></TableCell>
                           <TableCell className="px-6 py-4">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-[11px] font-semibold gap-1.5 h-8 border-[#E2E8F0] text-[#1A367F] hover:bg-[#EFF6FF]"
-                              onClick={() => { setEditContrato(contrato); setEditOpen(true); }}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Modificar estados
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              {contrato.datos_contrato && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-[#64748B] hover:text-orange-600 hover:bg-orange-50 rounded-md"
+                                  title="Descargar PDF contrato"
+                                  onClick={() => {
+                                    const datos = contrato.datos_contrato as any;
+                                    const blob = generateContratoPDF({
+                                      adminname: contrato.prospectos?.adminname || '',
+                                      adminemail: contrato.prospectos?.adminemail || '',
+                                      communityname: contrato.prospectos?.communityname || '',
+                                      buildingaddress: contrato.prospectos?.buildingaddress,
+                                      buildingtype: contrato.prospectos?.buildingtype || '',
+                                      units: contrato.prospectos?.units || 0,
+                                      vendedor: contrato.prospectos?.vendedor,
+                                      monto: null,
+                                    }, datos);
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement("a");
+                                    a.href = url;
+                                    a.download = `contrato_${contrato.prospectos?.communityname}.pdf`;
+                                    a.click();
+                                    URL.revokeObjectURL(url);
+                                  }}
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-[11px] font-semibold gap-1.5 h-8 border-[#E2E8F0] text-[#1A367F] hover:bg-[#EFF6FF]"
+                                onClick={() => { setEditContrato(contrato); setEditOpen(true); }}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                Modificar estados
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
