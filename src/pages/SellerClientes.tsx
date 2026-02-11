@@ -9,6 +9,7 @@ import { Users, ArrowRight, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import EditDialog from "@/components/EditDialog";
+import EnviarPresupuestoDialog from "@/components/EnviarPresupuestoDialog";
 import SearchAndFilter from "@/components/SearchAndFilter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -41,6 +42,8 @@ const SellerClientes = () => {
   const [updatingCliente, setUpdatingCliente] = useState<string | null>(null);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [presupuestoCliente, setPresupuestoCliente] = useState<Cliente | null>(null);
+  const [isPresupuestoDialogOpen, setIsPresupuestoDialogOpen] = useState(false);
 
   useEffect(() => { fetchClientes(); }, [userProfile?.id]);
   useEffect(() => { setFilteredClientes(clientes); }, [clientes]);
@@ -106,6 +109,13 @@ const SellerClientes = () => {
       return;
     }
 
+    // If moving to "Presupuesto Enviado", open the presupuesto dialog
+    if (nuevoEstado === "Presupuesto Enviado") {
+      setPresupuestoCliente(cliente);
+      setIsPresupuestoDialogOpen(true);
+      return;
+    }
+
     setUpdatingCliente(clienteId);
     try {
       const { error } = await supabase
@@ -116,24 +126,6 @@ const SellerClientes = () => {
       if (error) {
         toast({ title: "Error", description: "No se pudo actualizar el estado.", variant: "destructive" });
         return;
-      }
-
-      // Auto-create presupuesto when changing to "Presupuesto Enviado"
-      if (nuevoEstado === "Presupuesto Enviado") {
-        const { error: presupuestoError } = await supabase
-          .from('presupuestos')
-          .insert([{ prospecto_id: clienteId, estado: 'Enviado', monto: 0, por_unidad: 0, inversion: 0 }]);
-
-        if (presupuestoError) {
-          console.error('Error creating presupuesto:', presupuestoError);
-        }
-
-        try {
-          await fetch(WEBHOOK_URL, {
-            method: "POST", headers: { "Content-Type": "application/json" }, mode: "no-cors",
-            body: JSON.stringify({ ...cliente, estado_contacto: nuevoEstado, timestamp: new Date().toISOString() }),
-          });
-        } catch (e) { console.error("Webhook error:", e); }
       }
 
       toast({ title: "Estado actualizado", description: `Actualizado a ${nuevoEstado}.` });
@@ -246,6 +238,7 @@ const SellerClientes = () => {
         )}
       </div>
       <EditDialog isOpen={isEditDialogOpen} onClose={handleCloseEditDialog} record={editingCliente} onUpdate={fetchClientes} type="cliente" />
+      <EnviarPresupuestoDialog cliente={presupuestoCliente} open={isPresupuestoDialogOpen} onOpenChange={setIsPresupuestoDialogOpen} onComplete={fetchClientes} />
     </div>
   );
 };

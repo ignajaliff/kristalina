@@ -123,35 +123,29 @@ export type Database = {
       presupuestos: {
         Row: {
           created_at: string
+          datos_presupuesto: Json | null
           doc_presupuesto: string | null
           estado: string
           fecha_aprobacion: string | null
           id: string
-          inversion: number | null
-          monto: number | null
-          por_unidad: number | null
           prospecto_id: string
         }
         Insert: {
           created_at?: string
+          datos_presupuesto?: Json | null
           doc_presupuesto?: string | null
           estado?: string
           fecha_aprobacion?: string | null
           id?: string
-          inversion?: number | null
-          monto?: number | null
-          por_unidad?: number | null
           prospecto_id: string
         }
         Update: {
           created_at?: string
+          datos_presupuesto?: Json | null
           doc_presupuesto?: string | null
           estado?: string
           fecha_aprobacion?: string | null
           id?: string
-          inversion?: number | null
-          monto?: number | null
-          por_unidad?: number | null
           prospecto_id?: string
         }
         Relationships: [

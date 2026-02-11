@@ -14,7 +14,7 @@ interface RecentSale {
   id: string;
   communityname: string;
   adminname: string;
-  monto: number | null;
+  datos_presupuesto: any;
   estado: string;
   created_at: string;
 }
@@ -53,7 +53,7 @@ export const useSalesData = () => {
         return createdDate.getTime() === today.getTime();
       }) || [];
 
-      const todaySales = todaysBudgets.reduce((sum, p) => sum + (p.monto || 0), 0);
+      const todaySales = 0; // datos_presupuesto is now JSON-based
       const totalUnits = prospectos?.reduce((sum, p) => sum + p.units, 0) || 0;
       const commission = todaySales * 0.1;
 
@@ -68,7 +68,7 @@ export const useSalesData = () => {
         id: p.id,
         communityname: p.prospectos?.communityname || '',
         adminname: p.prospectos?.adminname || '',
-        monto: p.monto,
+        datos_presupuesto: p.datos_presupuesto,
         estado: p.estado,
         created_at: p.created_at,
       })) || [];

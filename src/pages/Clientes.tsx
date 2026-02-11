@@ -5,10 +5,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, ArrowRight, Edit, UserRound } from "lucide-react";
+import { Users, ArrowRight, Edit, UserRound, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import EditDialog from "@/components/EditDialog";
+import EnviarPresupuestoDialog from "@/components/EnviarPresupuestoDialog";
 import SearchAndFilter from "@/components/SearchAndFilter";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -40,6 +41,8 @@ const Clientes = () => {
   const [updatingCliente, setUpdatingCliente] = useState<string | null>(null);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [presupuestoCliente, setPresupuestoCliente] = useState<Cliente | null>(null);
+  const [isPresupuestoDialogOpen, setIsPresupuestoDialogOpen] = useState(false);
 
   useEffect(() => { fetchClientes(); }, []);
   useEffect(() => { setFilteredClientes(clientes); }, [clientes]);
@@ -106,6 +109,13 @@ const Clientes = () => {
       return;
     }
 
+    // If moving to "Presupuesto Enviado", open the presupuesto dialog instead
+    if (nuevoEstado === "Presupuesto Enviado") {
+      setPresupuestoCliente(cliente);
+      setIsPresupuestoDialogOpen(true);
+      return;
+    }
+
     setUpdatingCliente(clienteId);
     try {
       const { error } = await supabase
@@ -116,36 +126,6 @@ const Clientes = () => {
       if (error) {
         toast({ title: "Error", description: "No se pudo actualizar el estado del cliente.", variant: "destructive" });
         return;
-      }
-
-      // Auto-create presupuesto when changing to "Presupuesto Enviado"
-      if (nuevoEstado === "Presupuesto Enviado") {
-        const { error: presupuestoError } = await supabase
-          .from('presupuestos')
-          .insert([{
-            prospecto_id: clienteId,
-            estado: 'Enviado',
-            monto: 0,
-            por_unidad: 0,
-            inversion: 0,
-          }]);
-
-        if (presupuestoError) {
-          console.error('Error creating presupuesto:', presupuestoError);
-          toast({ title: "Advertencia", description: "Estado actualizado pero hubo un error al crear el presupuesto.", variant: "destructive" });
-        }
-
-        // Trigger webhook
-        try {
-          await fetch(WEBHOOK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            mode: "no-cors",
-            body: JSON.stringify({ ...cliente, estado_contacto: nuevoEstado, timestamp: new Date().toISOString(), source: "Kristalina CRM" }),
-          });
-        } catch (webhookError) {
-          console.error("Error triggering webhook:", webhookError);
-        }
       }
 
       toast({ title: "Estado actualizado", description: `El cliente ha sido actualizado a ${nuevoEstado}.` });
@@ -281,6 +261,7 @@ const Clientes = () => {
           )}
       </div>
       <EditDialog isOpen={isEditDialogOpen} onClose={handleCloseEditDialog} record={editingCliente} onUpdate={fetchClientes} type="cliente" />
+      <EnviarPresupuestoDialog cliente={presupuestoCliente} open={isPresupuestoDialogOpen} onOpenChange={setIsPresupuestoDialogOpen} onComplete={fetchClientes} />
     </div>
   );
 };

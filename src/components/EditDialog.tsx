@@ -167,17 +167,7 @@ const EditDialog = ({ isOpen, onClose, record, onUpdate, type }: EditDialogProps
                     <CreditCard className="h-4 w-4 text-[#1A367F]" strokeWidth={2} />
                     <h3 className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Detalle Comercial</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField control={form.control} name="monto" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Monto Total</FormLabel><FormControl><Input type="number" {...field} value={field.value || ""} disabled className="bg-slate-50 border-slate-200 text-[13px] font-bold text-[#1A367F]" /></FormControl></FormItem>
-                    )} />
-                    <FormField control={form.control} name="por_unidad" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Mto. por Unidad</FormLabel><FormControl><Input type="number" {...field} value={field.value || ""} disabled className="bg-slate-50 border-slate-200 text-[13px] font-semibold" /></FormControl></FormItem>
-                    )} />
-                    <FormField control={form.control} name="inversion" render={({ field }) => (
-                      <FormItem><FormLabel className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Valor Inversión</FormLabel><FormControl><Input type="number" {...field} value={field.value || ""} disabled className="bg-slate-50 border-slate-200 text-[13px] font-semibold" /></FormControl></FormItem>
-                    )} />
-                  </div>
+                  <p className="text-[12px] text-[#64748B]">Los datos del presupuesto se almacenan en el documento PDF generado.</p>
                 </section>
               )}
             </div>
