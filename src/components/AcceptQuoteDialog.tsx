@@ -3,12 +3,15 @@ import { useState } from "react";
 import { Quote } from "@/utils/quoteStorage";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { generateContratoPDF, DatosContrato } from "@/utils/contractPdfGenerator";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { FileText, Eye, ArrowLeft, CheckCircle } from "lucide-react";
 
 interface AcceptQuoteDialogProps {
   quote: Quote | null;
@@ -17,10 +20,13 @@ interface AcceptQuoteDialogProps {
   onAcceptComplete: () => void;
 }
 
+type Step = "form" | "preview";
+
 export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptComplete }: AcceptQuoteDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [legalData, setLegalData] = useState({
+  const [step, setStep] = useState<Step>("form");
+  const [legalData, setLegalData] = useState<DatosContrato>({
     legalrepresentative: "",
     legalrepresentativerut: "",
     communityrut: "",
@@ -29,8 +35,16 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
     communityformationdate: "",
   });
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: keyof DatosContrato, value: string) => {
     setLegalData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handlePreview = () => {
+    if (!legalData.legalrepresentative.trim()) {
+      toast({ title: "Campo requerido", description: "Ingresa el nombre del representante legal.", variant: "destructive" });
+      return;
+    }
+    setStep("preview");
   };
 
   const handleAccept = async () => {
@@ -38,6 +52,7 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
 
     setIsSubmitting(true);
     try {
+      // 1. Update presupuesto status
       const { error: updateError } = await supabase
         .from("presupuestos")
         .update({
@@ -48,18 +63,43 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
 
       if (updateError) throw updateError;
 
+      // 2. Generate contract PDF
+      const pdfBlob = generateContratoPDF(
+        {
+          adminname: quote.adminname,
+          adminemail: quote.adminemail,
+          communityname: quote.communityname,
+          buildingaddress: quote.buildingaddress || null,
+          buildingtype: quote.buildingtype,
+          units: quote.units,
+          vendedor: quote.vendedor || null,
+        },
+        legalData
+      );
+
+      // 3. Upload PDF to storage
+      const fileName = `contrato_${quote.id}_${Date.now()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("presupuestos-pdf")
+        .upload(fileName, pdfBlob, { contentType: "application/pdf" });
+
+      let docUrl: string | null = null;
+      if (uploadError) {
+        console.error("Error uploading contract PDF:", uploadError);
+      } else {
+        const { data: urlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(fileName);
+        docUrl = urlData.publicUrl;
+      }
+
+      // 4. Create contrato with datos_contrato JSON
       const { error: contratoError } = await supabase
         .from("contratos")
         .insert([{
           prospecto_id: quote.id,
           estado_contrato: "Contrato no firmado",
           estado_equipos: "Equipos sin instalar",
-          legalrepresentative: legalData.legalrepresentative || null,
-          legalrepresentativerut: legalData.legalrepresentativerut || null,
-          communityrut: legalData.communityrut || null,
-          communityemail: legalData.communityemail || null,
-          legalrepresentativephone: legalData.legalrepresentativephone || null,
-          communityformationdate: legalData.communityformationdate || null,
+          datos_contrato: legalData as any,
+          doc_contrato: docUrl,
         }]);
 
       if (contratoError) {
@@ -67,13 +107,14 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
         toast({ title: "Advertencia", description: "Presupuesto aceptado pero hubo un error al crear el contrato." });
       }
 
+      // 5. Update prospecto status
       await supabase
         .from("prospectos")
         .update({ estado_contacto: "Presupuesto Aceptado" })
         .eq("id", quote.id);
 
-      toast({ title: "Presupuesto aceptado", description: "El presupuesto ha sido aceptado y el contrato creado." });
-      setLegalData({ legalrepresentative: "", legalrepresentativerut: "", communityrut: "", communityemail: "", legalrepresentativephone: "", communityformationdate: "" });
+      toast({ title: "Presupuesto aceptado", description: "El contrato ha sido generado y almacenado correctamente." });
+      resetForm();
       onOpenChange(false);
       onAcceptComplete();
     } catch (error) {
@@ -84,55 +125,153 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
     }
   };
 
+  const resetForm = () => {
+    setStep("form");
+    setLegalData({
+      legalrepresentative: "",
+      legalrepresentativerut: "",
+      communityrut: "",
+      communityemail: "",
+      legalrepresentativephone: "",
+      communityformationdate: "",
+    });
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) resetForm();
+    onOpenChange(open);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Aceptar Presupuesto</DialogTitle>
-          <DialogDescription>
-            Completa la información legal para <strong>{quote?.communityname}</strong> y se creará automáticamente un contrato.
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+        {step === "form" ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-emerald-600" />
+                Aceptar Presupuesto
+              </DialogTitle>
+              <DialogDescription>
+                Completa la información legal para <strong>{quote?.communityname}</strong>. Podrás revisar el contrato antes de confirmarlo.
+              </DialogDescription>
+            </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#64748B]">Representante Legal</Label>
-              <Input placeholder="Nombre completo" value={legalData.legalrepresentative} onChange={e => handleChange("legalrepresentative", e.target.value)} />
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Representante Legal *</Label>
+                  <Input placeholder="Nombre completo" value={legalData.legalrepresentative} onChange={e => handleChange("legalrepresentative", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">RUT Representante</Label>
+                  <Input placeholder="12.345.678-9" value={legalData.legalrepresentativerut} onChange={e => handleChange("legalrepresentativerut", e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">RUT Comunidad</Label>
+                  <Input placeholder="12.345.678-9" value={legalData.communityrut} onChange={e => handleChange("communityrut", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Email Comunidad</Label>
+                  <Input type="email" placeholder="comunidad@email.com" value={legalData.communityemail} onChange={e => handleChange("communityemail", e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Teléfono Representante</Label>
+                  <Input placeholder="+56 9 1234 5678" value={legalData.legalrepresentativephone} onChange={e => handleChange("legalrepresentativephone", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Fecha Constitución</Label>
+                  <Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} />
+                </div>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#64748B]">RUT Representante</Label>
-              <Input placeholder="12.345.678-9" value={legalData.legalrepresentativerut} onChange={e => handleChange("legalrepresentativerut", e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#64748B]">RUT Comunidad</Label>
-              <Input placeholder="12.345.678-9" value={legalData.communityrut} onChange={e => handleChange("communityrut", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#64748B]">Email Comunidad</Label>
-              <Input type="email" placeholder="comunidad@email.com" value={legalData.communityemail} onChange={e => handleChange("communityemail", e.target.value)} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#64748B]">Teléfono Representante</Label>
-              <Input placeholder="+56 9 1234 5678" value={legalData.legalrepresentativephone} onChange={e => handleChange("legalrepresentativephone", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#64748B]">Fecha Constitución</Label>
-              <Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} />
-            </div>
-          </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleAccept} disabled={isSubmitting} className="bg-[#10B981] hover:bg-[#059669]">
-            {isSubmitting ? "Procesando..." : "Aceptar Presupuesto"}
-          </Button>
-        </DialogFooter>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>
+              <Button onClick={handlePreview} className="bg-[#1A367F] hover:bg-[#12285e] gap-2">
+                <Eye className="h-4 w-4" /> Vista Previa del Contrato
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5 text-[#1A367F]" />
+                Vista Previa del Contrato
+              </DialogTitle>
+              <DialogDescription>
+                Revisa y edita los datos antes de confirmar. Se generará un PDF con esta información.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Community Info (read-only) */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Datos de la Comunidad</h4>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                  <p><span className="font-medium text-muted-foreground">Comunidad:</span> {quote?.communityname}</p>
+                  <p><span className="font-medium text-muted-foreground">Dirección:</span> {quote?.buildingaddress || "N/A"}</p>
+                  <p><span className="font-medium text-muted-foreground">Tipo:</span> {quote?.buildingtype}</p>
+                  <p><span className="font-medium text-muted-foreground">Unidades:</span> {quote?.units}</p>
+                  <p><span className="font-medium text-muted-foreground">Administrador:</span> {quote?.adminname}</p>
+                  <p><span className="font-medium text-muted-foreground">Email:</span> {quote?.adminemail}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Editable legal data */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Datos Legales (Editables)</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Representante Legal</Label>
+                    <Input value={legalData.legalrepresentative} onChange={e => handleChange("legalrepresentative", e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">RUT Representante</Label>
+                    <Input value={legalData.legalrepresentativerut} onChange={e => handleChange("legalrepresentativerut", e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">RUT Comunidad</Label>
+                    <Input value={legalData.communityrut} onChange={e => handleChange("communityrut", e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Email Comunidad</Label>
+                    <Input value={legalData.communityemail} onChange={e => handleChange("communityemail", e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Teléfono Representante</Label>
+                    <Input value={legalData.legalrepresentativephone} onChange={e => handleChange("legalrepresentativephone", e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Fecha Constitución</Label>
+                    <Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setStep("form")} className="gap-2">
+                <ArrowLeft className="h-4 w-4" /> Volver a Editar
+              </Button>
+              <Button onClick={handleAccept} disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 gap-2">
+                <CheckCircle className="h-4 w-4" />
+                {isSubmitting ? "Procesando..." : "Confirmar y Generar Contrato"}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
