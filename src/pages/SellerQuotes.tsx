@@ -65,9 +65,9 @@ const SellerQuotes = () => {
             vendedor_id: prospecto?.vendedor_id,
             estado_contacto: prospecto?.estado_contacto,
             additional_at,
-            monto: item.monto || 0,
-            por_unidad: item.por_unidad || 0,
-            inversion: item.inversion || 0,
+            monto: 0,
+            por_unidad: 0,
+            inversion: 0,
             estado: item.estado as "Enviado" | "Aceptado",
             fecha_aprobacion: item.fecha_aprobacion,
             created_at: item.created_at,
@@ -164,7 +164,7 @@ const SellerQuotes = () => {
                         <TableRow key={quote.presupuesto_id || quote.id}>
                           <TableCell className="font-medium">{quote.communityname}</TableCell>
                           <TableCell>{quote.adminname}</TableCell>
-                          <TableCell>{formatCurrency(quote.monto)}</TableCell>
+                          <TableCell>{quote.datos_presupuesto ? 'Cotizado' : 'Pendiente'}</TableCell>
                           <TableCell>{quote.units}</TableCell>
                           <TableCell>{formatDate(quote.created_at)}</TableCell>
                           <TableCell>

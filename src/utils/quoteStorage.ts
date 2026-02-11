@@ -25,9 +25,7 @@ export interface Presupuesto {
   estado: "Enviado" | "Aceptado";
   fecha_aprobacion?: string;
   doc_presupuesto?: string;
-  monto?: number;
-  por_unidad?: number;
-  inversion?: number;
+  datos_presupuesto?: any;
   created_at?: string;
   // Joined data
   prospectos?: Prospecto;
@@ -73,9 +71,7 @@ export interface Quote {
   notas?: string;
   // Presupuesto fields (from join)
   presupuesto_id?: string;
-  monto?: number;
-  por_unidad?: number;
-  inversion?: number;
+  datos_presupuesto?: any;
   estado?: "Enviado" | "Aceptado";
   fecha_aprobacion?: string;
   status: "Enviado" | "Aceptado";

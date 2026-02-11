@@ -17,7 +17,7 @@ interface AcceptedQuoteRow {
   prospecto_id: string;
   estado: string;
   fecha_aprobacion: string | null;
-  monto: number;
+  datos_presupuesto: any;
   created_at: string;
   prospectos: {
     communityname: string;

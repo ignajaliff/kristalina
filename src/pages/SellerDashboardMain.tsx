@@ -59,7 +59,7 @@ const SellerDashboardMain = () => {
   const totalPresupuestosEnviados = presupuestosEnviados?.length || 0;
   const totalPresupuestosAceptados = presupuestosAceptados?.length || 0;
   const totalClientes = clientes?.length || 0;
-  const valorTotalAceptados = presupuestosAceptados?.reduce((sum, q) => sum + (q.monto || 0), 0) || 0;
+  const valorTotalAceptados = 0; // TODO: calculate from datos_presupuesto JSON
   const conversionRate = totalPresupuestosEnviados > 0 ? Math.round((totalPresupuestosAceptados / totalPresupuestosEnviados) * 100) : 0;
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(amount);
@@ -145,7 +145,7 @@ const SellerDashboardMain = () => {
                       </div>
                       <div className="text-right">
                         <Badge className="bg-green-100 text-green-800">Aceptado</Badge>
-                        {q.monto > 0 && <p className="text-xs font-medium mt-1">{formatCurrency(q.monto)}</p>}
+                        {q.datos_presupuesto && <p className="text-xs font-medium mt-1">Ver PDF</p>}
                       </div>
                     </div>
                   ))}

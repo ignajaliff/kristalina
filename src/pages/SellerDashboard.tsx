@@ -140,8 +140,8 @@ const SellerDashboard = () => {
                       <tr key={sale.id} className="border-b">
                         <td className="py-3">{sale.communityname}</td>
                         <td>{sale.adminname}</td>
-                        <td>{sale.monto ? formatCurrency(sale.monto) : 'Por cotizar'}</td>
-                        <td>{getStatusBadge(sale.estado === 'Aceptado', !!sale.monto)}</td>
+                        <td>{'Por cotizar'}</td>
+                        <td>{getStatusBadge(sale.estado === 'Aceptado', false)}</td>
                         <td>{new Date(sale.created_at).toLocaleDateString('es-CL')}</td>
                       </tr>
                     ))}
