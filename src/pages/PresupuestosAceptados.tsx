@@ -1,13 +1,15 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Building2, Settings2 } from "lucide-react";
+import { Loader2, Building2, Settings2, Pencil } from "lucide-react";
 
 import AdminSidebar from "@/components/AdminSidebar";
 import SearchAndFilter from "@/components/SearchAndFilter";
+import EditContratoDialog from "@/components/EditContratoDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,8 @@ const PresupuestosAceptados = () => {
   const [contratos, setContratos] = useState<ContratoRow[]>([]);
   const [filteredContratos, setFilteredContratos] = useState<ContratoRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editContrato, setEditContrato] = useState<ContratoRow | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const fetchContratos = async () => {
     setIsLoading(true);
@@ -139,6 +143,7 @@ const PresupuestosAceptados = () => {
                         <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Estado Equipos</TableHead>
                         <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Fecha Contrato</TableHead>
                         <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Fecha Instalación</TableHead>
+                        <TableHead className="px-6 py-4 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -155,6 +160,17 @@ const PresupuestosAceptados = () => {
                           </TableCell>
                           <TableCell className="px-6 py-4"><span className="text-[12px] text-[#94A3B8] font-medium">{formatDate(contrato.fecha_contrato_firmado)}</span></TableCell>
                           <TableCell className="px-6 py-4"><span className="text-[12px] text-[#94A3B8] font-medium">{formatDate(contrato.fecha_instalacion_equipos)}</span></TableCell>
+                          <TableCell className="px-6 py-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-[11px] font-semibold gap-1.5 h-8 border-[#E2E8F0] text-[#1A367F] hover:bg-[#EFF6FF]"
+                              onClick={() => { setEditContrato(contrato); setEditOpen(true); }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Modificar estados
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -165,6 +181,13 @@ const PresupuestosAceptados = () => {
           </div>
         </div>
       </div>
+
+      <EditContratoDialog
+        contrato={editContrato}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaveComplete={fetchContratos}
+      />
     </div>
   );
 };
