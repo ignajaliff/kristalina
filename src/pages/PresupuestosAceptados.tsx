@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Loader2, Building2, Settings2, Pencil } from "lucide-react";
 
-import AdminSidebar from "@/components/AdminSidebar";
+
 import SearchAndFilter from "@/components/SearchAndFilter";
 import EditContratoDialog from "@/components/EditContratoDialog";
 import { Card, CardContent } from "@/components/ui/card";
@@ -100,9 +100,8 @@ const PresupuestosAceptados = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC]">
-      <AdminSidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <>
+      <div className="bg-white border-b border-[#E2E8F0] px-8 py-6">
         <div className="bg-white border-b border-[#E2E8F0] px-8 py-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-[#EFF6FF] rounded-xl"><Settings2 className="h-6 w-6 text-[#1A367F]" strokeWidth={2.5} /></div>
@@ -188,7 +187,7 @@ const PresupuestosAceptados = () => {
         onOpenChange={setEditOpen}
         onSaveComplete={fetchContratos}
       />
-    </div>
+    </>
   );
 };
 

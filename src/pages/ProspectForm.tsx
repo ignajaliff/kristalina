@@ -4,7 +4,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import AdminSidebar from "@/components/AdminSidebar";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -178,29 +178,27 @@ const ProspectForm = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] font-sans text-[#1E293B]">
-      <AdminSidebar />
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="max-w-5xl mx-auto p-8 pt-10 pb-4">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="p-3 bg-[#EFF6FF] rounded-[14px]">
-              <UserPlus className="h-7 w-7 text-[#1A367F]" strokeWidth={2.5} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-[#1E293B]">Captura Cliente</h1>
-              <p className="text-[#64748B] text-sm font-medium mt-0.5">
-                Registra los datos del cliente para generar una cotización
-                {userProfile?.nombre && (
-                  <span className="text-[#3B82F6] font-semibold">
-                    {" "}<span className="text-[#E2E8F0] px-1">•</span> Vendedor: {userProfile.nombre}
-                  </span>
-                )}
-              </p>
-            </div>
+    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="max-w-5xl mx-auto p-8 pt-10 pb-4">
+        <div className="flex items-center gap-4 mb-2">
+          <div className="p-3 bg-[#EFF6FF] rounded-[14px]">
+            <UserPlus className="h-7 w-7 text-[#1A367F]" strokeWidth={2.5} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#1E293B]">Captura Cliente</h1>
+            <p className="text-[#64748B] text-sm font-medium mt-0.5">
+              Registra los datos del cliente para generar una cotización
+              {userProfile?.nombre && (
+                <span className="text-[#3B82F6] font-semibold">
+                  {" "}<span className="text-[#E2E8F0] px-1">•</span> Vendedor: {userProfile.nombre}
+                </span>
+              )}
+            </p>
           </div>
         </div>
+      </div>
 
-        <div className="max-w-5xl mx-auto px-8 pb-12">
+      <div className="max-w-5xl mx-auto px-8 pb-12">
           {!selectedBuildingType ? (
             <Card className="border border-[#E2E8F0] shadow-sm bg-white overflow-hidden rounded-xl">
               <CardHeader className="border-b border-[#F1F5F9] p-6 py-5 bg-[#F8FAFC]/50">
@@ -360,8 +358,7 @@ const ProspectForm = () => {
                 </Form>
               </CardContent>
             </Card>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
