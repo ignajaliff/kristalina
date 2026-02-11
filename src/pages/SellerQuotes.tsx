@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Eye, CheckCircle, FileText } from "lucide-react";
+import { Eye, CheckCircle, FileText, Download } from "lucide-react";
 
 import { Quote } from "@/utils/quoteStorage";
 
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { generatePresupuestoPDF } from "@/utils/pdfGenerator";
 
 const SellerQuotes = () => {
   const { toast } = useToast();
@@ -176,6 +177,28 @@ const SellerQuotes = () => {
                               <Button variant="outline" size="sm" onClick={() => { setSelectedQuote(quote); setIsViewDialogOpen(true); }}>
                                 <Eye className="mr-1 h-4 w-4" /> Ver
                               </Button>
+                              {quote.datos_presupuesto && (
+                                <Button variant="outline" size="sm" title="Descargar PDF" onClick={() => {
+                                  const datos = quote.datos_presupuesto as any;
+                                  const blob = generatePresupuestoPDF({
+                                    adminname: quote.adminname,
+                                    adminemail: quote.adminemail,
+                                    communityname: quote.communityname,
+                                    buildingaddress: quote.buildingaddress,
+                                    buildingtype: quote.buildingtype,
+                                    units: quote.units,
+                                    vendedor: quote.vendedor,
+                                  }, datos);
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement("a");
+                                  a.href = url;
+                                  a.download = `presupuesto_${quote.communityname}.pdf`;
+                                  a.click();
+                                  URL.revokeObjectURL(url);
+                                }}>
+                                  <Download className="mr-1 h-4 w-4" /> PDF
+                                </Button>
+                              )}
                               {quote.status === "Enviado" && (
                                 <Button variant="default" size="sm" onClick={() => { setSelectedQuote(quote); setIsDialogOpen(true); }}>
                                   <CheckCircle className="mr-1 h-4 w-4" /> Aceptar

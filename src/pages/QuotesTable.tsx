@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Eye, CheckCircle, Loader2, Building2 } from "lucide-react";
+import { Eye, CheckCircle, Loader2, Building2, Download } from "lucide-react";
 
 import { Quote } from "@/utils/quoteStorage";
 
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { generatePresupuestoPDF } from "@/utils/pdfGenerator";
 
 const QuotesTable = () => {
   const { toast } = useToast();
@@ -177,6 +178,28 @@ const QuotesTable = () => {
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF] rounded-md" onClick={() => handleViewQuote(quote)}>
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
+                            {quote.datos_presupuesto && (
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-[#64748B] hover:text-orange-600 hover:bg-orange-50 rounded-md" title="Descargar PDF presupuesto" onClick={() => {
+                                const datos = quote.datos_presupuesto as any;
+                                const blob = generatePresupuestoPDF({
+                                  adminname: quote.adminname,
+                                  adminemail: quote.adminemail,
+                                  communityname: quote.communityname,
+                                  buildingaddress: quote.buildingaddress,
+                                  buildingtype: quote.buildingtype,
+                                  units: quote.units,
+                                  vendedor: quote.vendedor,
+                                }, datos);
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `presupuesto_${quote.communityname}.pdf`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                              }}>
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                             {quote.status === "Enviado" && (
                               <Button size="sm" className="h-8 px-3 bg-[#10B981] hover:bg-[#059669] text-white font-bold text-[10px] uppercase tracking-wider gap-2 rounded-md transition-all active:scale-[0.98]" onClick={() => handleAcceptQuote(quote)}>
                                 <span>Aceptar</span><CheckCircle className="h-3 w-3" strokeWidth={2.5} />
