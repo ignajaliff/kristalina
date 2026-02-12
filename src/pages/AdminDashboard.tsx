@@ -40,7 +40,7 @@ const AdminDashboard = () => {
       // Get recent gestion updates
       const { data: gestion, error: gestionError } = await supabase
         .from('gestion')
-        .select('id, legalrepresentative, estadopago, created_at, updated_at')
+        .select('id, cliente, estadopago, created_at, updated_at')
         .order('updated_at', { ascending: false })
         .limit(5);
 
@@ -63,11 +63,11 @@ const AdminDashboard = () => {
           timestamp: p.created_at,
           color: p.estado === 'Aceptado' ? 'green' : 'blue'
         })),
-        ...(gestion || []).map(g => ({
+        ...(gestion || []).map((g: any) => ({
           id: g.id,
           type: 'gestion' as const,
           title: g.estadopago === 'Mes pagado' ? 'Pago confirmado' : 'Registro actualizado',
-          detail: g.legalrepresentative,
+          detail: (g.cliente as any)?.communityname || 'Sin nombre',
           timestamp: g.updated_at || g.created_at,
           color: g.estadopago === 'Mes pagado' ? 'green' : 'purple'
         }))
