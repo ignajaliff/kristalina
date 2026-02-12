@@ -39,7 +39,7 @@ const drawHeader = (doc: jsPDF, pageWidth: number) => {
 
 const drawFooter = (doc: jsPDF, pageWidth: number, pageHeight: number, pageNum: number) => {
   const footerText = "www.kristalina.cl";
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(30, 144, 255); // Blue color
   doc.text(footerText, pageWidth / 2, pageHeight - 15, { align: "center" });
@@ -68,7 +68,7 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
       doc.addPage();
       pageNum++;
       drawHeader(doc, pageWidth);
-      doc.setFont("times", "normal");
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(10.5);
       currentY = 40;
     }
@@ -78,7 +78,7 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   drawHeader(doc, pageWidth);
 
   // Title
-  doc.setFont("times", "bold");
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   let currentY = 45;
   doc.text("COTIZACION", pageWidth / 2, currentY, { align: "center" });
@@ -89,35 +89,35 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
 
   // Metadata Section
   doc.setFontSize(10.5);
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
 
   // Row 1: Descripción
   doc.text("Descripción:", margin, currentY);
-  doc.setFont("times", "bold");
-  doc.text("SISTEMA CENTRAL PARA LA ELIMINAR SARRO", margin + 22, currentY);
+  doc.setFont("helvetica", "bold");
+  doc.text("SISTEMA CENTRAL PARA LA ELIMINAR SARRO", margin + 25, currentY);
   currentY += 4;
 
   // Row 2: Ubicación
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
   doc.text("Ubicación:", margin, currentY);
-  doc.setFont("times", "bold");
+  doc.setFont("helvetica", "bold");
   const locText = `Comunidad- ${cliente.communityname} ${cliente.buildingaddress || ""}`;
-  doc.text(locText, margin + 22, currentY);
+  doc.text(locText, margin + 25, currentY);
   currentY += 8;
 
   // Row 3: Fecha
   const now = new Date();
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
   doc.text("Fecha:", margin, currentY);
-  doc.setFont("times", "bold");
-  doc.text(`${now.getDate()} de ${getMonthName(now.getMonth())} de ${now.getFullYear()}`, margin + 22, currentY);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${now.getDate()} de ${getMonthName(now.getMonth())} de ${now.getFullYear()}`, margin + 25, currentY);
   currentY += 4;
 
   // Row 4: AT
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
   doc.text("AT:", margin, currentY);
-  doc.setFont("times", "bold");
-  doc.text(cliente.adminname.toUpperCase(), margin + 22, currentY);
+  doc.setFont("helvetica", "bold");
+  doc.text(cliente.adminname.toUpperCase(), margin + 25, currentY);
   currentY += 8;
 
   // Separator Line
@@ -126,7 +126,7 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   currentY += 8;
 
   // Situación a tratar
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
   doc.text("Situación a tratar:", margin, currentY);
   currentY += 8;
 
@@ -156,10 +156,9 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   const splitEq1 = doc.splitTextToSize(eq1, contentWidth - 10);
   currentY += (splitEq1.length * 5) + 8;
 
-  doc.setFont("times", "bold");
+  doc.setFont("helvetica", "normal");
   doc.text("KIT Entre los estanques de agua.", margin, currentY);
   currentY += 8;
-  doc.setFont("times", "normal");
 
   const kitItems = [
     "1 acelerador sistemas K-IO - Iónico de 1” en acero inoxidable en recirculación entre ambos estanques.",
@@ -177,42 +176,54 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   });
 
   currentY += 8;
-  const closingText = "Esta propuesta considera todos los materiales, elementos y accesorios para la óptima instalación y funcionamiento del sistema, bajo modalid “Llave en mano”.";
+  const closingText = "Esta propuesta considera todos los materiales, elementos y accesorios para la óptima instalación y funcionamiento del sistema, bajo modalidad “Llave en mano”.";
   doc.text(closingText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitClosing = doc.splitTextToSize(closingText, contentWidth);
   currentY += (splitClosing.length * 5) + 12;
 
   // Propuesta Económica
   checkNewPage(60);
-  doc.setFont("times", "bold");
+  doc.setFont("helvetica", "bold");
   doc.text("Propuesta Económica:", margin, currentY);
   currentY += 8;
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
 
   const formatCurrency = (val: number) => {
     if (datos.moneda === "UF") return `${val.toFixed(2)} UF`;
     return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 }).format(val);
   };
 
-  const arriendoText = `Valor mensual de arriendo por Depto.: ${formatCurrency(datos.valor_mensual_arriendo)} más IVA mensual.`;
-  doc.text(arriendoText, margin, currentY);
+  // Valor mensual arriendo
+  doc.text("Valor mensual de arriendo por Depto.: ", margin, currentY);
+  const labelWidth = doc.getTextWidth("Valor mensual de arriendo por Depto.: ");
+  doc.setFont("helvetica", "bold");
+  doc.text(`${formatCurrency(datos.valor_mensual_arriendo)} más IVA mensual.`, margin + labelWidth, currentY);
   currentY += 8;
 
-  const totalText = `Presupuesto total sobre un total de ${cliente.units} deptos., ${formatCurrency(datos.presupuesto_total_deptos)}.- más IVA mensual.`;
-  doc.text(totalText, margin, currentY);
+  // Align values at X = 130
+  const valueX = 100;
+  doc.setFont("helvetica", "normal");
+  doc.text(`Presupuesto total sobre un total de ${cliente.units} deptos. `, margin, currentY);
+  doc.text(`,${formatCurrency(datos.presupuesto_total_deptos)}.- más IVA mensual.`, valueX, currentY);
   currentY += 4;
 
   const discountVal = (datos.presupuesto_total_deptos * datos.descuento_porcentaje) / 100;
-  const discountText = `Descuento promoción MENSUAL ${datos.descuento_porcentaje}%, ${formatCurrency(discountVal)}.-`;
-  doc.text(discountText, margin, currentY);
+  doc.text("Descuento promoción ", margin, currentY);
+  const promoLabelWidth = doc.getTextWidth("Descuento promoción ");
+  doc.setFont("helvetica", "bold");
+  doc.text(`MENSUAL ${datos.descuento_porcentaje}%`, margin + promoLabelWidth, currentY);
+  doc.setFont("helvetica", "normal");
+  doc.text("", margin + promoLabelWidth + doc.getTextWidth(`MENSUAL ${datos.descuento_porcentaje}%`), currentY);
+  doc.text(`,${formatCurrency(discountVal)}.-`, valueX, currentY);
   currentY += 4;
 
-  doc.setFont("times", "bold");
-  const finalCostText = `Costo total mensual equipos, ${formatCurrency(datos.costo_total_mensual_equipos)}.- más IVA mensual.`;
-  doc.text(finalCostText, margin, currentY);
+  doc.setFont("helvetica", "bold");
+  doc.text("Costo total mensual equipos", margin, currentY);
+  doc.setFont("helvetica", "normal");
+  doc.text(`,${formatCurrency(datos.costo_total_mensual_equipos)}.- más IVA mensual.`, valueX, currentY);
   currentY += 8;
 
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
   const visitsText = "Se incluyen 3 visitas anuales de seguimiento y control de la solución, incluidas en el servicio.";
   doc.text("•", margin + 5, currentY);
   doc.text(visitsText, margin + 10, currentY, { maxWidth: contentWidth - 10, align: "justify" });
@@ -224,10 +235,10 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
 
   // Forma de Pago y Contrato
   checkNewPage(50);
-  doc.setFont("times", "bold");
+  doc.setFont("helvetica", "bold");
   doc.text("Forma de Pago y Contrato:", margin, currentY);
   currentY += 8;
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
 
   const pagoItems = [
     "Formato de contrato arriendo mensual.",
@@ -264,10 +275,10 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   }
   currentY += 20;
 
-  doc.setFont("times", "bold");
+  doc.setFont("helvetica", "bold");
   doc.text("Arturo Ramírez Mendive", margin, currentY);
   currentY += 4;
-  doc.setFont("times", "normal");
+  doc.setFont("helvetica", "normal");
   doc.text("Celular +56 9 7807 1418", margin, currentY);
   currentY += 4;
   doc.text("www.kristalina.cl", margin, currentY);
