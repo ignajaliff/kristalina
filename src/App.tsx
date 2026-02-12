@@ -20,7 +20,9 @@ import NotFound from "./pages/NotFound";
 import ProspectForm from "./pages/ProspectForm";
 import QuotesTable from "./pages/QuotesTable";
 import AcceptedQuotes from "./pages/AcceptedQuotes";
-import GestionEdificios from "./pages/GestionEdificios";
+import GestionPagos from "./pages/GestionPagos";
+import GestionEdificiosNew from "./pages/GestionEdificiosNew";
+import EdificioDetail from "./pages/EdificioDetail";
 import Clientes from "./pages/Clientes";
 import PresupuestosAceptados from "./pages/PresupuestosAceptados";
 
@@ -48,7 +50,9 @@ const App = () => (
               <Route path="clientes" element={<Clientes />} />
               <Route path="quotes" element={<QuotesTable />} />
               <Route path="accepted-quotes" element={<PresupuestosAceptados />} />
-              <Route path="gestion" element={<GestionEdificios />} />
+              <Route path="gestion" element={<GestionPagos />} />
+              <Route path="edificios" element={<GestionEdificiosNew />} />
+              <Route path="edificios/:id" element={<EdificioDetail />} />
             </Route>
             
             {/* Rutas protegidas para vendedor con layout persistente */}
