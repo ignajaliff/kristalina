@@ -12,10 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface ContratoRow {
   id: string;
+  prospecto_id?: string;
   estado_contrato: string;
   estado_equipos: string;
   fecha_contrato_firmado: string | null;
   fecha_instalacion_equipos: string | null;
+  datos_contrato?: any;
+  doc_contrato?: string | null;
 }
 
 interface EditContratoDialogProps {
@@ -46,22 +49,109 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
     }
   }, [contrato]);
 
+  const migrateToGestion = async (contratoData: ContratoRow) => {
+    const prospectoId = contratoData.prospecto_id;
+    if (!prospectoId) throw new Error("No se encontró prospecto_id");
+
+    // 1. Fetch full prospecto data
+    const { data: prospecto, error: pErr } = await supabase
+      .from("prospectos")
+      .select("*")
+      .eq("id", prospectoId)
+      .single();
+    if (pErr) throw pErr;
+
+    // 2. Fetch presupuesto data
+    const { data: presupuestos, error: prErr } = await supabase
+      .from("presupuestos")
+      .select("*")
+      .eq("prospecto_id", prospectoId);
+    if (prErr) throw prErr;
+    const presupuesto = presupuestos?.[0];
+
+    // 3. Fetch full contrato data from DB
+    const { data: contratoFull, error: cErr } = await supabase
+      .from("contratos")
+      .select("*")
+      .eq("id", contratoData.id)
+      .single();
+    if (cErr) throw cErr;
+
+    // 4. Build gestion record
+    const clienteJson = { ...prospecto };
+    const dataPresupuestoJson = presupuesto
+      ? { datos_presupuesto: presupuesto.datos_presupuesto, doc_presupuesto: presupuesto.doc_presupuesto }
+      : null;
+    const dataContratoJson = {
+      datos_contrato: contratoFull.datos_contrato,
+      doc_contrato: contratoFull.doc_contrato,
+      fecha_contrato_firmado: form.fecha_contrato_firmado || contratoFull.fecha_contrato_firmado,
+      fecha_instalacion_equipos: form.fecha_instalacion_equipos || contratoFull.fecha_instalacion_equipos,
+    };
+
+    // 5. Insert into gestion
+    const { error: gErr } = await supabase
+      .from("gestion")
+      .insert({
+        cliente: clienteJson,
+        data_presupuesto: dataPresupuestoJson,
+        data_contrato: dataContratoJson,
+        mesrenting: 1,
+        fechapago: new Date().toISOString().split("T")[0],
+        estadopago: "No en fecha",
+        vendedor_id: prospecto.vendedor_id,
+      });
+    if (gErr) throw gErr;
+
+    // 6. Delete contrato, presupuestos, and prospecto (in order due to FK)
+    await supabase.from("contratos").delete().eq("id", contratoData.id);
+    if (presupuesto) {
+      await supabase.from("presupuestos").delete().eq("prospecto_id", prospectoId);
+    }
+    await supabase.from("prospectos").delete().eq("id", prospectoId);
+  };
+
   const handleSave = async () => {
     if (!contrato) return;
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
-        .from("contratos")
-        .update({
-          estado_contrato: form.estado_contrato,
-          estado_equipos: form.estado_equipos,
-          fecha_contrato_firmado: form.fecha_contrato_firmado || null,
-          fecha_instalacion_equipos: form.fecha_instalacion_equipos || null,
-        })
-        .eq("id", contrato.id);
+      const isCompletingInstallation =
+        form.estado_equipos === "Instalacion completada y verificada" &&
+        contrato.estado_equipos !== "Instalacion completada y verificada";
 
-      if (error) throw error;
-      toast({ title: "Actualizado", description: "El contrato ha sido actualizado correctamente." });
+      if (isCompletingInstallation) {
+        // First update the contrato with the new values
+        const { error } = await supabase
+          .from("contratos")
+          .update({
+            estado_contrato: form.estado_contrato,
+            estado_equipos: form.estado_equipos,
+            fecha_contrato_firmado: form.fecha_contrato_firmado || null,
+            fecha_instalacion_equipos: form.fecha_instalacion_equipos || null,
+          })
+          .eq("id", contrato.id);
+        if (error) throw error;
+
+        // Then migrate everything to gestion
+        await migrateToGestion(contrato);
+        toast({
+          title: "Migrado a Gestión",
+          description: "El cliente ha sido trasladado a la tabla de gestión de edificios.",
+        });
+      } else {
+        const { error } = await supabase
+          .from("contratos")
+          .update({
+            estado_contrato: form.estado_contrato,
+            estado_equipos: form.estado_equipos,
+            fecha_contrato_firmado: form.fecha_contrato_firmado || null,
+            fecha_instalacion_equipos: form.fecha_instalacion_equipos || null,
+          })
+          .eq("id", contrato.id);
+        if (error) throw error;
+        toast({ title: "Actualizado", description: "El contrato ha sido actualizado correctamente." });
+      }
+
       onOpenChange(false);
       onSaveComplete();
     } catch (error) {

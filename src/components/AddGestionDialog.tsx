@@ -16,9 +16,6 @@ interface AddGestionDialogProps {
 }
 
 interface GestionFormData {
-  legalrepresentative: string;
-  buildingtype: string;
-  buildingaddress: string;
   mesrenting: number;
   fechapago: string;
   estadopago: string;
@@ -29,9 +26,6 @@ const AddGestionDialog = ({ open, onOpenChange, onSuccess }: AddGestionDialogPro
   
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<GestionFormData>({
     defaultValues: {
-      legalrepresentative: "",
-      buildingtype: "Edificio",
-      buildingaddress: "",
       mesrenting: 1,
       fechapago: "",
       estadopago: "No en fecha"
@@ -45,9 +39,6 @@ const AddGestionDialog = ({ open, onOpenChange, onSuccess }: AddGestionDialogPro
       const { error } = await supabase
         .from('gestion')
         .insert([{
-          legalrepresentative: data.legalrepresentative,
-          buildingtype: data.buildingtype,
-          buildingaddress: data.buildingaddress,
           mesrenting: data.mesrenting,
           fechapago: data.fechapago,
           estadopago: data.estadopago
@@ -91,52 +82,6 @@ const AddGestionDialog = ({ open, onOpenChange, onSuccess }: AddGestionDialogPro
         </DialogHeader>
         
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="legalrepresentative">Representante Legal</Label>
-            <Input
-              id="legalrepresentative"
-              {...register("legalrepresentative", { 
-                required: "El representante legal es requerido" 
-              })}
-              placeholder="Nombre del representante legal"
-            />
-            {errors.legalrepresentative && (
-              <p className="text-sm text-red-500">{errors.legalrepresentative.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="buildingtype">Tipo de Edificio</Label>
-            <Select
-              value={watch("buildingtype")}
-              onValueChange={(value) => setValue("buildingtype", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona el tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Edificio">Edificio</SelectItem>
-                <SelectItem value="Condominio">Condominio</SelectItem>
-                <SelectItem value="Casa">Casa</SelectItem>
-                <SelectItem value="Oficina">Oficina</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="buildingaddress">Dirección del Edificio</Label>
-            <Input
-              id="buildingaddress"
-              {...register("buildingaddress", { 
-                required: "La dirección del edificio es requerida" 
-              })}
-              placeholder="Dirección del edificio"
-            />
-            {errors.buildingaddress && (
-              <p className="text-sm text-red-500">{errors.buildingaddress.message}</p>
-            )}
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="mesrenting">Mes de Renting</Label>
             <Input

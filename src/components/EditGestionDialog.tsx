@@ -11,9 +11,9 @@ import { toast } from "@/hooks/use-toast";
 
 interface GestionItem {
   id: string;
-  legalrepresentative: string;
-  buildingtype: string;
-  buildingaddress: string;
+  cliente: any;
+  data_presupuesto: any;
+  data_contrato: any;
   mesrenting: number;
   fechapago: string;
   estadopago: string;
@@ -27,9 +27,6 @@ interface EditGestionDialogProps {
 }
 
 interface GestionFormData {
-  legalrepresentative: string;
-  buildingtype: string;
-  buildingaddress: string;
   mesrenting: number;
   fechapago: string;
   estadopago: string;
@@ -43,11 +40,8 @@ const EditGestionDialog = ({ open, onOpenChange, item, onSuccess }: EditGestionD
   useEffect(() => {
     if (item && open) {
       reset({
-        legalrepresentative: item.legalrepresentative,
-        buildingtype: item.buildingtype,
-        buildingaddress: item.buildingaddress,
         mesrenting: item.mesrenting,
-        fechapago: item.fechapago.split('T')[0], // Format date for input
+        fechapago: item.fechapago.split('T')[0],
         estadopago: item.estadopago
       });
     }
@@ -62,9 +56,6 @@ const EditGestionDialog = ({ open, onOpenChange, item, onSuccess }: EditGestionD
       const { error } = await supabase
         .from('gestion')
         .update({
-          legalrepresentative: data.legalrepresentative,
-          buildingtype: data.buildingtype,
-          buildingaddress: data.buildingaddress,
           mesrenting: data.mesrenting,
           fechapago: data.fechapago,
           estadopago: data.estadopago,
@@ -107,54 +98,16 @@ const EditGestionDialog = ({ open, onOpenChange, item, onSuccess }: EditGestionD
         <DialogHeader>
           <DialogTitle>Editar Edificio</DialogTitle>
         </DialogHeader>
+
+        {item?.cliente && (
+          <div className="bg-[#F8FAFC] rounded-lg p-3 space-y-1 text-[12px] text-[#64748B]">
+            <p><strong>Comunidad:</strong> {item.cliente.communityname}</p>
+            <p><strong>Administrador:</strong> {item.cliente.adminname}</p>
+            <p><strong>Dirección:</strong> {item.cliente.buildingaddress || 'N/A'}</p>
+          </div>
+        )}
         
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="legalrepresentative">Representante Legal</Label>
-            <Input
-              id="legalrepresentative"
-              {...register("legalrepresentative", { 
-                required: "El representante legal es requerido" 
-              })}
-              placeholder="Nombre del representante legal"
-            />
-            {errors.legalrepresentative && (
-              <p className="text-sm text-red-500">{errors.legalrepresentative.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="buildingtype">Tipo de Edificio</Label>
-            <Select
-              value={watch("buildingtype")}
-              onValueChange={(value) => setValue("buildingtype", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona el tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Edificio">Edificio</SelectItem>
-                <SelectItem value="Condominio">Condominio</SelectItem>
-                <SelectItem value="Casa">Casa</SelectItem>
-                <SelectItem value="Oficina">Oficina</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="buildingaddress">Dirección del Edificio</Label>
-            <Input
-              id="buildingaddress"
-              {...register("buildingaddress", { 
-                required: "La dirección del edificio es requerida" 
-              })}
-              placeholder="Dirección del edificio"
-            />
-            {errors.buildingaddress && (
-              <p className="text-sm text-red-500">{errors.buildingaddress.message}</p>
-            )}
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="mesrenting">Mes de Renting</Label>
             <Input

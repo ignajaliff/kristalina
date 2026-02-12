@@ -60,37 +60,37 @@ export type Database = {
       }
       gestion: {
         Row: {
-          buildingaddress: string
-          buildingtype: string
+          cliente: Json | null
           created_at: string
+          data_contrato: Json | null
+          data_presupuesto: Json | null
           estadopago: string
           fechapago: string
           id: string
-          legalrepresentative: string
           mesrenting: number
           updated_at: string
           vendedor_id: string | null
         }
         Insert: {
-          buildingaddress?: string
-          buildingtype: string
+          cliente?: Json | null
           created_at?: string
+          data_contrato?: Json | null
+          data_presupuesto?: Json | null
           estadopago?: string
           fechapago: string
           id?: string
-          legalrepresentative: string
           mesrenting?: number
           updated_at?: string
           vendedor_id?: string | null
         }
         Update: {
-          buildingaddress?: string
-          buildingtype?: string
+          cliente?: Json | null
           created_at?: string
+          data_contrato?: Json | null
+          data_presupuesto?: Json | null
           estadopago?: string
           fechapago?: string
           id?: string
-          legalrepresentative?: string
           mesrenting?: number
           updated_at?: string
           vendedor_id?: string | null

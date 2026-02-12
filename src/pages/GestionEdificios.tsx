@@ -20,14 +20,15 @@ import { cn } from "@/lib/utils";
 
 interface GestionItem {
   id: string;
-  legalrepresentative: string;
-  buildingtype: string;
-  buildingaddress: string;
+  cliente: any;
+  data_presupuesto: any;
+  data_contrato: any;
   mesrenting: number;
   fechapago: string;
   estadopago: string;
   created_at: string;
   updated_at: string;
+  vendedor_id: string | null;
 }
 
 const GestionEdificios = () => {
@@ -99,9 +100,7 @@ const GestionEdificios = () => {
           mode: "no-cors",
           body: JSON.stringify({
             id: item.id,
-            legalrepresentative: item.legalrepresentative,
-            buildingtype: item.buildingtype,
-            buildingaddress: item.buildingaddress,
+            cliente: item.cliente,
             mesrenting: item.mesrenting,
             fechapago: item.fechapago,
             estadopago: item.estadopago,
@@ -193,11 +192,15 @@ const GestionEdificios = () => {
     { value: '11', label: 'Diciembre' },
   ];
 
-  const filteredItems = gestionItems?.filter(item =>
-    item.legalrepresentative.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.buildingtype.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.buildingaddress.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredItems = gestionItems?.filter(item => {
+    const cliente = item.cliente || {};
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (cliente.communityname || '').toLowerCase().includes(searchLower) ||
+      (cliente.adminname || '').toLowerCase().includes(searchLower) ||
+      (cliente.buildingaddress || '').toLowerCase().includes(searchLower)
+    );
+  }) || [];
 
   // Calculate stats
   const totalEdificios = filteredItems.length;
@@ -248,7 +251,7 @@ const GestionEdificios = () => {
             <div className="flex flex-col gap-4 md:flex-row md:items-center">
               <div className="flex-1 relative">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
-                <Input placeholder="Buscar por representante legal, tipo de edificio o dirección..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-10 border-[#E2E8F0] bg-[#F8FAFC] text-sm focus:ring-1 focus:ring-[#1A367F]" />
+                <Input placeholder="Buscar por comunidad, administrador o dirección..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-10 border-[#E2E8F0] bg-[#F8FAFC] text-sm focus:ring-1 focus:ring-[#1A367F]" />
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Select value={monthFilter} onValueChange={setMonthFilter}>
@@ -288,8 +291,8 @@ const GestionEdificios = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-[#F8FAFC] border-b border-[#F1F5F9] hover:bg-[#F8FAFC]">
-                    <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 pl-6">Representante Legal</TableHead>
-                    <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4">Tipo</TableHead>
+                    <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 pl-6">Comunidad</TableHead>
+                    <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4">Administrador</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden md:table-cell">Dirección</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Renting</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Fecha Pago</TableHead>
@@ -305,9 +308,9 @@ const GestionEdificios = () => {
                   ) : (
                     filteredItems.map((item) => (
                       <TableRow key={item.id} className="group border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors">
-                        <TableCell className="py-4 pl-6"><p className="text-[13px] font-semibold text-[#1E293B]">{item.legalrepresentative}</p></TableCell>
-                        <TableCell className="py-4"><p className="text-[12px] font-medium text-[#64748B]">{item.buildingtype}</p></TableCell>
-                        <TableCell className="py-4 hidden md:table-cell"><p className="text-[12px] text-[#64748B] truncate max-w-[200px]">{item.buildingaddress}</p></TableCell>
+                        <TableCell className="py-4 pl-6"><p className="text-[13px] font-semibold text-[#1E293B]">{item.cliente?.communityname || 'N/A'}</p></TableCell>
+                        <TableCell className="py-4"><p className="text-[12px] font-medium text-[#64748B]">{item.cliente?.adminname || 'N/A'}</p></TableCell>
+                        <TableCell className="py-4 hidden md:table-cell"><p className="text-[12px] text-[#64748B] truncate max-w-[200px]">{item.cliente?.buildingaddress || 'N/A'}</p></TableCell>
                         <TableCell className="py-4 hidden lg:table-cell"><p className="text-[12px] font-semibold text-[#1E293B]">${item.mesrenting.toLocaleString()}</p></TableCell>
                         <TableCell className="py-4 hidden lg:table-cell"><p className="text-[12px] text-[#64748B]">{formatPaymentDate(item.fechapago)}</p></TableCell>
                         <TableCell className="py-4 text-center">{getStatusBadge(item.estadopago)}</TableCell>
