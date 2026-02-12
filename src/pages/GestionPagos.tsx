@@ -217,7 +217,7 @@ const GestionEdificios = () => {
             {isMobile && <MobileDrawer />}
             <div>
               <h1 className="text-2xl md:text-[26px] font-bold text-[#1E293B] tracking-tight leading-none mb-2">
-                Gestión de Edificios
+                Gestión de Pagos
               </h1>
               <p className="text-sm font-medium text-[#64748B] flex items-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>

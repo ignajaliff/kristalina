@@ -6,6 +6,7 @@ import {
   CheckSquare,
   CheckCircle,
   Building2,
+  DollarSign,
   LogOut,
   Droplet,
   ChevronRight
@@ -36,7 +37,8 @@ const AdminSidebar = () => {
     {
       group: "Área de Gestión",
       items: [
-        { name: "Gestión Edificios", path: "/admin/gestion", icon: Building2, iconColor: "text-blue-600" }
+        { name: "Gestión de Pagos", path: "/admin/gestion", icon: DollarSign, iconColor: "text-emerald-600" },
+        { name: "Gestión de Edificios", path: "/admin/edificios", icon: Building2, iconColor: "text-blue-600" }
       ]
     }
   ];
