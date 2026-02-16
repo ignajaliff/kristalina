@@ -1,0 +1,1 @@
+ALTER TABLE public.presupuestos ADD COLUMN datos_presupuesto jsonb DEFAULT NULL;

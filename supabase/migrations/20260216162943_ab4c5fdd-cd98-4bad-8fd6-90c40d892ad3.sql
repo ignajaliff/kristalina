@@ -1,0 +1,1 @@
+SELECT 1; -- Force PostgREST schema cache reload after doc_presupuesto removal
