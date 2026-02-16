@@ -80,7 +80,7 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
     // 4. Build gestion record
     const clienteJson = { ...prospecto };
     const dataPresupuestoJson = presupuesto
-      ? { datos_presupuesto: presupuesto.datos_presupuesto, doc_presupuesto: presupuesto.doc_presupuesto }
+      ? { datos_presupuesto: presupuesto.datos_presupuesto }
       : null;
     const dataContratoJson = {
       datos_contrato: contratoFull.datos_contrato,

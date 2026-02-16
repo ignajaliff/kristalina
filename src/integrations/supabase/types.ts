@@ -109,7 +109,6 @@ export type Database = {
         Row: {
           created_at: string
           datos_presupuesto: Json | null
-          doc_presupuesto: string | null
           estado: string
           fecha_aprobacion: string | null
           id: string
@@ -118,7 +117,6 @@ export type Database = {
         Insert: {
           created_at?: string
           datos_presupuesto?: Json | null
-          doc_presupuesto?: string | null
           estado?: string
           fecha_aprobacion?: string | null
           id?: string
@@ -127,7 +125,6 @@ export type Database = {
         Update: {
           created_at?: string
           datos_presupuesto?: Json | null
-          doc_presupuesto?: string | null
           estado?: string
           fecha_aprobacion?: string | null
           id?: string

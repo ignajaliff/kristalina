@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { generatePresupuestoPDF } from "@/utils/pdfGenerator";
+import { generateContratoPDF } from "@/utils/contractPdfGenerator";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -175,12 +177,25 @@ const EdificioDetail = () => {
                   <InfoRow label="Precio Mensual" value={datosPresupuesto.precioMensual ? `$${Number(datosPresupuesto.precioMensual).toLocaleString()}` : undefined} />
                   <InfoRow label="Precio Total" value={datosPresupuesto.precioTotal ? `$${Number(datosPresupuesto.precioTotal).toLocaleString()}` : undefined} />
                   <InfoRow label="Duración Contrato" value={datosPresupuesto.duracionContrato ? `${datosPresupuesto.duracionContrato} meses` : undefined} />
-                  {dataPresupuesto.doc_presupuesto && (
+                  {datosPresupuesto && Object.keys(datosPresupuesto).length > 0 && (
                     <div className="pt-2">
-                      <a href={dataPresupuesto.doc_presupuesto} target="_blank" rel="noopener noreferrer" className="text-[12px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1.5">
-                        <FileText className="h-3.5 w-3.5" />
-                        Ver PDF del presupuesto
-                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-[12px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1.5 h-auto p-0"
+                        onClick={() => {
+                          const blob = generatePresupuestoPDF(cliente, datosPresupuesto);
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `presupuesto_${cliente.communityname || 'edificio'}.pdf`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Descargar PDF presupuesto
+                      </Button>
                     </div>
                   )}
                 </CardContent>
@@ -207,8 +222,41 @@ const EdificioDetail = () => {
                     <div className="pt-2">
                       <a href={dataContrato.doc_contrato} target="_blank" rel="noopener noreferrer" className="text-[12px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1.5">
                         <FileText className="h-3.5 w-3.5" />
-                        Ver PDF del contrato
+                        Ver contrato subido
                       </a>
+                    </div>
+                  )}
+                  {datosContrato && Object.keys(datosContrato).length > 0 && (
+                    <div className="pt-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-[12px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1.5 h-auto p-0"
+                        onClick={() => {
+                          const blob = generateContratoPDF(
+                            {
+                              adminname: cliente.adminname || '',
+                              adminemail: cliente.adminemail || '',
+                              communityname: cliente.communityname || '',
+                              buildingaddress: cliente.buildingaddress || null,
+                              buildingtype: cliente.buildingtype || '',
+                              units: cliente.units || 0,
+                              vendedor: cliente.vendedor || null,
+                              monto: null,
+                            },
+                            datosContrato
+                          );
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `contrato_${cliente.communityname || 'edificio'}.pdf`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Descargar contrato plantillado
+                      </Button>
                     </div>
                   )}
                 </CardContent>
