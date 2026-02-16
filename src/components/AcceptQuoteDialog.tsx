@@ -3,15 +3,16 @@ import { useState } from "react";
 import { Quote } from "@/utils/quoteStorage";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { generateContratoPDF, DatosContrato } from "@/utils/contractPdfGenerator";
+import { DatosContrato } from "@/utils/contractPdfGenerator";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Eye, ArrowLeft, CheckCircle } from "lucide-react";
+import { FileText, Eye, ArrowLeft, CheckCircle, Upload } from "lucide-react";
 
 interface AcceptQuoteDialogProps {
   quote: Quote | null;
@@ -26,6 +27,7 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<Step>("form");
+  const [manualContractFile, setManualContractFile] = useState<File | null>(null);
   const [legalData, setLegalData] = useState<DatosContrato>({
     legalrepresentative: "",
     legalrepresentativerut: "",
@@ -71,36 +73,23 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
 
       if (updateError) throw updateError;
 
-      // 2. Generate contract PDF
-      const pdfBlob = generateContratoPDF(
-        {
-          adminname: quote.adminname,
-          adminemail: quote.adminemail,
-          communityname: quote.communityname,
-          buildingaddress: quote.buildingaddress || null,
-          buildingtype: quote.buildingtype,
-          units: quote.units,
-          vendedor: quote.vendedor || null,
-          monto: quote.monto || null,
-        },
-        legalData
-      );
-
-      // 3. Upload PDF to storage
-      const fileName = `contrato_${quote.id}_${Date.now()}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("presupuestos-pdf")
-        .upload(fileName, pdfBlob, { contentType: "application/pdf" });
-
+      // 2. Upload manual contract file if provided
       let docUrl: string | null = null;
-      if (uploadError) {
-        console.error("Error uploading contract PDF:", uploadError);
-      } else {
-        const { data: urlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(fileName);
-        docUrl = urlData.publicUrl;
+      if (manualContractFile) {
+        const fileName = `contrato_${quote.id}_${Date.now()}.pdf`;
+        const { error: uploadError } = await supabase.storage
+          .from("presupuestos-pdf")
+          .upload(fileName, manualContractFile, { contentType: manualContractFile.type });
+
+        if (uploadError) {
+          console.error("Error uploading contract file:", uploadError);
+        } else {
+          const { data: urlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(fileName);
+          docUrl = urlData.publicUrl;
+        }
       }
 
-      // 4. Create contrato with datos_contrato JSON
+      // 3. Create contrato with datos_contrato JSON
       const { error: contratoError } = await supabase
         .from("contratos")
         .insert([{
@@ -136,6 +125,7 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
 
   const resetForm = () => {
     setStep("form");
+    setManualContractFile(null);
     setLegalData({
       legalrepresentative: "",
       legalrepresentativerut: "",
@@ -250,6 +240,26 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                   value={legalData.deviceinstallation}
                   onChange={e => handleChange("deviceinstallation", e.target.value)}
                 />
+              </div>
+
+              {/* Manual contract upload */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Subir contrato manualmente (opcional)</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={e => setManualContractFile(e.target.files?.[0] || null)}
+                    className="text-xs"
+                  />
+                  {manualContractFile && (
+                    <Badge variant="secondary" className="text-[10px] whitespace-nowrap">
+                      <Upload className="h-3 w-3 mr-1" />
+                      {manualContractFile.name}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Si no adjuntas un archivo, el contrato se generará desde la plantilla.</p>
               </div>
             </div>
 

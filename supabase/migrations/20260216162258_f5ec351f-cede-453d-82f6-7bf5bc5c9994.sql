@@ -1,0 +1,1 @@
+ALTER TABLE public.presupuestos DROP COLUMN IF EXISTS doc_presupuesto;

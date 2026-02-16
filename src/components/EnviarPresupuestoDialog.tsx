@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { generatePresupuestoPDF } from "@/utils/pdfGenerator";
+
 
 interface Cliente {
   id: string;
@@ -69,34 +69,13 @@ export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, o
 
       if (updateError) throw updateError;
 
-      // 2. Generate PDF
-      const pdfBlob = generatePresupuestoPDF(cliente, datos);
-
-      // 3. Upload PDF to storage
-      const fileName = `presupuesto_${cliente.id}_${Date.now()}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("presupuestos-pdf")
-        .upload(fileName, pdfBlob, { contentType: "application/pdf" });
-
-      if (uploadError) {
-        console.error("Error uploading PDF:", uploadError);
-      }
-
-      // 4. Get public URL
-      const { data: urlData } = supabase.storage
-        .from("presupuestos-pdf")
-        .getPublicUrl(fileName);
-
-      const docUrl = urlData?.publicUrl || null;
-
-      // 5. Create presupuesto record
+      // 2. Create presupuesto record (no PDF storage - use templated download)
       const { error: presupuestoError } = await supabase
         .from("presupuestos")
         .insert([{
           prospecto_id: cliente.id,
           estado: "Enviado",
           datos_presupuesto: datos as any,
-          doc_presupuesto: docUrl,
         }]);
 
       if (presupuestoError) {
