@@ -22,8 +22,18 @@ interface DatosPresupuesto {
 
 const getMonthName = (monthIndex: number) => {
   const months = [
-    "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO",
-    "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"
+    "ENERO",
+    "FEBRERO",
+    "MARZO",
+    "ABRIL",
+    "MAYO",
+    "JUNIO",
+    "JULIO",
+    "AGOSTO",
+    "SEPTIEMBRE",
+    "OCTUBRE",
+    "NOVIEMBRE",
+    "DICIEMBRE",
   ];
   return months[monthIndex];
 };
@@ -52,13 +62,13 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
-    format: "a4"
+    format: "a4",
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
-  const contentWidth = pageWidth - (margin * 2);
+  const contentWidth = pageWidth - margin * 2;
   let pageNum = 1;
 
   const checkNewPage = (yNeeded: number): number => {
@@ -124,68 +134,73 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   doc.text("Situación a tratar:", margin, currentY);
   currentY += 8;
 
-  const situacionText = "Producto de la alta concentración en algunas zonas del país de carbonatos de calcio y magnesio en el agua utilizada para consumo de personas y procesos industriales, se generan una serie de daños e incrustaciones en equipos, redes de cañerías, fittings y griferías producto del sarro.";
+  const situacionText =
+    "Producto de la alta concentración en algunas zonas del país de carbonatos de calcio y magnesio en el agua utilizada para consumo de personas y procesos industriales, se generan una serie de daños e incrustaciones en equipos, redes de cañerías, fittings y griferías producto del sarro.";
   doc.text(situacionText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitSituacion = doc.splitTextToSize(situacionText, contentWidth);
-  currentY += (splitSituacion.length * 5) + 10;
+  currentY += splitSituacion.length * 5 + 10;
 
-  const techText = "Nuestros dispositivos fabricados en acero inoxidable 304, producen un efecto permanente evitando la generación de sarro e incrustaciones además de una eliminación en corto tiempo de las incrustaciones existentes. También una serie de beneficios para la piel y salud producto de la calidad del agua resultante para los Residentes.";
+  const techText =
+    "Nuestros dispositivos fabricados en acero inoxidable 304, producen un efecto permanente evitando la generación de sarro e incrustaciones además de una eliminación en corto tiempo de las incrustaciones existentes. También una serie de beneficios para la piel y salud producto de la calidad del agua resultante para los Residentes.";
   doc.text(techText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitTech = doc.splitTextToSize(techText, contentWidth);
-  currentY += (splitTech.length * 5) + 10;
+  currentY += splitTech.length * 5 + 10;
 
   const propuestaText = `En base a la visita realizada al edificio, proponemos el suministro e instalación de un sistema Ionizador Central para el edificio, en la recirculación entre ambos estanques acumuladores de agua potable, generando por la cinética una inestabilidad constante de la dureza contenida en el agua.`;
   doc.text(propuestaText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitPropuesta = doc.splitTextToSize(propuestaText, contentWidth);
-  currentY += (splitPropuesta.length * 5) + 12;
+  currentY += splitPropuesta.length * 5 + 12;
 
   // Equipment List - DYNAMIC based on matriz_principal and recirculacion
   checkNewPage(40);
-  doc.text("Los equipos a utilizar en este tratamiento son los siguientes:", margin, currentY);
+  doc.text("Matriz Principal:", margin, currentY);
   currentY += 8;
 
   const mp = datos.matriz_principal;
-  const eq1 = mp > 1
-    ? `${mp} aceleradores de sistemas K-IO - Iónico de 2" en acero inoxidable en la alimentación principal a los estanques. Colocamos ${mp} ionizadores en el ingreso de la alimentación del agua ya que el volumen de los estanques es muy grande y permitirá tener un mejor desempeño.`
-    : '1 acelerador sistemas K-IO - Iónico de 2" en acero inoxidable en la alimentación principal a los estanques. Colocamos 1 ionizador en el ingreso de la alimentación del agua ya que el volumen de los estanques es muy grande y permitirá tener un mejor desempeño.';
+  const eq1 =
+    mp > 1
+      ? `${mp} aceleradores de sistemas K-IO - Iónicos de 2” en acero inoxidable en la alimentación principal a los estanques. Colocamos ${mp} ionizadores en el ingreso de la alimentación del agua ya que el volumen de los estanques es muy grande y permitirá tener un mejor desempeño.`
+      : "1 acelerador de sistema K-IO - Iónicos de 2” en acero inoxidable en la alimentación principal a los estanques. Colocamos 1 ionizador en el ingreso de la alimentación del agua ya que el volumen de los estanques es muy grande y permitirá tener un mejor desempeño.";
 
   doc.text("•", margin + 5, currentY);
   doc.text(eq1, margin + 10, currentY, { maxWidth: contentWidth - 10, align: "justify", lineHeightFactor: 1.1 });
   const splitEq1 = doc.splitTextToSize(eq1, contentWidth - 10);
-  currentY += (splitEq1.length * 5) + 8;
+  currentY += splitEq1.length * 5 + 8;
 
   doc.setFont("helvetica", "normal");
   doc.text("KIT Entre los estanques de agua.", margin, currentY);
   currentY += 8;
 
   const rc = datos.recirculacion;
-  const kitItems = rc > 1
-    ? [
-        `${rc} aceleradores de sistemas K-IO - Iónico de 1" en acero inoxidable en recirculación entre ambos estanques.`,
-        `${rc} filtros para sedimentos de 1" con malla metálica para 100 micras con despiche automático.`,
-        `${rc} bombas recirculadoras monofásicas para un caudal de 8m3/h.`,
-        `${rc} controladores digitales.`
-      ]
-    : [
-        '1 acelerador sistemas K-IO - Iónico de 1" en acero inoxidable en recirculación entre ambos estanques.',
-        '1 filtro para sedimentos de 1" con malla metálica para 100 micras con despiche automático.',
-        '1 bomba recirculadora monofásica para un caudal de 8m3/h.',
-        '1 Timer controlador digital.'
-      ];
+  const kitItems =
+    rc > 1
+      ? [
+          `${rc} aceleradores de sistemas K-IO - Iónico de 1” en acero inoxidable en recirculación entre ambos estanques.`,
+          `${rc} filtros para sedimentos de 1” con malla metálica para 100 micras con despiche automático.`,
+          `${rc} bombas recirculadoras monofásicas para un caudal de 8m3/h.`,
+          `${rc} controladores digitales.`,
+        ]
+      : [
+          "1 acelerador de sistema K-IO - Iónico de 1” en acero inoxidable en recirculación entre ambos estanques.",
+          "1 filtro para sedimento de 1” con malla metálica para 100 micras con despiche automático.",
+          "1 bomba recirculadora monofásica para un caudal de 8m3/h.",
+          "1 controlador digital.",
+        ];
 
-  kitItems.forEach(item => {
+  kitItems.forEach((item) => {
     checkNewPage(10);
     doc.text("•", margin + 5, currentY);
     doc.text(item, margin + 10, currentY, { maxWidth: contentWidth - 10, align: "justify", lineHeightFactor: 1.1 });
     const splitItem = doc.splitTextToSize(item, contentWidth - 10);
-    currentY += (splitItem.length * 5) + 2;
+    currentY += splitItem.length * 5 + 2;
   });
 
   currentY += 8;
-  const closingText = 'Esta propuesta considera todos los materiales, elementos y accesorios para la óptima instalación y funcionamiento del sistema, bajo modalidad “Llave en mano”.';
+  const closingText =
+    "Esta propuesta considera todos los materiales, elementos y accesorios para la óptima instalación y funcionamiento del sistema, bajo modalidad “Llave en mano”.";
   doc.text(closingText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitClosing = doc.splitTextToSize(closingText, contentWidth);
-  currentY += (splitClosing.length * 5) + 12;
+  currentY += splitClosing.length * 5 + 12;
 
   // Propuesta Económica
   checkNewPage(60);
@@ -193,49 +208,40 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   doc.text("Propuesta Económica:", margin, currentY);
   currentY += 8;
   doc.setFont("helvetica", "normal");
-
   const formatCurrency = (val: number) => {
     if (datos.moneda === "UF") return `${val.toFixed(2)} UF`;
     return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 }).format(val);
   };
-
-  const valorMensualArriendo = cliente.units > 0 ? datos.presupuesto_total_deptos / cliente.units : 0;
-  const costoTotalMensualEquipos = (datos.presupuesto_total_deptos * datos.descuento_porcentaje) / 100;
-
+  const costoTotalMensualEquipos = datos.presupuesto_total_deptos * (1 - datos.descuento_porcentaje / 100);
+  const discountVal = datos.presupuesto_total_deptos * (datos.descuento_porcentaje / 100);
+  const valorMensualArriendo = cliente.units > 0 ? costoTotalMensualEquipos / cliente.units : 0;
   doc.text("Valor mensual de arriendo por Depto.: ", margin, currentY);
   const labelWidth = doc.getTextWidth("Valor mensual de arriendo por Depto.: ");
   doc.setFont("helvetica", "bold");
   doc.text(`${formatCurrency(valorMensualArriendo)} más IVA mensual.`, margin + labelWidth, currentY);
   currentY += 8;
-
   const valueX = 100;
   doc.setFont("helvetica", "normal");
   doc.text(`Presupuesto total sobre un total de ${cliente.units} deptos. `, margin, currentY);
   doc.text(`,${formatCurrency(datos.presupuesto_total_deptos)}.- más IVA mensual.`, valueX, currentY);
   currentY += 4;
-
-  const discountVal = costoTotalMensualEquipos;
   doc.text("Descuento promoción ", margin, currentY);
   const promoLabelWidth = doc.getTextWidth("Descuento promoción ");
   doc.setFont("helvetica", "bold");
   doc.text(`MENSUAL ${datos.descuento_porcentaje}%`, margin + promoLabelWidth, currentY);
   doc.setFont("helvetica", "normal");
-  doc.text("", margin + promoLabelWidth + doc.getTextWidth(`MENSUAL ${datos.descuento_porcentaje}%`), currentY);
-  doc.text(`,${formatCurrency(discountVal)}.-`, valueX, currentY);
+  doc.text(`- ${formatCurrency(discountVal)}.-`, valueX, currentY);
   currentY += 4;
-
   doc.setFont("helvetica", "bold");
   doc.text("Costo total mensual equipos", margin, currentY);
   doc.setFont("helvetica", "normal");
   doc.text(`,${formatCurrency(costoTotalMensualEquipos)}.- más IVA mensual.`, valueX, currentY);
   currentY += 8;
-
   doc.setFont("helvetica", "normal");
   const visitsText = "Se incluyen 3 visitas anuales de seguimiento y control de la solución, incluidas en el servicio.";
   doc.text("•", margin + 5, currentY);
   doc.text(visitsText, margin + 10, currentY, { maxWidth: contentWidth - 10, align: "justify" });
   currentY += 6;
-
   doc.text("•", margin + 5, currentY);
   doc.text("Tiempo de Ejecución: 2 días", margin + 10, currentY);
   currentY += 12;
@@ -252,7 +258,7 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
     `Duración de Contrato de ${datos.anos_contrato} años.`,
     `Precio de la instalación: ${formatCurrency(datos.precio_instalacion)} + IVA, única vez en dos pagos.`,
     "Firma de contrato 50%",
-    "Contra entrega 50%"
+    "Contra entrega 50%",
   ];
 
   pagoItems.forEach((item, idx) => {
