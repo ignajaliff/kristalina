@@ -31,12 +31,12 @@ interface EnviarPresupuestoDialogProps {
 
 interface DatosPresupuesto {
   moneda: "Pesos" | "UF";
-  valor_mensual_arriendo: number;
   presupuesto_total_deptos: number;
   descuento_porcentaje: number;
-  costo_total_mensual_equipos: number;
   precio_instalacion: number;
   anos_contrato: number;
+  matriz_principal: number;
+  recirculacion: number;
 }
 
 export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, onComplete }: EnviarPresupuestoDialogProps) {
@@ -44,12 +44,12 @@ export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, o
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [datos, setDatos] = useState<DatosPresupuesto>({
     moneda: "Pesos",
-    valor_mensual_arriendo: 0,
     presupuesto_total_deptos: 0,
     descuento_porcentaje: 0,
-    costo_total_mensual_equipos: 0,
     precio_instalacion: 0,
     anos_contrato: 0,
+    matriz_principal: 1,
+    recirculacion: 1,
   });
 
   const handleChange = (field: keyof DatosPresupuesto, value: string | number) => {
@@ -98,7 +98,7 @@ export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, o
       toast({ title: "Presupuesto enviado", description: `El presupuesto para ${cliente.communityname} ha sido creado y enviado.` });
 
       // Reset form
-      setDatos({ moneda: "Pesos", valor_mensual_arriendo: 0, presupuesto_total_deptos: 0, descuento_porcentaje: 0, costo_total_mensual_equipos: 0, precio_instalacion: 0, anos_contrato: 0 });
+      setDatos({ moneda: "Pesos", presupuesto_total_deptos: 0, descuento_porcentaje: 0, precio_instalacion: 0, anos_contrato: 0, matriz_principal: 1, recirculacion: 1 });
       onOpenChange(false);
       onComplete();
     } catch (error) {
@@ -141,23 +141,12 @@ export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, o
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#64748B]">Valor mensual de arriendo</Label>
-              <Input type="number" placeholder="0" value={datos.valor_mensual_arriendo || ""} onChange={e => handleChange("valor_mensual_arriendo", parseFloat(e.target.value) || 0)} />
-            </div>
-            <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-[#64748B]">Presupuesto total deptos</Label>
               <Input type="number" placeholder="0" value={datos.presupuesto_total_deptos || ""} onChange={e => handleChange("presupuesto_total_deptos", parseFloat(e.target.value) || 0)} />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-[#64748B]">Descuento %</Label>
               <Input type="number" placeholder="0" value={datos.descuento_porcentaje || ""} onChange={e => handleChange("descuento_porcentaje", parseFloat(e.target.value) || 0)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#64748B]">Costo total mensual equipos</Label>
-              <Input type="number" placeholder="0" value={datos.costo_total_mensual_equipos || ""} onChange={e => handleChange("costo_total_mensual_equipos", parseFloat(e.target.value) || 0)} />
             </div>
           </div>
 
@@ -169,6 +158,17 @@ export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, o
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-[#64748B]">Años contrato</Label>
               <Input type="number" placeholder="0" value={datos.anos_contrato || ""} onChange={e => handleChange("anos_contrato", parseInt(e.target.value) || 0)} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#64748B]">Matriz principal</Label>
+              <Input type="number" min="1" placeholder="1" value={datos.matriz_principal || ""} onChange={e => handleChange("matriz_principal", parseInt(e.target.value) || 1)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#64748B]">Recirculación</Label>
+              <Input type="number" min="1" placeholder="1" value={datos.recirculacion || ""} onChange={e => handleChange("recirculacion", parseInt(e.target.value) || 1)} />
             </div>
           </div>
         </div>

@@ -13,12 +13,12 @@ interface Cliente {
 
 interface DatosPresupuesto {
   moneda: "Pesos" | "UF";
-  valor_mensual_arriendo: number;
   presupuesto_total_deptos: number;
   descuento_porcentaje: number;
-  costo_total_mensual_equipos: number;
   precio_instalacion: number;
   anos_contrato: number;
+  matriz_principal: number;
+  recirculacion: number;
 }
 
 const getMonthName = (monthIndex: number) => {
@@ -193,21 +193,24 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
     return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 }).format(val);
   };
 
+  // Calculated values
+  const valorMensualArriendo = cliente.units > 0 ? datos.presupuesto_total_deptos / cliente.units : 0;
+  const costoTotalMensualEquipos = (datos.presupuesto_total_deptos * datos.descuento_porcentaje) / 100;
+
   // Valor mensual arriendo
   doc.text("Valor mensual de arriendo por Depto.: ", margin, currentY);
   const labelWidth = doc.getTextWidth("Valor mensual de arriendo por Depto.: ");
   doc.setFont("helvetica", "bold");
-  doc.text(`${formatCurrency(datos.valor_mensual_arriendo)} más IVA mensual.`, margin + labelWidth, currentY);
+  doc.text(`${formatCurrency(valorMensualArriendo)} más IVA mensual.`, margin + labelWidth, currentY);
   currentY += 8;
 
-  // Align values at X = 130
   const valueX = 100;
   doc.setFont("helvetica", "normal");
   doc.text(`Presupuesto total sobre un total de ${cliente.units} deptos. `, margin, currentY);
   doc.text(`,${formatCurrency(datos.presupuesto_total_deptos)}.- más IVA mensual.`, valueX, currentY);
   currentY += 4;
 
-  const discountVal = (datos.presupuesto_total_deptos * datos.descuento_porcentaje) / 100;
+  const discountVal = costoTotalMensualEquipos;
   doc.text("Descuento promoción ", margin, currentY);
   const promoLabelWidth = doc.getTextWidth("Descuento promoción ");
   doc.setFont("helvetica", "bold");
@@ -220,7 +223,7 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   doc.setFont("helvetica", "bold");
   doc.text("Costo total mensual equipos", margin, currentY);
   doc.setFont("helvetica", "normal");
-  doc.text(`,${formatCurrency(datos.costo_total_mensual_equipos)}.- más IVA mensual.`, valueX, currentY);
+  doc.text(`,${formatCurrency(costoTotalMensualEquipos)}.- más IVA mensual.`, valueX, currentY);
   currentY += 8;
 
   doc.setFont("helvetica", "normal");
