@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { PlusCircle, Building2, Building, School, Factory, AlertCircle } from "lucide-react";
+import { PlusCircle, Building2, Building, Factory, Briefcase, Hospital, Landmark } from "lucide-react";
 
 
 import { Button } from "@/components/ui/button";
@@ -31,14 +31,14 @@ const formSchema = z.object({
   buildingAddress: z.string().optional(),
   comuna: z.string().optional(),
   region: z.string().optional(),
-  buildingType: z.string().default("Edificio"),
-  units: z.number().min(1, { message: "La cantidad de unidades es obligatoria" }),
+  buildingType: z.string().default("Condominio"),
+  units: z.number().optional(),
   nombrePortero: z.string().optional(),
   notas: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
-type BuildingType = "Edificio" | "Escuela" | "Industria";
+type BuildingType = "Condominio" | "Oficina" | "Hospitalario" | "Institucion" | "Industria";
 
 const SellerProspects = () => {
   const { toast } = useToast();
@@ -51,7 +51,7 @@ const SellerProspects = () => {
     defaultValues: {
       adminName: "", adminEmail: "", managementCompany: "", additionalATs: [],
       communityName: "", buildingAddress: "", comuna: "", region: "",
-      buildingType: "Edificio", units: 0, nombrePortero: "", notas: "",
+      buildingType: "Condominio", units: undefined, nombrePortero: "", notas: "",
     },
   });
 
@@ -74,7 +74,7 @@ const SellerProspects = () => {
         comuna: data.comuna || null,
         region: data.region || null,
         buildingtype: data.buildingType,
-        units: data.units,
+        units: data.units || 0,
         vendedor_id: userProfile?.id || null,
         vendedor: userProfile?.nombre || null,
         estado_contacto: "Primer Contacto",
@@ -106,13 +106,15 @@ const SellerProspects = () => {
     form.reset({
       adminName: "", adminEmail: "", managementCompany: "", additionalATs: [],
       communityName: "", buildingAddress: "", comuna: "", region: "",
-      buildingType: type, units: 0, nombrePortero: "", notas: "",
+      buildingType: type, units: undefined, nombrePortero: "", notas: "",
     });
   };
 
   const getBuildingTypeLabel = (type: BuildingType) => {
-    switch (type) { case "Edificio": return "Edificio"; case "Escuela": return "Escuela"; case "Industria": return "Industria"; default: return "Edificio"; }
+    switch (type) { case "Condominio": return "Condominio"; case "Oficina": return "Oficina"; case "Hospitalario": return "Hospitalario"; case "Institucion": return "Institución"; case "Industria": return "Industria"; default: return "Condominio"; }
   };
+
+  const showUnitsField = selectedBuildingType === "Condominio";
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -138,12 +140,18 @@ const SellerProspects = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Button onClick={() => handleBuildingTypeSelection("Edificio")} variant="outline" className="h-32 flex flex-col items-center justify-center gap-4 hover:bg-blue-50 hover:border-blue-300">
-                  <Building className="h-12 w-12 text-blue-600" /><span className="text-lg font-medium">Edificios</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                <Button onClick={() => handleBuildingTypeSelection("Condominio")} variant="outline" className="h-32 flex flex-col items-center justify-center gap-4 hover:bg-blue-50 hover:border-blue-300">
+                  <Building className="h-12 w-12 text-blue-600" /><span className="text-lg font-medium">Condominios</span>
                 </Button>
-                <Button onClick={() => handleBuildingTypeSelection("Escuela")} variant="outline" className="h-32 flex flex-col items-center justify-center gap-4 hover:bg-green-50 hover:border-green-300">
-                  <School className="h-12 w-12 text-green-600" /><span className="text-lg font-medium">Escuelas</span>
+                <Button onClick={() => handleBuildingTypeSelection("Oficina")} variant="outline" className="h-32 flex flex-col items-center justify-center gap-4 hover:bg-purple-50 hover:border-purple-300">
+                  <Briefcase className="h-12 w-12 text-purple-600" /><span className="text-lg font-medium">Oficinas</span>
+                </Button>
+                <Button onClick={() => handleBuildingTypeSelection("Hospitalario")} variant="outline" className="h-32 flex flex-col items-center justify-center gap-4 hover:bg-red-50 hover:border-red-300">
+                  <Hospital className="h-12 w-12 text-red-600" /><span className="text-lg font-medium">Hospitalarios</span>
+                </Button>
+                <Button onClick={() => handleBuildingTypeSelection("Institucion")} variant="outline" className="h-32 flex flex-col items-center justify-center gap-4 hover:bg-green-50 hover:border-green-300">
+                  <Landmark className="h-12 w-12 text-green-600" /><span className="text-lg font-medium">Instituciones</span>
                 </Button>
                 <Button onClick={() => handleBuildingTypeSelection("Industria")} variant="outline" className="h-32 flex flex-col items-center justify-center gap-4 hover:bg-orange-50 hover:border-orange-300">
                   <Factory className="h-12 w-12 text-orange-600" /><span className="text-lg font-medium">Industrias</span>
@@ -185,12 +193,14 @@ const SellerProspects = () => {
                       Datos del {getBuildingTypeLabel(selectedBuildingType)}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField control={form.control} name="communityName" render={({ field }) => (<FormItem><FormLabel>Nombre de la Comunidad</FormLabel><FormControl><Input placeholder={`Ej: ${getBuildingTypeLabel(selectedBuildingType)} Los Alpes`} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                      <FormField control={form.control} name="communityName" render={({ field }) => (<FormItem><FormLabel>Nombre de la Comunidad/Edificio</FormLabel><FormControl><Input placeholder={`Ej: ${getBuildingTypeLabel(selectedBuildingType)} Los Alpes`} {...field} /></FormControl><FormMessage /></FormItem>)} />
                       <FormField control={form.control} name="buildingAddress" render={({ field }) => (<FormItem><FormLabel>Dirección</FormLabel><FormControl><Input placeholder="Calle y número" {...field} /></FormControl><FormMessage /></FormItem>)} />
                       <FormField control={form.control} name="comuna" render={({ field }) => (<FormItem><FormLabel>Comuna</FormLabel><FormControl><Input placeholder="Comuna" {...field} /></FormControl><FormMessage /></FormItem>)} />
                       <FormField control={form.control} name="region" render={({ field }) => (<FormItem><FormLabel>Región</FormLabel><FormControl><Input placeholder="Región" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                      <FormField control={form.control} name="units" render={({ field }) => (<FormItem><FormLabel>Cantidad de Unidades</FormLabel><FormControl><Input type="number" placeholder="0" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>)} />
-                      <FormField control={form.control} name="nombrePortero" render={({ field }) => (<FormItem><FormLabel>Nombre del Portero</FormLabel><FormControl><Input placeholder="Nombre del portero" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                      {showUnitsField && (
+                        <FormField control={form.control} name="units" render={({ field }) => (<FormItem><FormLabel>Cantidad de Unidades</FormLabel><FormControl><Input type="number" placeholder="0" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                      )}
+                      <FormField control={form.control} name="nombrePortero" render={({ field }) => (<FormItem><FormLabel>Contacto</FormLabel><FormControl><Input placeholder="Nombre del contacto" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     </div>
                     <div className="mt-6">
                       <FormField control={form.control} name="notas" render={({ field }) => (<FormItem><FormLabel>Notas Adicionales</FormLabel><FormControl><Textarea placeholder="Observaciones..." {...field} className="min-h-[80px] resize-none" /></FormControl><FormMessage /></FormItem>)} />
