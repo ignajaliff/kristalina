@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Droplet, PlusCircle, AlertCircle, Building, School, Factory, UserPlus, ArrowRight, Plus } from "lucide-react";
+import { Droplet, PlusCircle, AlertCircle, Building, Factory, UserPlus, ArrowRight, Plus, Briefcase, Hospital, Landmark } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,14 +30,14 @@ const formSchema = z.object({
   buildingAddress: z.string().optional(),
   comuna: z.string().optional(),
   region: z.string().optional(),
-  buildingType: z.string().default("Edificio"),
-  units: z.number().min(1, { message: "La cantidad de unidades es obligatoria" }),
+  buildingType: z.string().default("Condominio"),
+  units: z.number().optional(),
   nombrePortero: z.string().optional(),
   notas: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
-type BuildingType = "Edificio" | "Escuela" | "Industria";
+type BuildingType = "Condominio" | "Oficina" | "Hospitalario" | "Institucion" | "Industria";
 
 const SelectionCard = ({ onClick, icon: Icon, label, iconColor }: { onClick: () => void; icon: any; label: string; iconColor: string }) => (
   <button
@@ -73,8 +73,8 @@ const ProspectForm = () => {
       buildingAddress: "",
       comuna: "",
       region: "",
-      buildingType: "Edificio",
-      units: 0,
+      buildingType: "Condominio",
+      units: undefined,
       nombrePortero: "",
       notas: "",
     },
@@ -107,7 +107,7 @@ const ProspectForm = () => {
         comuna: data.comuna || null,
         region: data.region || null,
         buildingtype: data.buildingType,
-        units: data.units,
+        units: data.units || 0,
         vendedor_id: userProfile?.id || null,
         vendedor: userProfile?.nombre || null,
         estado_contacto: "Primer Contacto",
@@ -162,20 +162,17 @@ const ProspectForm = () => {
       comuna: "",
       region: "",
       buildingType: type,
-      units: 0,
+      units: undefined,
       nombrePortero: "",
       notas: "",
     });
   };
 
   const getBuildingTypeLabel = (type: BuildingType) => {
-    switch (type) {
-      case "Edificio": return "Edificio";
-      case "Escuela": return "Escuela";
-      case "Industria": return "Industria";
-      default: return "Edificio";
-    }
+    switch (type) { case "Condominio": return "Condominio"; case "Oficina": return "Oficina"; case "Hospitalario": return "Hospitalario"; case "Institucion": return "Institución"; case "Industria": return "Industria"; default: return "Condominio"; }
   };
+
+  const showUnitsField = selectedBuildingType === "Condominio";
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -208,9 +205,11 @@ const ProspectForm = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <SelectionCard onClick={() => handleBuildingTypeSelection("Edificio")} icon={Building} label="Edificios" iconColor="text-[#1A367F]" />
-                  <SelectionCard onClick={() => handleBuildingTypeSelection("Escuela")} icon={School} label="Escuelas" iconColor="text-[#10B981]" />
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  <SelectionCard onClick={() => handleBuildingTypeSelection("Condominio")} icon={Building} label="Condominios" iconColor="text-[#1A367F]" />
+                  <SelectionCard onClick={() => handleBuildingTypeSelection("Oficina")} icon={Briefcase} label="Oficinas" iconColor="text-[#7C3AED]" />
+                  <SelectionCard onClick={() => handleBuildingTypeSelection("Hospitalario")} icon={Hospital} label="Hospitalarios" iconColor="text-[#EF4444]" />
+                  <SelectionCard onClick={() => handleBuildingTypeSelection("Institucion")} icon={Landmark} label="Instituciones" iconColor="text-[#10B981]" />
                   <SelectionCard onClick={() => handleBuildingTypeSelection("Industria")} icon={Factory} label="Industrias" iconColor="text-[#F59E0B]" />
                 </div>
               </CardContent>
@@ -294,7 +293,7 @@ const ProspectForm = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                         <FormField control={form.control} name="communityName" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[11px] font-bold text-[#1E293B] uppercase tracking-[0.05em] mb-2.5 block">Nombre de la Comunidad</FormLabel>
+                            <FormLabel className="text-[11px] font-bold text-[#1E293B] uppercase tracking-[0.05em] mb-2.5 block">Nombre de la Comunidad/Edificio</FormLabel>
                             <FormControl><Input placeholder={`Ej: ${getBuildingTypeLabel(selectedBuildingType)} Los Alpes`} {...field} className="h-11 border-[#E2E8F0] font-medium text-[#1E293B] placeholder:text-[#94A3B8] focus-visible:ring-[#3B82F6] rounded-lg" /></FormControl>
                             <FormMessage className="text-[11px] font-bold text-[#EF4444] mt-1.5" />
                           </FormItem>
@@ -320,17 +319,19 @@ const ProspectForm = () => {
                             <FormMessage className="text-[11px] font-bold text-[#EF4444] mt-1.5" />
                           </FormItem>
                         )} />
-                        <FormField control={form.control} name="units" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-[11px] font-bold text-[#1E293B] uppercase tracking-[0.05em] mb-2.5 block">Cantidad de Unidades</FormLabel>
-                            <FormControl><Input type="number" placeholder="0" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} className="h-11 border-[#E2E8F0] font-medium text-[#1E293B] placeholder:text-[#94A3B8] focus-visible:ring-[#3B82F6] rounded-lg" /></FormControl>
-                            <FormMessage className="text-[11px] font-bold text-[#EF4444] mt-1.5" />
-                          </FormItem>
-                        )} />
+                        {showUnitsField && (
+                          <FormField control={form.control} name="units" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-[11px] font-bold text-[#1E293B] uppercase tracking-[0.05em] mb-2.5 block">Cantidad de Unidades</FormLabel>
+                              <FormControl><Input type="number" placeholder="0" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} value={field.value || ''} className="h-11 border-[#E2E8F0] font-medium text-[#1E293B] placeholder:text-[#94A3B8] focus-visible:ring-[#3B82F6] rounded-lg" /></FormControl>
+                              <FormMessage className="text-[11px] font-bold text-[#EF4444] mt-1.5" />
+                            </FormItem>
+                          )} />
+                        )}
                         <FormField control={form.control} name="nombrePortero" render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-[11px] font-bold text-[#1E293B] uppercase tracking-[0.05em] mb-2.5 block">Nombre del Portero</FormLabel>
-                            <FormControl><Input placeholder="Nombre del portero" {...field} className="h-11 border-[#E2E8F0] font-medium text-[#1E293B] placeholder:text-[#94A3B8] focus-visible:ring-[#3B82F6] rounded-lg" /></FormControl>
+                            <FormLabel className="text-[11px] font-bold text-[#1E293B] uppercase tracking-[0.05em] mb-2.5 block">Contacto</FormLabel>
+                            <FormControl><Input placeholder="Nombre del contacto" {...field} className="h-11 border-[#E2E8F0] font-medium text-[#1E293B] placeholder:text-[#94A3B8] focus-visible:ring-[#3B82F6] rounded-lg" /></FormControl>
                             <FormMessage className="text-[11px] font-bold text-[#EF4444] mt-1.5" />
                           </FormItem>
                         )} />
