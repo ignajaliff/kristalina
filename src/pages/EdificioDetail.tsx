@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { generatePresupuestoPDF } from "@/utils/pdfGenerator";
 import { generateContratoPDF } from "@/utils/contractPdfGenerator";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import MobileDrawer from "@/components/MobileDrawer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,9 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Building2, ArrowLeft, MapPin, Users, DollarSign, Mail, Phone,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Building2, ArrowLeft, MapPin, Users, DollarSign, Mail,
   FileText, Calendar, BarChart3, TrendingUp, CheckCircle, Download,
-  ChevronDown, ChevronUp, Plus, ClipboardList
+  ChevronDown, ChevronUp, Upload, ClipboardList, Loader2
 } from "lucide-react";
 import { format, parseISO, addMonths } from "date-fns";
 import { es } from "date-fns/locale";
@@ -275,64 +279,115 @@ const EdificioDetail = () => {
 };
 
 // --- Reportes Tab Component ---
+interface PagoRecord {
+  mes: number;
+  fecha_pago: string;
+  monto: number;
+  pagado: boolean;
+  factura_url: string | null;
+  fecha_pago_real: string | null;
+}
+
 const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) => string }) => {
+  const queryClient = useQueryClient();
   const [showUpcoming, setShowUpcoming] = useState(false);
-  const [reports, setReports] = useState<{ id: number; fecha: string; tipo: string; notas: string }[]>([
-    { id: 1, fecha: "2026-01-15", tipo: "Reporte Mensual", notas: "Sin novedades" },
-  ]);
+  const [uploadingMes, setUploadingMes] = useState<number | null>(null);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedMes, setSelectedMes] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const mesRenting = item.mesrenting || 1;
-  const montoMensual = (() => {
-    const dp = item.data_presupuesto as any;
-    return dp?.datos_presupuesto?.precioMensual || item.mesrenting || 0;
-  })();
+  const pagosJson: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
+  const montoRenting = item.monto_renting || 0;
 
-  const startDate = item.created_at ? parseISO(item.created_at) : new Date();
-  const paidPayments = Array.from({ length: mesRenting }, (_, i) => ({
-    mes: i + 1,
-    fecha: format(addMonths(startDate, i), "dd/MM/yyyy"),
-    monto: montoMensual,
-    estado: "Pagado" as const,
-  }));
+  const pagadosList = pagosJson.filter(p => p.pagado);
+  const pendientesList = pagosJson.filter(p => !p.pagado);
 
-  const upcomingPayments = Array.from({ length: 12 }, (_, i) => ({
-    mes: mesRenting + i + 1,
-    fecha: format(addMonths(startDate, mesRenting + i), "dd/MM/yyyy"),
-    monto: montoMensual,
-    estado: "Pendiente" as const,
-  }));
+  const handleUploadFactura = async () => {
+    if (!selectedFile || !selectedMes) return;
+    setIsUploading(true);
+    try {
+      const mesNum = parseInt(selectedMes);
+      const filePath = `facturas/${item.id}/mes-${mesNum}-${Date.now()}.${selectedFile.name.split('.').pop()}`;
 
-  const handleDownload = (mes: number) => {
-    toast.success(`Descargando comprobante del mes ${mes}`);
+      const { error: uploadError } = await supabase.storage
+        .from("presupuestos-pdf")
+        .upload(filePath, selectedFile, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from("presupuestos-pdf")
+        .getPublicUrl(filePath);
+      const facturaUrl = publicUrlData.publicUrl;
+
+      // Update pagos_json
+      const updatedPagos = pagosJson.map(p =>
+        p.mes === mesNum ? { ...p, factura_url: facturaUrl } : p
+      );
+
+      const { error: updateError } = await supabase
+        .from("gestion")
+        .update({ pagos_json: updatedPagos as any })
+        .eq("id", item.id);
+      if (updateError) throw updateError;
+
+      toast.success(`Factura del mes ${mesNum} cargada correctamente`);
+      queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
+      setUploadDialogOpen(false);
+      setSelectedFile(null);
+      setSelectedMes("");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al subir la factura");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handleCreateReport = () => {
-    const newReport = {
-      id: reports.length + 1,
-      fecha: format(new Date(), "yyyy-MM-dd"),
-      tipo: "Reporte Mensual",
-      notas: "Reporte generado automáticamente",
-    };
-    setReports([...reports, newReport]);
-    toast.success("Reporte creado exitosamente");
+  const handleMarcarPagado = async (mes: number) => {
+    const updatedPagos = pagosJson.map(p =>
+      p.mes === mes ? { ...p, pagado: true, fecha_pago_real: format(new Date(), "yyyy-MM-dd") } : p
+    );
+    const { error } = await supabase
+      .from("gestion")
+      .update({ pagos_json: updatedPagos as any, estadopago: "Mes pagado" })
+      .eq("id", item.id);
+    if (error) { toast.error("Error al marcar el pago"); return; }
+    toast.success(`Mes ${mes} marcado como pagado`);
+    queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
   };
+
+  const proximoPago = pendientesList[0];
 
   return (
     <div className="space-y-6">
+      {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <ReportCard title="Renting Mensual" value={`$${Number(montoMensual).toLocaleString()}`} icon={DollarSign} iconColor="text-[#1A367F]" iconBg="bg-[#F1F3F9]" />
+        <ReportCard title="Renting Mensual" value={montoRenting ? `$${Number(montoRenting).toLocaleString()}` : "N/A"} icon={DollarSign} iconColor="text-[#1A367F]" iconBg="bg-[#F1F3F9]" />
         <ReportCard title="Estado Actual" value={item.estadopago} icon={CheckCircle} iconColor="text-[#10B981]" iconBg="bg-[#F0FDF4]" />
-        <ReportCard title="Mes Renting" value={`Mes ${mesRenting}`} icon={Calendar} iconColor="text-[#F59E0B]" iconBg="bg-[#FFFBEB]" />
-        <ReportCard title="Próximo Pago" value={formatDate(item.fechapago)} icon={TrendingUp} iconColor="text-[#7C3AED]" iconBg="bg-[#F5F3FF]" />
+        <ReportCard title="Meses Pagados" value={`${pagadosList.length} / ${pagosJson.length}`} icon={Calendar} iconColor="text-[#F59E0B]" iconBg="bg-[#FFFBEB]" />
+        <ReportCard title="Próximo Pago" value={proximoPago ? formatDate(proximoPago.fecha_pago) : "N/A"} icon={TrendingUp} iconColor="text-[#7C3AED]" iconBg="bg-[#F5F3FF]" />
       </div>
 
+      {/* Payment history */}
       <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
         <CardHeader className="border-b border-[#F1F5F9] p-5">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
-              <BarChart3 className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+                <BarChart3 className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
+              </div>
+              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Historial de Pagos</CardTitle>
             </div>
-            <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Historial de Pagos</CardTitle>
+            <Button
+              size="sm"
+              onClick={() => setUploadDialogOpen(true)}
+              className="h-8 px-4 bg-[#1A367F] hover:bg-[#152D6B] text-white text-[11px] font-bold rounded-lg gap-1.5"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Cargar Factura
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -340,119 +395,180 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
             <TableHeader>
               <TableRow className="bg-[#F8FAFC] hover:bg-[#F8FAFC]">
                 <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Mes</TableHead>
-                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Fecha</TableHead>
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Fecha Pago</TableHead>
                 <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Monto</TableHead>
                 <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Estado</TableHead>
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Factura</TableHead>
                 <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paidPayments.map((p) => (
-                <TableRow key={p.mes} className="hover:bg-[#F8FAFC]">
-                  <TableCell className="text-[12px] font-semibold text-[#1E293B]">Mes {p.mes}</TableCell>
-                  <TableCell className="text-[12px] text-[#64748B]">{p.fecha}</TableCell>
-                  <TableCell className="text-[12px] font-semibold text-[#1E293B]">${Number(p.monto).toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] text-[10px] font-bold uppercase tracking-wider">
-                      {p.estado}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => handleDownload(p.mes)} className="h-7 px-2 text-[#1A367F] hover:bg-[#EFF6FF]">
-                      <Download className="h-3.5 w-3.5" />
-                    </Button>
+              {pagosJson.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-[12px] text-[#94A3B8]">
+                    No hay pagos configurados para este edificio
                   </TableCell>
                 </TableRow>
-              ))}
-              {showUpcoming && upcomingPayments.map((p) => (
-                <TableRow key={`upcoming-${p.mes}`} className="bg-[#F8FAFC] opacity-50">
-                  <TableCell className="text-[12px] font-semibold text-[#94A3B8]">Mes {p.mes}</TableCell>
-                  <TableCell className="text-[12px] text-[#CBD5E1]">{p.fecha}</TableCell>
-                  <TableCell className="text-[12px] font-semibold text-[#94A3B8]">${Number(p.monto).toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className="bg-[#F1F5F9] text-[#94A3B8] border-[#E2E8F0] hover:bg-[#F1F5F9] text-[10px] font-bold uppercase tracking-wider">
-                      Pendiente
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" disabled className="h-7 px-2 text-[#CBD5E1]">
-                      <Download className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              ) : (
+                <>
+                  {/* Paid months */}
+                  {pagadosList.map((p) => (
+                    <TableRow key={p.mes} className="hover:bg-[#F8FAFC]">
+                      <TableCell className="text-[12px] font-semibold text-[#1E293B]">Mes {p.mes}</TableCell>
+                      <TableCell className="text-[12px] text-[#64748B]">{formatDate(p.fecha_pago)}</TableCell>
+                      <TableCell className="text-[12px] font-semibold text-[#1E293B]">${Number(p.monto).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] text-[10px] font-bold uppercase tracking-wider">Pagado</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {p.factura_url ? (
+                          <a href={p.factura_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1">
+                            <FileText className="h-3 w-3" /> Ver factura
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-[#94A3B8]">Sin factura</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {p.factura_url && (
+                          <a href={p.factura_url} target="_blank" rel="noopener noreferrer">
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-[#1A367F] hover:bg-[#EFF6FF]">
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          </a>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                  {/* Next pending payment */}
+                  {!showUpcoming && proximoPago && (
+                    <TableRow className="bg-[#FFFBEB] border-l-2 border-[#F59E0B]">
+                      <TableCell className="text-[12px] font-semibold text-[#1E293B]">Mes {proximoPago.mes}</TableCell>
+                      <TableCell className="text-[12px] text-[#64748B]">{formatDate(proximoPago.fecha_pago)}</TableCell>
+                      <TableCell className="text-[12px] font-semibold text-[#1E293B]">${Number(proximoPago.monto).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge className="bg-[#FFFBEB] text-[#F59E0B] border-[#FDE68A] hover:bg-[#FFFBEB] text-[10px] font-bold uppercase tracking-wider">Pendiente</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {proximoPago.factura_url ? (
+                          <a href={proximoPago.factura_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1">
+                            <FileText className="h-3 w-3" /> Ver factura
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-[#94A3B8]">Sin factura</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleMarcarPagado(proximoPago.mes)}
+                          className="h-7 px-3 text-[10px] font-bold border-[#10B981] text-[#10B981] hover:bg-[#F0FDF4] uppercase tracking-wider"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                          Pagado
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {/* All upcoming payments (shown when expanded) */}
+                  {showUpcoming && pendientesList.map((p) => (
+                    <TableRow key={`upcoming-${p.mes}`} className={cn("hover:bg-[#F8FAFC]", p.mes === proximoPago?.mes && "bg-[#FFFBEB]")}>
+                      <TableCell className="text-[12px] font-semibold text-[p.mes === proximoPago?.mes ? '#1E293B' : '#94A3B8']">Mes {p.mes}</TableCell>
+                      <TableCell className="text-[12px] text-[#94A3B8]">{formatDate(p.fecha_pago)}</TableCell>
+                      <TableCell className="text-[12px] font-semibold text-[#94A3B8]">${Number(p.monto).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge className="bg-[#F1F5F9] text-[#94A3B8] border-[#E2E8F0] hover:bg-[#F1F5F9] text-[10px] font-bold uppercase tracking-wider">Pendiente</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {p.factura_url ? (
+                          <a href={p.factura_url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1">
+                            <FileText className="h-3 w-3" /> Ver factura
+                          </a>
+                        ) : <span className="text-[11px] text-[#94A3B8]">Sin factura</span>}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {p.mes === proximoPago?.mes && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleMarcarPagado(p.mes)}
+                            className="h-7 px-3 text-[10px] font-bold border-[#10B981] text-[#10B981] hover:bg-[#F0FDF4] uppercase tracking-wider"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                            Pagado
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </>
+              )}
             </TableBody>
           </Table>
-          <div className="p-4 border-t border-[#F1F5F9]">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowUpcoming(!showUpcoming)}
-              className="w-full text-[12px] font-semibold text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF] border-[#E2E8F0] gap-2"
-            >
-              {showUpcoming ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {showUpcoming ? "Ocultar próximos pagos" : "Ver próximos pagos"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
-        <CardHeader className="border-b border-[#F1F5F9] p-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
-                <ClipboardList className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
-              </div>
-              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Reportes</CardTitle>
+          {pendientesList.length > 1 && (
+            <div className="p-4 border-t border-[#F1F5F9]">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowUpcoming(!showUpcoming)}
+                className="w-full text-[12px] font-semibold text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF] border-[#E2E8F0] gap-2"
+              >
+                {showUpcoming ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {showUpcoming ? "Ocultar todos los pagos pendientes" : `Ver todos los pagos pendientes (${pendientesList.length - 1} más)`}
+              </Button>
             </div>
-            <Button
-              size="sm"
-              onClick={handleCreateReport}
-              className="h-8 px-4 bg-[#1A367F] hover:bg-[#152D6B] text-white text-[11px] font-bold rounded-lg gap-1.5"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Crear Reporte
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {reports.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 text-center p-8">
-              <ClipboardList className="h-10 w-10 text-[#E2E8F0]" />
-              <p className="text-sm font-semibold text-[#64748B]">Sin reportes</p>
-              <p className="text-[12px] text-[#94A3B8]">Crea tu primer reporte usando el botón de arriba</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-[#F8FAFC] hover:bg-[#F8FAFC]">
-                  <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">#</TableHead>
-                  <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Fecha</TableHead>
-                  <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Tipo</TableHead>
-                  <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Notas</TableHead>
-                  <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reports.map((r) => (
-                  <TableRow key={r.id} className="hover:bg-[#F8FAFC]">
-                    <TableCell className="text-[12px] font-semibold text-[#1E293B]">{r.id}</TableCell>
-                    <TableCell className="text-[12px] text-[#64748B]">{formatDate(r.fecha)}</TableCell>
-                    <TableCell className="text-[12px] font-medium text-[#1E293B]">{r.tipo}</TableCell>
-                    <TableCell className="text-[12px] text-[#64748B] max-w-[200px] truncate">{r.notas}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => toast.success(`Descargando reporte #${r.id}`)} className="h-7 px-2 text-[#1A367F] hover:bg-[#EFF6FF]">
-                        <Download className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           )}
         </CardContent>
       </Card>
+
+      {/* Upload invoice dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Cargar Factura</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#64748B]">Selecciona el mes al que corresponde</label>
+              <Select value={selectedMes} onValueChange={setSelectedMes}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elige el mes de renting" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pagosJson.map(p => (
+                    <SelectItem key={p.mes} value={p.mes.toString()}>
+                      Mes {p.mes} — {formatDate(p.fecha_pago)} {p.pagado ? "(Pagado)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#64748B]">Archivo de factura (PDF, imagen)</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="block w-full text-sm text-[#64748B] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#EFF6FF] file:text-[#1A367F] hover:file:bg-[#DBEAFE] cursor-pointer"
+                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleUploadFactura}
+              disabled={!selectedFile || !selectedMes || isUploading}
+              className="bg-[#1A367F] hover:bg-[#142a5f]"
+            >
+              {isUploading ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Subiendo...</> : "Cargar Factura"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -492,3 +608,4 @@ const ReportCard = ({ title, value, icon: Icon, iconColor, iconBg }: ReportCardP
 );
 
 export default EdificioDetail;
+

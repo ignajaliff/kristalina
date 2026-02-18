@@ -24,8 +24,12 @@ interface GestionItem {
   data_presupuesto: any;
   data_contrato: any;
   mesrenting: number;
+  monto_renting: number | null;
   fechapago: string;
   estadopago: string;
+  dia_pago: number | null;
+  fecha_primera_factura: string | null;
+  pagos_json: any;
   created_at: string;
   updated_at: string;
   vendedor_id: string | null;
@@ -311,7 +315,7 @@ const GestionEdificios = () => {
                         <TableCell className="py-4 pl-6"><p className="text-[13px] font-semibold text-[#1E293B]">{item.cliente?.communityname || 'N/A'}</p></TableCell>
                         <TableCell className="py-4"><p className="text-[12px] font-medium text-[#64748B]">{item.cliente?.adminname || 'N/A'}</p></TableCell>
                         <TableCell className="py-4 hidden md:table-cell"><p className="text-[12px] text-[#64748B] truncate max-w-[200px]">{item.cliente?.buildingaddress || 'N/A'}</p></TableCell>
-                        <TableCell className="py-4 hidden lg:table-cell"><p className="text-[12px] font-semibold text-[#1E293B]">${item.mesrenting.toLocaleString()}</p></TableCell>
+                        <TableCell className="py-4 hidden lg:table-cell"><p className="text-[12px] font-semibold text-[#1E293B]">{item.monto_renting ? `$${Number(item.monto_renting).toLocaleString()}` : `$${item.mesrenting.toLocaleString()}`}</p></TableCell>
                         <TableCell className="py-4 hidden lg:table-cell"><p className="text-[12px] text-[#64748B]">{formatPaymentDate(item.fechapago)}</p></TableCell>
                         <TableCell className="py-4 text-center">{getStatusBadge(item.estadopago)}</TableCell>
                         <TableCell className="py-4 text-right pr-6">

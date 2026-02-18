@@ -64,10 +64,14 @@ export type Database = {
           created_at: string
           data_contrato: Json | null
           data_presupuesto: Json | null
+          dia_pago: number
           estadopago: string
+          fecha_primera_factura: string | null
           fechapago: string
           id: string
           mesrenting: number
+          monto_renting: number | null
+          pagos_json: Json | null
           updated_at: string
           vendedor_id: string | null
         }
@@ -76,10 +80,14 @@ export type Database = {
           created_at?: string
           data_contrato?: Json | null
           data_presupuesto?: Json | null
+          dia_pago?: number
           estadopago?: string
+          fecha_primera_factura?: string | null
           fechapago: string
           id?: string
           mesrenting?: number
+          monto_renting?: number | null
+          pagos_json?: Json | null
           updated_at?: string
           vendedor_id?: string | null
         }
@@ -88,10 +96,14 @@ export type Database = {
           created_at?: string
           data_contrato?: Json | null
           data_presupuesto?: Json | null
+          dia_pago?: number
           estadopago?: string
+          fecha_primera_factura?: string | null
           fechapago?: string
           id?: string
           mesrenting?: number
+          monto_renting?: number | null
+          pagos_json?: Json | null
           updated_at?: string
           vendedor_id?: string | null
         }
