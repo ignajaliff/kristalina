@@ -541,7 +541,7 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
   doc.text(`pp. ${datos.legalrepresentativesociety}`, clientSignX + signatureWidth / 2, lineY + 15, {
     align: "center",
   });
-  doc.text(`pp. ${datos.communityname}`, clientSignX + signatureWidth / 2, lineY + 15, { align: "center" });
+  doc.text(`pp. ${datos.communityname}`, clientSignX + signatureWidth / 2, lineY + 20, { align: "center" });
 
   currentY += 30;
 
