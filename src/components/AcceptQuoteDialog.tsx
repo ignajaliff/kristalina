@@ -34,8 +34,21 @@ const DEVICE_INSTALLATION_OPTIONS = [
   "la sala de bombas, estanques de agua y torres de enfriamiento del edificio",
 ];
 
-const DEFAULT_CONTEXTO_EMPRESA = (codigoVerificacion: string) =>
+const DEFAULT_CONTEXTO_EMPRESA = () =>
   `consta de Certificado de Estatuto Actualizado emitido por el Registro de Empresas y Sociedades del Ministerio de Economía, Fomento y Turismo de fecha 12 de enero de 2026, código de verificación: CRhHZW7rBhPL. Dichos instrumentos no se insertan por ser conocidos de las partes y del notario que autoriza`;
+
+const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+  <h4 className="text-[11px] font-bold text-[#1A367F] uppercase tracking-wider bg-[#EFF6FF] px-3 py-2 rounded-lg border border-blue-100">
+    {children}
+  </h4>
+);
+
+const FormField = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="space-y-1.5">
+    <Label className="text-xs font-semibold text-muted-foreground">{label}</Label>
+    {children}
+  </div>
+);
 
 export interface PersonaAdicional {
   nombre: string;
@@ -65,7 +78,7 @@ const emptyLegalData = (): DatosContrato => ({
   societyrut: "",
   societyformationdate: "",
   societyaddress: "",
-  contextoempresa: DEFAULT_CONTEXTO_EMPRESA(""),
+  contextoempresa: DEFAULT_CONTEXTO_EMPRESA(),
   legalrepresentativenationality: "",
   legalrepresentativemaritalstatus: "",
   legalrepresentativeprofession: "",
@@ -194,19 +207,6 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
     if (!open) resetForm();
     onOpenChange(open);
   };
-
-  const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-    <h4 className="text-[11px] font-bold text-[#1A367F] uppercase tracking-wider bg-[#EFF6FF] px-3 py-2 rounded-lg border border-blue-100">
-      {children}
-    </h4>
-  );
-
-  const FormField = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div className="space-y-1.5">
-      <Label className="text-xs font-semibold text-muted-foreground">{label}</Label>
-      {children}
-    </div>
-  );
 
   const personasAdicionales = legalData.personasadicionales || [];
 
