@@ -33,7 +33,7 @@ export interface DatosContrato {
   legalrepresentativesociety: string; // Sociedad del representante legal
   societyrut: string; // RUT Sociedad
   societyformationdate: string; // Fecha de Constitución Sociedad
-  societyverificationcode: string; // Código de Verificación Sociedad
+  
   societyaddress: string; // Dirección de la Sociedad
   contextoempresa: string; // Contexto Empresa (texto editable para PERSONERÍAS)
   legalrepresentativenationality: string; // Nacionalidad Rep.
@@ -482,7 +482,27 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
   doc.text(`Email: ${datos.communityemail}`, marginLeft, currentY);
   currentY += 15;
 
+  // Personas adicionales (persona2, persona3...)
+  if (datos.personasadicionales && datos.personasadicionales.length > 0) {
+    datos.personasadicionales.forEach((persona) => {
+      checkNewPage(30);
+      doc.setFont("times", "normal");
+      doc.text("/C/\tAl Cliente, la notificación adicional se dirigirá a:", marginLeft, currentY);
+      currentY += 10;
+      doc.setFont("times", "bold");
+      doc.text(`Atención: ${persona.nombre}`, marginLeft, currentY);
+      currentY += 5;
+      doc.text(`Dirección: ${persona.direccion}`, marginLeft, currentY);
+      currentY += 5;
+      doc.text(`Fono: ${persona.telefono}`, marginLeft, currentY);
+      currentY += 5;
+      doc.text(`Email: ${persona.email}`, marginLeft, currentY);
+      currentY += 15;
+    });
+  }
+
   // DÉCIMO CUARTO: MISCELANEOS
+
   checkNewPage(10);
   doc.setFont("times", "bold");
   doc.text("DÉCIMO CUARTO: MISCELANEOS", marginLeft, currentY);
@@ -524,7 +544,7 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
   drawParagraph(personeriaArturo);
 
   const formationDate = new Date(datos.societyformationdate);
-  const personeriaCliente = `La personería de don ${datos.legalrepresentative} para actuar en nombre y representación de la sociedad ${datos.legalrepresentativesociety} ${datos.contextoempresa}.consta de escritura pública otorgada con fecha ${societyformationdate.getDate()} de ${getMonthName(societyformationdate.getMonth())} de ${societyformationdate.getFullYear()}, ante la notaria de don ${datos.societynotary}.`;
+  const personeriaCliente = `La personería de don ${datos.legalrepresentative} para actuar en nombre y representación de la sociedad ${datos.legalrepresentativesociety} ${datos.contextoempresa}. Consta de escritura pública otorgada con fecha ${formationDate.getDate()} de ${getMonthName(formationDate.getMonth())} de ${formationDate.getFullYear()}, ante la notaria de don ${datos.societynotary}.`;
   drawParagraph(personeriaCliente, { spacingAfter: 10 });
 
   const personeriaClient = new Date(datos.communityformationdate);
