@@ -20,29 +20,30 @@ export interface PersonaAdicional {
 
 export interface DatosContrato {
   // Datos de la comunidad
-  communityname: string;         // Nombre de la comunidad
-  communityrut: string;          // RUT Comunidad
-  communityemail: string;        // Email Comunidad
-  communityaddress: string;      // Dirección Comunidad
-  communityregion: string;       // Región
+  communityname: string; // Nombre de la comunidad
+  communityrut: string; // RUT Comunidad
+  communityemail: string; // Email Comunidad
+  communityaddress: string; // Dirección Comunidad
+  communityregion: string; // Región
   communityformationdate: string; // Fecha Constitución Comunidad
-  communitynotary: string;       // Notario Público Comunidad
+  communitynotary: string; // Notario Público Comunidad
   // Datos del representante legal
-  legalrepresentative: string;   // Representante Legal
+  legalrepresentative: string; // Representante Legal
   legalrepresentativerut: string; // RUT Representante
   legalrepresentativesociety: string; // Sociedad del representante legal
-  societyrut: string;            // RUT Sociedad
-  societyformationdate: string;  // Fecha de Constitución Sociedad
-  societyaddress: string;        // Dirección de la Sociedad
-  contextoempresa: string;       // Contexto Empresa (texto editable para PERSONERÍAS)
+  societyrut: string; // RUT Sociedad
+  societyformationdate: string; // Fecha de Constitución Sociedad
+  societyverificationcode: string; // Código de Verificación Sociedad
+  societyaddress: string; // Dirección de la Sociedad
+  contextoempresa: string; // Contexto Empresa (texto editable para PERSONERÍAS)
   legalrepresentativenationality: string; // Nacionalidad Rep.
   legalrepresentativemaritalstatus: string; // Estado Civil
   legalrepresentativeprofession: string; // Profesión
-  societynotary: string;         // Notario Público Sociedad
+  societynotary: string; // Notario Público Sociedad (antes: notary)
   // Extra
   legalrepresentativephone: string; // Teléfono Representante
-  deviceinstallation: string;    // Detalle Instalación Dispositivos
-  contractTerm?: string;         // Años de Contrato
+  deviceinstallation: string; // Detalle Instalación Dispositivos
+  contractTerm?: string; // Años de Contrato
   personasadicionales?: PersonaAdicional[]; // persona2, persona3... (índice 0 = persona2)
 }
 
@@ -474,7 +475,7 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
   doc.setFont("times", "bold");
   doc.text(`Atención: ${datos.legalrepresentative}`, marginLeft, currentY);
   currentY += 5;
-  doc.text(`Dirección: ${datos.communityaddress}`, marginLeft, currentY);
+  doc.text(`Dirección: ${datos.societyaddress}`, marginLeft, currentY);
   currentY += 5;
   doc.text(`Fono: ${datos.legalrepresentativephone}`, marginLeft, currentY);
   currentY += 5;
@@ -522,12 +523,12 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
     "La personería de don Arturo Ramírez Mendive para actuar en nombre y representación de la sociedad KRISTALINA SpA., consta de escritura pública otorgada con fecha 21 de febrero de 2023, mediante el sistema electrónico de Empresas y Sociedades.";
   drawParagraph(personeriaArturo);
 
-  const formationDate = new Date(datos.communityformationdate);
-  const personeriaCliente = `La personería de don ${datos.legalrepresentative} para actuar en nombre y representación de la sociedad ${datos.legalrepresentativesociety} ${datos.contextoempresa}.`;
+  const formationDate = new Date(datos.societyformationdate);
+  const personeriaCliente = `La personería de don ${datos.legalrepresentative} para actuar en nombre y representación de la sociedad ${datos.legalrepresentativesociety} ${datos.contextoempresa}.consta de escritura pública otorgada con fecha ${societyformationdate.getDate()} de ${getMonthName(societyformationdate.getMonth())} de ${societyformationdate.getFullYear()}, ante la notaria de don ${datos.societynotary}.`;
   drawParagraph(personeriaCliente, { spacingAfter: 10 });
 
-  const societyFormationDate = datos.societyformationdate ? new Date(datos.societyformationdate) : formationDate;
-  const personeria2 = `La personería de ${datos.legalrepresentativesociety}, para representar a la comunidad ${datos.communityname} consta de escritura pública otorgada con fecha ${societyFormationDate.getDate()} de ${getMonthName(societyFormationDate.getMonth())} de ${societyFormationDate.getFullYear()}, ante el Notario Público de Santiago don ${datos.societynotary}.`;
+  const personeriaClient = new Date(datos.communityformationdate);
+  const personeria2 = `La personería de ${datos.legalrepresentativesociety}, para representar a la comunidad ${datos.communityname} consta de escritura pública otorgada con fecha ${formationDate.getDate()} de ${getMonthName(formationDate.getMonth())} de ${formationDate.getFullYear()},ante el Notario Público de Santiago don ${datos.communitynotary}.`;
   drawParagraph(personeria2, { spacingAfter: 20 });
 
   // FIRMAS - Ensure the entire block stays together
