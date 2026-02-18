@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -10,13 +10,23 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle, Building2, TrendingUp, Users, DollarSign, Edit } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, getMonth, getYear } from "date-fns";
 import { es } from "date-fns/locale";
 import AddGestionDialog from "@/components/AddGestionDialog";
 import EditGestionDialog from "@/components/EditGestionDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+
+interface PagoRecord {
+  mes: number;
+  fecha_pago: string;
+  monto: number;
+  pagado: boolean;
+  factura_url: string | null;
+  fecha_pago_real: string | null;
+}
 
 interface GestionItem {
   id: string;
@@ -29,127 +39,129 @@ interface GestionItem {
   estadopago: string;
   dia_pago: number | null;
   fecha_primera_factura: string | null;
-  pagos_json: any;
+  pagos_json: PagoRecord[] | null;
   created_at: string;
   updated_at: string;
   vendedor_id: string | null;
 }
 
+// For each building, find the payment that corresponds to the selected month/year
+// If "all", return the next pending payment
+const getRelevantPago = (
+  item: GestionItem,
+  monthFilter: string,
+  yearFilter: number
+): { pago: PagoRecord | null; estadoDisplay: string } => {
+  const pagos: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
+
+  if (pagos.length === 0) {
+    return { pago: null, estadoDisplay: item.estadopago };
+  }
+
+  if (monthFilter === "all") {
+    // Show next pending payment
+    const nextPending = pagos.find(p => !p.pagado);
+    return {
+      pago: nextPending || pagos[pagos.length - 1],
+      estadoDisplay: nextPending ? "Pendiente" : "Al día",
+    };
+  }
+
+  // Find pago matching month+year
+  const month = parseInt(monthFilter); // 0-indexed
+  const targetPago = pagos.find(p => {
+    try {
+      const d = parseISO(p.fecha_pago + "T00:00:00");
+      return getMonth(d) === month && getYear(d) === yearFilter;
+    } catch {
+      return false;
+    }
+  });
+
+  if (!targetPago) return { pago: null, estadoDisplay: "Sin pago" };
+
+  return {
+    pago: targetPago,
+    estadoDisplay: targetPago.pagado ? "Mes pagado" : "Pendiente",
+  };
+};
+
 const GestionEdificios = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>(new Date().getMonth().toString());
+  const [yearFilter] = useState<number>(new Date().getFullYear());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<GestionItem | null>(null);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
+  // Fetch ALL gestion items (no date filter at DB level — we filter client-side via pagos_json)
   const { data: gestionItems, isLoading, refetch } = useQuery({
-    queryKey: ['gestion', monthFilter, statusFilter],
+    queryKey: ["gestion-all"],
     queryFn: async () => {
-      let query = supabase
-        .from('gestion')
-        .select('*')
-        .order('fechapago', { ascending: false });
+      const { data, error } = await supabase
+        .from("gestion")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      // Filter by month if selected
-      if (monthFilter !== 'all') {
-        const year = new Date().getFullYear();
-        const month = parseInt(monthFilter);
-        const startDate = new Date(year, month, 1);
-        const endDate = new Date(year, month + 1, 0);
-
-        query = query
-          .gte('fechapago', format(startDate, 'yyyy-MM-dd'))
-          .lte('fechapago', format(endDate, 'yyyy-MM-dd'));
-      }
-
-      // Filter by status if selected
-      if (statusFilter !== 'all') {
-        query = query.eq('estadopago', statusFilter);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching gestion data:', error);
-        throw error;
-      }
-
-      return data as GestionItem[];
+      if (error) throw error;
+      return (data as unknown) as GestionItem[];
     },
   });
 
-  const handleConfirmPayment = async (itemId: string) => {
+  const handleConfirmPayment = async (item: GestionItem, mes: number) => {
     try {
-      const item = gestionItems?.find(i => i.id === itemId);
-      if (!item) {
-        toast({
-          title: "Error",
-          description: "No se encontró el registro.",
-          variant: "destructive",
-        });
-        return;
-      }
+      const pagos: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
+      const updatedPagos = pagos.map(p =>
+        p.mes === mes
+          ? { ...p, pagado: true, fecha_pago_real: format(new Date(), "yyyy-MM-dd") }
+          : p
+      );
 
-      // Send webhook data
-      const webhookUrl = "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/8cdde499-cc85-4d5a-b5b4-c40545844fdc";
-
-      try {
-        await fetch(webhookUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          mode: "no-cors",
-          body: JSON.stringify({
-            id: item.id,
-            cliente: item.cliente,
-            mesrenting: item.mesrenting,
-            fechapago: item.fechapago,
-            estadopago: item.estadopago,
-            created_at: item.created_at,
-            updated_at: item.updated_at,
-            action: "payment_confirmed",
-            timestamp: new Date().toISOString()
-          }),
-        });
-
-        console.log("Webhook sent successfully for payment confirmation");
-      } catch (webhookError) {
-        console.error("Error sending webhook:", webhookError);
-        // Continue with the database update even if webhook fails
-      }
+      // Next pending after marking this one
+      const nextPending = updatedPagos.find(p => !p.pagado);
 
       const { error } = await supabase
-        .from('gestion')
+        .from("gestion")
         .update({
-          estadopago: 'Mes pagado',
-          updated_at: new Date().toISOString()
+          pagos_json: updatedPagos as any,
+          estadopago: nextPending ? "No en fecha" : "Mes pagado",
+          fechapago: nextPending ? nextPending.fecha_pago : item.fechapago,
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', itemId);
+        .eq("id", item.id);
 
-      if (error) {
-        console.error('Error confirming payment:', error);
-        toast({
-          title: "Error",
-          description: "No se pudo confirmar el pago. Intenta nuevamente.",
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
+
+      // Send webhook
+      const webhookUrl =
+        "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/8cdde499-cc85-4d5a-b5b4-c40545844fdc";
+      fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        mode: "no-cors",
+        body: JSON.stringify({
+          id: item.id,
+          cliente: item.cliente,
+          mes_pagado: mes,
+          action: "payment_confirmed",
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch(console.error);
 
       toast({
         title: "Pago confirmado",
-        description: "El estado del pago ha sido actualizado exitosamente y se ha enviado la notificación.",
+        description: `Mes ${mes} marcado como pagado.`,
       });
 
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ["gestion-all"] });
     } catch (error) {
-      console.error('Error confirming payment:', error);
+      console.error(error);
       toast({
         title: "Error",
-        description: "Ocurrió un error inesperado.",
+        description: "No se pudo confirmar el pago.",
         variant: "destructive",
       });
     }
@@ -157,60 +169,101 @@ const GestionEdificios = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'Mes pagado':
-        return <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] font-bold text-[10px] uppercase tracking-wider">Mes pagado</Badge>;
-      case 'En fecha/No pagado':
-        return <Badge className="bg-[#FEF2F2] text-[#EF4444] border-[#FEE2E2] hover:bg-[#FEF2F2] font-bold text-[10px] uppercase tracking-wider">En fecha/No pagado</Badge>;
-      case 'No en fecha':
-        return <Badge className="bg-[#F5F3FF] text-[#7C3AED] border-[#EDE9FE] hover:bg-[#F5F3FF] font-bold text-[10px] uppercase tracking-wider">No en fecha</Badge>;
+      case "Mes pagado":
+      case "Al día":
+        return (
+          <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] font-bold text-[10px] uppercase tracking-wider">
+            {status}
+          </Badge>
+        );
+      case "Pendiente":
+      case "En fecha/No pagado":
+        return (
+          <Badge className="bg-[#FEF2F2] text-[#EF4444] border-[#FEE2E2] hover:bg-[#FEF2F2] font-bold text-[10px] uppercase tracking-wider">
+            Pendiente
+          </Badge>
+        );
+      case "No en fecha":
+        return (
+          <Badge className="bg-[#F5F3FF] text-[#7C3AED] border-[#EDE9FE] hover:bg-[#F5F3FF] font-bold text-[10px] uppercase tracking-wider">
+            No en fecha
+          </Badge>
+        );
+      case "Sin pago":
+        return (
+          <Badge className="bg-[#F1F5F9] text-[#94A3B8] border-[#E2E8F0] hover:bg-[#F1F5F9] font-bold text-[10px] uppercase tracking-wider">
+            Sin pago
+          </Badge>
+        );
       default:
-        return <Badge variant="secondary" className="font-bold text-[10px] uppercase tracking-wider">{status}</Badge>;
+        return (
+          <Badge variant="secondary" className="font-bold text-[10px] uppercase tracking-wider">
+            {status}
+          </Badge>
+        );
     }
   };
 
-  // Function to properly format date avoiding timezone issues
   const formatPaymentDate = (dateString: string) => {
     try {
-      // Parse the date string and format it properly to avoid timezone shifts
-      const date = parseISO(dateString + 'T00:00:00');
-      return format(date, "dd 'de' MMMM, yyyy", { locale: es });
-    } catch (error) {
-      console.error('Error formatting date:', error);
+      return format(parseISO(dateString + "T00:00:00"), "dd 'de' MMMM, yyyy", { locale: es });
+    } catch {
       return dateString;
     }
   };
 
   const months = [
-    { value: 'all', label: 'Todos los meses' },
-    { value: '0', label: 'Enero' },
-    { value: '1', label: 'Febrero' },
-    { value: '2', label: 'Marzo' },
-    { value: '3', label: 'Abril' },
-    { value: '4', label: 'Mayo' },
-    { value: '5', label: 'Junio' },
-    { value: '6', label: 'Julio' },
-    { value: '7', label: 'Agosto' },
-    { value: '8', label: 'Septiembre' },
-    { value: '9', label: 'Octubre' },
-    { value: '10', label: 'Noviembre' },
-    { value: '11', label: 'Diciembre' },
+    { value: "all", label: "Todos los meses" },
+    { value: "0", label: "Enero" },
+    { value: "1", label: "Febrero" },
+    { value: "2", label: "Marzo" },
+    { value: "3", label: "Abril" },
+    { value: "4", label: "Mayo" },
+    { value: "5", label: "Junio" },
+    { value: "6", label: "Julio" },
+    { value: "7", label: "Agosto" },
+    { value: "8", label: "Septiembre" },
+    { value: "9", label: "Octubre" },
+    { value: "10", label: "Noviembre" },
+    { value: "11", label: "Diciembre" },
   ];
 
-  const filteredItems = gestionItems?.filter(item => {
-    const cliente = item.cliente || {};
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (cliente.communityname || '').toLowerCase().includes(searchLower) ||
-      (cliente.adminname || '').toLowerCase().includes(searchLower) ||
-      (cliente.buildingaddress || '').toLowerCase().includes(searchLower)
-    );
-  }) || [];
+  // Build display rows: one per building, with the relevant pago for the selected month
+  const displayRows = useMemo(() => {
+    if (!gestionItems) return [];
 
-  // Calculate stats
-  const totalEdificios = filteredItems.length;
-  const mesPagado = filteredItems.filter(item => item.estadopago === 'Mes pagado').length;
-  const enFechaNoPagado = filteredItems.filter(item => item.estadopago === 'En fecha/No pagado').length;
-  const noEnFecha = filteredItems.filter(item => item.estadopago === 'No en fecha').length;
+    return gestionItems
+      .map(item => {
+        const { pago, estadoDisplay } = getRelevantPago(item, monthFilter, yearFilter);
+        return { item, pago, estadoDisplay };
+      })
+      .filter(({ item, pago, estadoDisplay }) => {
+        // If a specific month is selected and there's no payment for that month, hide the row
+        if (monthFilter !== "all" && !pago) return false;
+
+        // Status filter
+        if (statusFilter !== "all") {
+          if (statusFilter === "Mes pagado" && estadoDisplay !== "Mes pagado" && estadoDisplay !== "Al día") return false;
+          if (statusFilter === "Pendiente" && estadoDisplay !== "Pendiente") return false;
+          if (statusFilter === "No en fecha" && estadoDisplay !== "No en fecha") return false;
+        }
+
+        // Search filter
+        const cliente = item.cliente || {};
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          (cliente.communityname || "").toLowerCase().includes(searchLower) ||
+          (cliente.adminname || "").toLowerCase().includes(searchLower) ||
+          (cliente.buildingaddress || "").toLowerCase().includes(searchLower)
+        );
+      });
+  }, [gestionItems, monthFilter, yearFilter, statusFilter, searchTerm]);
+
+  // Stats
+  const totalEdificios = displayRows.length;
+  const mesPagado = displayRows.filter(r => r.estadoDisplay === "Mes pagado" || r.estadoDisplay === "Al día").length;
+  const pendientes = displayRows.filter(r => r.estadoDisplay === "Pendiente").length;
+  const noEnFecha = displayRows.filter(r => r.estadoDisplay === "No en fecha").length;
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -245,7 +298,7 @@ const GestionEdificios = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard title="Total Edificios" value={totalEdificios.toString()} description="En gestión" icon={Building2} iconColor="text-[#1A367F]" iconBg="bg-[#F1F3F9]" />
           <StatCard title="Mes Pagado" value={mesPagado.toString()} description="Este período" icon={CheckCircle} iconColor="text-[#10B981]" iconBg="bg-[#F0FDF4]" />
-          <StatCard title="En Fecha/No Pagado" value={enFechaNoPagado.toString()} description="En fecha" icon={Users} iconColor="text-[#F59E0B]" iconBg="bg-[#FFFBEB]" />
+          <StatCard title="Pendientes" value={pendientes.toString()} description="Por cobrar" icon={Users} iconColor="text-[#F59E0B]" iconBg="bg-[#FFFBEB]" />
           <StatCard title="No en Fecha" value={noEnFecha.toString()} description="Requieren atención" icon={TrendingUp} iconColor="text-[#7C3AED]" iconBg="bg-[#F5F3FF]" />
         </div>
 
@@ -255,25 +308,40 @@ const GestionEdificios = () => {
             <div className="flex flex-col gap-4 md:flex-row md:items-center">
               <div className="flex-1 relative">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
-                <Input placeholder="Buscar por comunidad, administrador o dirección..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-10 border-[#E2E8F0] bg-[#F8FAFC] text-sm focus:ring-1 focus:ring-[#1A367F]" />
+                <Input
+                  placeholder="Buscar por comunidad, administrador o dirección..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-10 border-[#E2E8F0] bg-[#F8FAFC] text-sm focus:ring-1 focus:ring-[#1A367F]"
+                />
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Select value={monthFilter} onValueChange={setMonthFilter}>
                   <SelectTrigger className="w-full sm:w-[180px] h-10 border-[#E2E8F0] bg-white text-xs font-semibold">
-                    <div className="flex items-center gap-2"><CalendarIcon className="h-3.5 w-3.5 text-[#64748B]" /><SelectValue placeholder="Filtrar por mes" /></div>
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-3.5 w-3.5 text-[#64748B]" />
+                      <SelectValue placeholder="Filtrar por mes" />
+                    </div>
                   </SelectTrigger>
                   <SelectContent>
-                    {months.map((month) => (<SelectItem key={month.value} value={month.value} className="text-xs">{month.label}</SelectItem>))}
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value} className="text-xs">
+                        {month.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-full sm:w-[180px] h-10 border-[#E2E8F0] bg-white text-xs font-semibold">
-                    <div className="flex items-center gap-2"><FilterIcon className="h-3.5 w-3.5 text-[#64748B]" /><SelectValue placeholder="Filtrar por estado" /></div>
+                    <div className="flex items-center gap-2">
+                      <FilterIcon className="h-3.5 w-3.5 text-[#64748B]" />
+                      <SelectValue placeholder="Filtrar por estado" />
+                    </div>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all" className="text-xs">Todos los estados</SelectItem>
                     <SelectItem value="Mes pagado" className="text-xs">Mes pagado</SelectItem>
-                    <SelectItem value="En fecha/No pagado" className="text-xs">En fecha/No pagado</SelectItem>
+                    <SelectItem value="Pendiente" className="text-xs">Pendiente</SelectItem>
                     <SelectItem value="No en fecha" className="text-xs">No en fecha</SelectItem>
                   </SelectContent>
                 </Select>
@@ -286,8 +354,12 @@ const GestionEdificios = () => {
         <Card className="border border-[#E2E8F0] shadow-[0_4px_6px_-1px_rgb(0_0_0_/_0.1)] bg-white rounded-xl overflow-hidden">
           <CardHeader className="border-b border-[#F1F5F9] p-5">
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]"><Building2 className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} /></div>
-              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Lista de Edificios ({filteredItems.length})</CardTitle>
+              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+                <Building2 className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
+              </div>
+              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">
+                Lista de Edificios ({displayRows.length})
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -300,28 +372,91 @@ const GestionEdificios = () => {
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden md:table-cell">Dirección</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Renting</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Fecha Pago</TableHead>
+                    <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Mes</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 text-center">Estado</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 text-right pr-6">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={7} className="h-32 text-center"><div className="flex flex-col items-center justify-center gap-2"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#1A367F]"></div><span className="text-xs font-bold text-[#64748B] uppercase tracking-widest">Cargando...</span></div></TableCell></TableRow>
-                  ) : filteredItems.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="h-48 text-center"><div className="flex flex-col items-center justify-center gap-2"><Building2 className="h-8 w-8 text-[#E2E8F0]" /><p className="text-xs font-bold text-[#64748B] uppercase tracking-widest">No se encontraron edificios</p><p className="text-[11px] text-[#94A3B8]">Intenta ajustar los filtros de búsqueda</p></div></TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-32 text-center">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#1A367F]"></div>
+                          <span className="text-xs font-bold text-[#64748B] uppercase tracking-widest">Cargando...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : displayRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-48 text-center">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Building2 className="h-8 w-8 text-[#E2E8F0]" />
+                          <p className="text-xs font-bold text-[#64748B] uppercase tracking-widest">No se encontraron edificios</p>
+                          <p className="text-[11px] text-[#94A3B8]">Intenta ajustar los filtros de búsqueda</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   ) : (
-                    filteredItems.map((item) => (
-                      <TableRow key={item.id} className="group border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors">
-                        <TableCell className="py-4 pl-6"><p className="text-[13px] font-semibold text-[#1E293B]">{item.cliente?.communityname || 'N/A'}</p></TableCell>
-                        <TableCell className="py-4"><p className="text-[12px] font-medium text-[#64748B]">{item.cliente?.adminname || 'N/A'}</p></TableCell>
-                        <TableCell className="py-4 hidden md:table-cell"><p className="text-[12px] text-[#64748B] truncate max-w-[200px]">{item.cliente?.buildingaddress || 'N/A'}</p></TableCell>
-                        <TableCell className="py-4 hidden lg:table-cell"><p className="text-[12px] font-semibold text-[#1E293B]">{item.monto_renting ? `$${Number(item.monto_renting).toLocaleString()}` : `$${item.mesrenting.toLocaleString()}`}</p></TableCell>
-                        <TableCell className="py-4 hidden lg:table-cell"><p className="text-[12px] text-[#64748B]">{formatPaymentDate(item.fechapago)}</p></TableCell>
-                        <TableCell className="py-4 text-center">{getStatusBadge(item.estadopago)}</TableCell>
+                    displayRows.map(({ item, pago, estadoDisplay }) => (
+                      <TableRow
+                        key={item.id}
+                        className="group border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors"
+                      >
+                        <TableCell className="py-4 pl-6">
+                          <p className="text-[13px] font-semibold text-[#1E293B]">{item.cliente?.communityname || "N/A"}</p>
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <p className="text-[12px] font-medium text-[#64748B]">{item.cliente?.adminname || "N/A"}</p>
+                        </TableCell>
+                        <TableCell className="py-4 hidden md:table-cell">
+                          <p className="text-[12px] text-[#64748B] truncate max-w-[200px]">{item.cliente?.buildingaddress || "N/A"}</p>
+                        </TableCell>
+                        <TableCell className="py-4 hidden lg:table-cell">
+                          <p className="text-[12px] font-semibold text-[#1E293B]">
+                            {item.monto_renting
+                              ? `$${Number(item.monto_renting).toLocaleString()}`
+                              : "N/A"}
+                          </p>
+                        </TableCell>
+                        <TableCell className="py-4 hidden lg:table-cell">
+                          <p className="text-[12px] text-[#64748B]">
+                            {pago ? formatPaymentDate(pago.fecha_pago) : "—"}
+                          </p>
+                        </TableCell>
+                        <TableCell className="py-4 hidden lg:table-cell">
+                          <p className="text-[12px] text-[#64748B]">
+                            {pago ? `Mes ${pago.mes}` : "—"}
+                          </p>
+                        </TableCell>
+                        <TableCell className="py-4 text-center">
+                          {getStatusBadge(estadoDisplay)}
+                        </TableCell>
                         <TableCell className="py-4 text-right pr-6">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => setEditingItem(item)} className="h-8 w-8 p-0 text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF] rounded-md"><Edit className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => handleConfirmPayment(item.id)} disabled={item.estadopago !== 'En fecha/No pagado'} className={cn("h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all", item.estadopago === 'En fecha/No pagado' ? "border-[#10B981] text-[#10B981] hover:bg-[#F0FDF4]" : "border-[#E2E8F0] text-[#94A3B8] cursor-not-allowed")}><CheckCircle className="h-3.5 w-3.5 mr-1" />Confirmar</Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingItem(item)}
+                              className="h-8 w-8 p-0 text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF] rounded-md"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => pago && handleConfirmPayment(item, pago.mes)}
+                              disabled={!pago || pago.pagado || estadoDisplay === "Al día" || estadoDisplay === "Sin pago"}
+                              className={cn(
+                                "h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
+                                pago && !pago.pagado && estadoDisplay !== "Sin pago"
+                                  ? "border-[#10B981] text-[#10B981] hover:bg-[#F0FDF4]"
+                                  : "border-[#E2E8F0] text-[#94A3B8] cursor-not-allowed"
+                              )}
+                            >
+                              <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                              Confirmar
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -334,11 +469,27 @@ const GestionEdificios = () => {
         </Card>
       </div>
 
-      <AddGestionDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} onSuccess={() => { refetch(); setIsAddDialogOpen(false); }} />
-      <EditGestionDialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)} item={editingItem} onSuccess={() => { refetch(); setEditingItem(null); }} />
+      <AddGestionDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["gestion-all"] });
+          setIsAddDialogOpen(false);
+        }}
+      />
+      <EditGestionDialog
+        open={!!editingItem}
+        onOpenChange={(open) => !open && setEditingItem(null)}
+        item={editingItem}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["gestion-all"] });
+          setEditingItem(null);
+        }}
+      />
     </div>
   );
 };
+
 interface StatCardProps {
   title: string;
   value: string;
@@ -356,15 +507,10 @@ const StatCard = ({ title, value, description, icon: Icon, iconColor, iconBg }: 
           <Icon className={cn("h-5 w-5", iconColor)} strokeWidth={2.5} />
         </div>
       </div>
-
       <div className="space-y-1">
         <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">{title}</p>
-        <div className="flex items-baseline gap-1">
-          <h3 className="text-[28px] font-bold text-[#1E293B] leading-tight truncate tracking-tight">
-            {value}
-          </h3>
-        </div>
-        <p className="text-[11px] font-medium text-[#64748B] tracking-tight">{description}</p>
+        <h3 className="text-[28px] font-bold text-[#1E293B] leading-tight tracking-tight">{value}</h3>
+        <p className="text-[11px] font-medium text-[#94A3B8]">{description}</p>
       </div>
     </CardContent>
   </Card>
