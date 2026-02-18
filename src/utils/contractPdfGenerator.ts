@@ -33,13 +33,12 @@ export interface DatosContrato {
   legalrepresentativesociety: string; // Sociedad del representante legal
   societyrut: string;            // RUT Sociedad
   societyformationdate: string;  // Fecha de Constitución Sociedad
-  societyverificationcode: string; // Código de Verificación Sociedad
   societyaddress: string;        // Dirección de la Sociedad
   contextoempresa: string;       // Contexto Empresa (texto editable para PERSONERÍAS)
   legalrepresentativenationality: string; // Nacionalidad Rep.
   legalrepresentativemaritalstatus: string; // Estado Civil
   legalrepresentativeprofession: string; // Profesión
-  societynotary: string;         // Notario Público Sociedad (antes: notary)
+  societynotary: string;         // Notario Público Sociedad
   // Extra
   legalrepresentativephone: string; // Teléfono Representante
   deviceinstallation: string;    // Detalle Instalación Dispositivos
