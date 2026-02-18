@@ -13,20 +13,26 @@ interface ClienteContrato {
 }
 
 export interface DatosContrato {
-  legalrepresentative: string;
-  legalrepresentativerut: string;
-  communityrut: string;
-  communityemail: string;
-  legalrepresentativephone: string;
-  communityformationdate: string;
-  communityaddress: string;
-  communityregion: string;
-  deviceinstallation: string;
-  legalrepresentativenationality: string;
-  legalrepresentativemaritalstatus: string;
-  legalrepresentativeprofession: string;
-  contractTerm?: string;
-  notary: string;
+  // Datos de la comunidad
+  communityname: string;           // Nombre de la comunidad
+  communityrut: string;            // RUT Comunidad
+  communityemail: string;          // Email Comunidad
+  communityaddress: string;        // Dirección Comunidad
+  communityregion: string;         // Región
+  communityformationdate: string;  // Fecha Constitución
+  // Datos del representante legal
+  legalrepresentative: string;           // Representante Legal
+  legalrepresentativerut: string;        // RUT Representante
+  legalrepresentativesociety: string;    // Sociedad del representante legal
+  societyrut: string;                    // RUT Sociedad
+  legalrepresentativenationality: string; // Nacionalidad Rep.
+  legalrepresentativemaritalstatus: string; // Estado Civil
+  legalrepresentativeprofession: string; // Profesión
+  notary: string;                        // Notario Público
+  // Extra
+  legalrepresentativephone: string;      // Teléfono Representante
+  deviceinstallation: string;            // Detalle Instalación Dispositivos
+  contractTerm?: string;                 // Años de Contrato
 }
 
 const getMonthName = (monthIndex: number) => {
