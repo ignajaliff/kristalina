@@ -512,11 +512,11 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
 
   const formationDate = new Date(datos.communityformationdate);
   const personeriaCliente = `La personería de don ${datos.legalrepresentative} para actuar en nombre y representación de la sociedad ${datos.legalrepresentativesociety} consta de Certificado de Estatuto Actualizado emitido por el Registro de Empresas y Sociedades del Ministerio de Economía, Fomento y Turismo de fecha 12 de enero de 2026, código de verificación: CRhHZW7rBhPL. Dichos instrumentos no se insertan por ser conocidos de las partes y del notario que autoriza.consta de escritura pública otorgada con fecha ${formationDate.getDate()} de ${getMonthName(formationDate.getMonth())} de ${formationDate.getFullYear()}, ante la notaria de don ${datos.notary}.`;
-  drawParagraph(personeriaCliente, { spacingAfter: 20 });
+  drawParagraph(personeriaCliente, { spacingAfter: 10 });
 
   const personeriaClient = new Date(datos.communityformationdate);
   const personeria2 = `La personería de ${datos.legalrepresentativesociety}, para representar a la comunidad ${datos.communityname} consta de escritura pública otorgada con fecha ${formationDate.getDate()} de ${getMonthName(formationDate.getMonth())} de ${formationDate.getFullYear()},ante el Notario Público de Santiago don ${datos.notary}.`;
-  drawParagraph(personeria2, { spacingAfter: 10 });
+  drawParagraph(personeria2, { spacingAfter: 20 });
 
   // FIRMAS - Ensure the entire block stays together
   checkNewPage(45);
@@ -538,7 +538,7 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
   doc.text(datos.legalrepresentative, clientSignX + signatureWidth / 2, lineY + 5, { align: "center" });
   doc.text(`C.I N°${datos.legalrepresentativerut}`, clientSignX + signatureWidth / 2, lineY + 10, { align: "center" });
   doc.setFont("times", "bold");
-  doc.text(`pp. ${cliente.communityname}`, clientSignX + signatureWidth / 2, lineY + 15, { align: "center" });
+  doc.text(`pp. ${datos.communityname}`, clientSignX + signatureWidth / 2, lineY + 15, { align: "center" });
 
   currentY += 30;
 
