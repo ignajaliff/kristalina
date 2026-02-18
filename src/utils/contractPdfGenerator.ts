@@ -480,7 +480,7 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
   doc.text(`Fono: ${datos.legalrepresentativephone}`, marginLeft, currentY);
   currentY += 5;
   doc.text(`Email: ${datos.communityemail}`, marginLeft, currentY);
-  currentY += 15;
+  currentY += 5;
 
   // Personas adicionales (persona2, persona3...)
   if (datos.personasadicionales && datos.personasadicionales.length > 0) {
