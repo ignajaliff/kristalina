@@ -33,7 +33,7 @@ export interface DatosContrato {
   legalrepresentativesociety: string; // Sociedad del representante legal
   societyrut: string; // RUT Sociedad
   societyformationdate: string; // Fecha de Constitución Sociedad
-  
+
   societyaddress: string; // Dirección de la Sociedad
   contextoempresa: string; // Contexto Empresa (texto editable para PERSONERÍAS)
   legalrepresentativenationality: string; // Nacionalidad Rep.
@@ -487,8 +487,6 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
     datos.personasadicionales.forEach((persona) => {
       checkNewPage(30);
       doc.setFont("times", "normal");
-      doc.text("/C/\tAl Cliente, la notificación adicional se dirigirá a:", marginLeft, currentY);
-      currentY += 10;
       doc.setFont("times", "bold");
       doc.text(`Atención: ${persona.nombre}`, marginLeft, currentY);
       currentY += 5;
