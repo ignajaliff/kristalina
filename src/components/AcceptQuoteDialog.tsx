@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Eye, ArrowLeft, CheckCircle, Upload } from "lucide-react";
 
 interface AcceptQuoteDialogProps {
@@ -23,27 +24,36 @@ interface AcceptQuoteDialogProps {
 
 type Step = "form" | "preview";
 
+const DEVICE_INSTALLATION_OPTIONS = [
+  "la sala de bombas y estanques de agua del edificio",
+];
+
+const emptyLegalData = (): DatosContrato => ({
+  communityname: "",
+  communityrut: "",
+  communityemail: "",
+  communityaddress: "",
+  communityregion: "",
+  communityformationdate: "",
+  legalrepresentative: "",
+  legalrepresentativerut: "",
+  legalrepresentativesociety: "",
+  societyrut: "",
+  legalrepresentativenationality: "",
+  legalrepresentativemaritalstatus: "",
+  legalrepresentativeprofession: "",
+  notary: "",
+  deviceinstallation: DEVICE_INSTALLATION_OPTIONS[0],
+  legalrepresentativephone: "",
+  contractTerm: "1",
+});
+
 export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptComplete }: AcceptQuoteDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<Step>("form");
   const [manualContractFile, setManualContractFile] = useState<File | null>(null);
-  const [legalData, setLegalData] = useState<DatosContrato>({
-    legalrepresentative: "",
-    legalrepresentativerut: "",
-    communityrut: "",
-    communityemail: "",
-    legalrepresentativephone: "",
-    communityformationdate: "",
-    communityaddress: "",
-    communityregion: "",
-    deviceinstallation: "",
-    legalrepresentativenationality: "",
-    legalrepresentativemaritalstatus: "",
-    legalrepresentativeprofession: "",
-    contractTerm: "1",
-    notary: "Santiago",
-  });
+  const [legalData, setLegalData] = useState<DatosContrato>(emptyLegalData());
 
   const handleChange = (field: keyof DatosContrato, value: string) => {
     setLegalData(prev => ({ ...prev, [field]: value }));
@@ -62,7 +72,6 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
 
     setIsSubmitting(true);
     try {
-      // 1. Update presupuesto status
       const { error: updateError } = await supabase
         .from("presupuestos")
         .update({
@@ -73,7 +82,6 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
 
       if (updateError) throw updateError;
 
-      // 2. Upload manual contract file if provided
       let docUrl: string | null = null;
       if (manualContractFile) {
         const fileName = `contrato_${quote.id}_${Date.now()}.pdf`;
@@ -89,7 +97,6 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
         }
       }
 
-      // 3. Create contrato with datos_contrato JSON
       const { error: contratoError } = await supabase
         .from("contratos")
         .insert([{
@@ -105,7 +112,6 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
         toast({ title: "Advertencia", description: "Presupuesto aceptado pero hubo un error al crear el contrato." });
       }
 
-      // 5. Update prospecto status
       await supabase
         .from("prospectos")
         .update({ estado_contacto: "Presupuesto Aceptado" })
@@ -126,22 +132,7 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
   const resetForm = () => {
     setStep("form");
     setManualContractFile(null);
-    setLegalData({
-      legalrepresentative: "",
-      legalrepresentativerut: "",
-      communityrut: "",
-      communityemail: "",
-      legalrepresentativephone: "",
-      communityformationdate: "",
-      communityaddress: "",
-      communityregion: "",
-      deviceinstallation: "",
-      legalrepresentativenationality: "",
-      legalrepresentativemaritalstatus: "",
-      legalrepresentativeprofession: "",
-      contractTerm: "",
-      notary: "",
-    });
+    setLegalData(emptyLegalData());
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -149,9 +140,22 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
     onOpenChange(open);
   };
 
+  const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+    <h4 className="text-[11px] font-bold text-[#1A367F] uppercase tracking-wider bg-[#EFF6FF] px-3 py-2 rounded-lg border border-blue-100">
+      {children}
+    </h4>
+  );
+
+  const FormField = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
         {step === "form" ? (
           <>
             <DialogHeader>
@@ -164,83 +168,87 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-2">
+            <div className="space-y-5 py-2">
+
+              {/* ── DATOS DE LA COMUNIDAD ── */}
+              <SectionTitle>Datos de la comunidad</SectionTitle>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Representante Legal *</Label>
-                  <Input placeholder="Nombre completo" value={legalData.legalrepresentative} onChange={e => handleChange("legalrepresentative", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">RUT Representante</Label>
-                  <Input placeholder="12.345.678-9" value={legalData.legalrepresentativerut} onChange={e => handleChange("legalrepresentativerut", e.target.value)} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">RUT Comunidad</Label>
+                <FormField label="Nombre de la comunidad">
+                  <Input placeholder="Edificio Las Flores" value={legalData.communityname} onChange={e => handleChange("communityname", e.target.value)} />
+                </FormField>
+                <FormField label="RUT Comunidad">
                   <Input placeholder="12.345.678-9" value={legalData.communityrut} onChange={e => handleChange("communityrut", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Email Comunidad</Label>
+                </FormField>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Email Comunidad">
                   <Input type="email" placeholder="comunidad@email.com" value={legalData.communityemail} onChange={e => handleChange("communityemail", e.target.value)} />
-                </div>
+                </FormField>
+                <FormField label="Dirección Comunidad">
+                  <Input placeholder="Av. Providencia 1234" value={legalData.communityaddress} onChange={e => handleChange("communityaddress", e.target.value)} />
+                </FormField>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Teléfono Representante</Label>
-                  <Input placeholder="+56 9 1234 5678" value={legalData.legalrepresentativephone} onChange={e => handleChange("legalrepresentativephone", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Fecha Constitución</Label>
-                  <Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Dirección Comunidad</Label>
-                  <Input placeholder="Ej: Av. Providencia 1234" value={legalData.communityaddress} onChange={e => handleChange("communityaddress", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Región</Label>
+                <FormField label="Región">
                   <Input placeholder="Metropolitana" value={legalData.communityregion} onChange={e => handleChange("communityregion", e.target.value)} />
-                </div>
+                </FormField>
+                <FormField label="Fecha Constitución">
+                  <Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} />
+                </FormField>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Nacionalidad Rep.</Label>
-                  <Input placeholder="Chilena" value={legalData.legalrepresentativenationality} onChange={e => handleChange("legalrepresentativenationality", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Estado Civil</Label>
-                  <Input placeholder="Soltero/a" value={legalData.legalrepresentativemaritalstatus} onChange={e => handleChange("legalrepresentativemaritalstatus", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Profesión</Label>
-                  <Input placeholder="Ingeniero" value={legalData.legalrepresentativeprofession} onChange={e => handleChange("legalrepresentativeprofession", e.target.value)} />
-                </div>
-              </div>
-
+              {/* ── DATOS DEL REPRESENTANTE LEGAL ── */}
+              <SectionTitle>Datos del representante legal</SectionTitle>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Años de Contrato *</Label>
-                  <Input type="number" placeholder="1" value={legalData.contractTerm || "1"} onChange={e => handleChange("contractTerm", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Notario Público</Label>
+                <FormField label="Representante Legal *">
+                  <Input placeholder="Nombre completo" value={legalData.legalrepresentative} onChange={e => handleChange("legalrepresentative", e.target.value)} />
+                </FormField>
+                <FormField label="RUT Representante">
+                  <Input placeholder="12.345.678-9" value={legalData.legalrepresentativerut} onChange={e => handleChange("legalrepresentativerut", e.target.value)} />
+                </FormField>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Sociedad del representante legal">
+                  <Input placeholder="Nombre de la sociedad" value={legalData.legalrepresentativesociety} onChange={e => handleChange("legalrepresentativesociety", e.target.value)} />
+                </FormField>
+                <FormField label="RUT Sociedad">
+                  <Input placeholder="12.345.678-9" value={legalData.societyrut} onChange={e => handleChange("societyrut", e.target.value)} />
+                </FormField>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <FormField label="Nacionalidad Rep.">
+                  <Input placeholder="Chilena" value={legalData.legalrepresentativenationality} onChange={e => handleChange("legalrepresentativenationality", e.target.value)} />
+                </FormField>
+                <FormField label="Estado Civil">
+                  <Input placeholder="Soltero/a" value={legalData.legalrepresentativemaritalstatus} onChange={e => handleChange("legalrepresentativemaritalstatus", e.target.value)} />
+                </FormField>
+                <FormField label="Profesión">
+                  <Input placeholder="Ingeniero" value={legalData.legalrepresentativeprofession} onChange={e => handleChange("legalrepresentativeprofession", e.target.value)} />
+                </FormField>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Notario Público">
                   <Input placeholder="Notario Público de Santiago" value={legalData.notary} onChange={e => handleChange("notary", e.target.value)} />
-                </div>
+                </FormField>
+                <FormField label="Teléfono Representante">
+                  <Input placeholder="+56 9 1234 5678" value={legalData.legalrepresentativephone} onChange={e => handleChange("legalrepresentativephone", e.target.value)} />
+                </FormField>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">Detalle Instalación Dispositivos</Label>
-                <textarea
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="Describe el proceso de instalación..."
-                  value={legalData.deviceinstallation}
-                  onChange={e => handleChange("deviceinstallation", e.target.value)}
-                />
-              </div>
+              {/* ── DETALLE INSTALACIÓN ── */}
+              <SectionTitle>Detalle Instalación Dispositivos</SectionTitle>
+              <FormField label="Lugar de instalación">
+                <Select value={legalData.deviceinstallation} onValueChange={v => handleChange("deviceinstallation", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar lugar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEVICE_INSTALLATION_OPTIONS.map(opt => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
 
               {/* Manual contract upload */}
               <div className="space-y-1.5">
@@ -282,10 +290,10 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-2">
-              {/* Community Info (read-only) */}
+            <div className="space-y-5 py-2">
+              {/* Community Info (read-only from quote) */}
               <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Datos de la Comunidad</h4>
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Datos del Prospecto</h4>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
                   <p><span className="font-medium text-muted-foreground">Comunidad:</span> {quote?.communityname}</p>
                   <p><span className="font-medium text-muted-foreground">Dirección:</span> {quote?.buildingaddress || "N/A"}</p>
@@ -298,74 +306,59 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
 
               <Separator />
 
-              {/* Editable legal data */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Datos Legales (Editables)</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Representante Legal</Label>
-                    <Input value={legalData.legalrepresentative} onChange={e => handleChange("legalrepresentative", e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">RUT Representante</Label>
-                    <Input value={legalData.legalrepresentativerut} onChange={e => handleChange("legalrepresentativerut", e.target.value)} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">RUT Comunidad</Label>
-                    <Input value={legalData.communityrut} onChange={e => handleChange("communityrut", e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Email Comunidad</Label>
-                    <Input value={legalData.communityemail} onChange={e => handleChange("communityemail", e.target.value)} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Teléfono Representante</Label>
-                    <Input value={legalData.legalrepresentativephone} onChange={e => handleChange("legalrepresentativephone", e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Fecha Constitución</Label>
-                    <Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} />
-                  </div>
-                </div>
+              {/* ── DATOS DE LA COMUNIDAD (editable) ── */}
+              <h4 className="text-[11px] font-bold text-[#1A367F] uppercase tracking-wider">Datos de la comunidad</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Nombre comunidad</Label><Input value={legalData.communityname} onChange={e => handleChange("communityname", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">RUT Comunidad</Label><Input value={legalData.communityrut} onChange={e => handleChange("communityrut", e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Email Comunidad</Label><Input value={legalData.communityemail} onChange={e => handleChange("communityemail", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Dirección</Label><Input value={legalData.communityaddress} onChange={e => handleChange("communityaddress", e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Región</Label><Input value={legalData.communityregion} onChange={e => handleChange("communityregion", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Fecha Constitución</Label><Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} /></div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Dirección Comunidad</Label>
-                    <Input value={legalData.communityaddress} onChange={e => handleChange("communityaddress", e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Región</Label>
-                    <Input value={legalData.communityregion} onChange={e => handleChange("communityregion", e.target.value)} />
-                  </div>
-                </div>
+              <Separator />
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Nacionalidad</Label>
-                    <Input value={legalData.legalrepresentativenationality} onChange={e => handleChange("legalrepresentativenationality", e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Estado Civil</Label>
-                    <Input value={legalData.legalrepresentativemaritalstatus} onChange={e => handleChange("legalrepresentativemaritalstatus", e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground">Profesión</Label>
-                    <Input value={legalData.legalrepresentativeprofession} onChange={e => handleChange("legalrepresentativeprofession", e.target.value)} />
-                  </div>
-                </div>
+              {/* ── DATOS DEL REPRESENTANTE LEGAL (editable) ── */}
+              <h4 className="text-[11px] font-bold text-[#1A367F] uppercase tracking-wider">Datos del representante legal</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Representante Legal</Label><Input value={legalData.legalrepresentative} onChange={e => handleChange("legalrepresentative", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">RUT Representante</Label><Input value={legalData.legalrepresentativerut} onChange={e => handleChange("legalrepresentativerut", e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Sociedad Rep. Legal</Label><Input value={legalData.legalrepresentativesociety} onChange={e => handleChange("legalrepresentativesociety", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">RUT Sociedad</Label><Input value={legalData.societyrut} onChange={e => handleChange("societyrut", e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Nacionalidad</Label><Input value={legalData.legalrepresentativenationality} onChange={e => handleChange("legalrepresentativenationality", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Estado Civil</Label><Input value={legalData.legalrepresentativemaritalstatus} onChange={e => handleChange("legalrepresentativemaritalstatus", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Profesión</Label><Input value={legalData.legalrepresentativeprofession} onChange={e => handleChange("legalrepresentativeprofession", e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Notario Público</Label><Input value={legalData.notary} onChange={e => handleChange("notary", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Teléfono</Label><Input value={legalData.legalrepresentativephone} onChange={e => handleChange("legalrepresentativephone", e.target.value)} /></div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Detalle Instalación</Label>
-                  <textarea
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={legalData.deviceinstallation}
-                    onChange={e => handleChange("deviceinstallation", e.target.value)}
-                  />
-                </div>
+              <Separator />
+
+              {/* ── DETALLE INSTALACIÓN (editable) ── */}
+              <h4 className="text-[11px] font-bold text-[#1A367F] uppercase tracking-wider">Detalle Instalación Dispositivos</h4>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Lugar de instalación</Label>
+                <Select value={legalData.deviceinstallation} onValueChange={v => handleChange("deviceinstallation", v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEVICE_INSTALLATION_OPTIONS.map(opt => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
