@@ -11,27 +11,40 @@ interface ClienteContrato {
   monto: number | null;
 }
 
+export interface PersonaAdicional {
+  nombre: string;
+  direccion: string;
+  telefono: string;
+  email: string;
+}
+
 export interface DatosContrato {
   // Datos de la comunidad
-  communityname: string; // Nombre de la comunidad
-  communityrut: string; // RUT Comunidad
-  communityemail: string; // Email Comunidad
-  communityaddress: string; // Dirección Comunidad
-  communityregion: string; // Región
-  communityformationdate: string; // Fecha Constitución
+  communityname: string;         // Nombre de la comunidad
+  communityrut: string;          // RUT Comunidad
+  communityemail: string;        // Email Comunidad
+  communityaddress: string;      // Dirección Comunidad
+  communityregion: string;       // Región
+  communityformationdate: string; // Fecha Constitución Comunidad
+  communitynotary: string;       // Notario Público Comunidad
   // Datos del representante legal
-  legalrepresentative: string; // Representante Legal
+  legalrepresentative: string;   // Representante Legal
   legalrepresentativerut: string; // RUT Representante
   legalrepresentativesociety: string; // Sociedad del representante legal
-  societyrut: string; // RUT Sociedad
+  societyrut: string;            // RUT Sociedad
+  societyformationdate: string;  // Fecha de Constitución Sociedad
+  societyverificationcode: string; // Código de Verificación Sociedad
+  societyaddress: string;        // Dirección de la Sociedad
+  contextoempresa: string;       // Contexto Empresa (texto editable para PERSONERÍAS)
   legalrepresentativenationality: string; // Nacionalidad Rep.
   legalrepresentativemaritalstatus: string; // Estado Civil
   legalrepresentativeprofession: string; // Profesión
-  notary: string; // Notario Público
+  societynotary: string;         // Notario Público Sociedad (antes: notary)
   // Extra
   legalrepresentativephone: string; // Teléfono Representante
-  deviceinstallation: string; // Detalle Instalación Dispositivos
-  contractTerm?: string; // Años de Contrato
+  deviceinstallation: string;    // Detalle Instalación Dispositivos
+  contractTerm?: string;         // Años de Contrato
+  personasadicionales?: PersonaAdicional[]; // persona2, persona3... (índice 0 = persona2)
 }
 
 const getMonthName = (monthIndex: number) => {
@@ -511,11 +524,11 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
   drawParagraph(personeriaArturo);
 
   const formationDate = new Date(datos.communityformationdate);
-  const personeriaCliente = `La personería de don ${datos.legalrepresentative} para actuar en nombre y representación de la sociedad ${datos.legalrepresentativesociety} consta de Certificado de Estatuto Actualizado emitido por el Registro de Empresas y Sociedades del Ministerio de Economía, Fomento y Turismo de fecha 12 de enero de 2026, código de verificación: CRhHZW7rBhPL. Dichos instrumentos no se insertan por ser conocidos de las partes y del notario que autoriza.consta de escritura pública otorgada con fecha ${formationDate.getDate()} de ${getMonthName(formationDate.getMonth())} de ${formationDate.getFullYear()}, ante la notaria de don ${datos.notary}.`;
+  const personeriaCliente = `La personería de don ${datos.legalrepresentative} para actuar en nombre y representación de la sociedad ${datos.legalrepresentativesociety} ${datos.contextoempresa}.`;
   drawParagraph(personeriaCliente, { spacingAfter: 10 });
 
-  const personeriaClient = new Date(datos.communityformationdate);
-  const personeria2 = `La personería de ${datos.legalrepresentativesociety}, para representar a la comunidad ${datos.communityname} consta de escritura pública otorgada con fecha ${formationDate.getDate()} de ${getMonthName(formationDate.getMonth())} de ${formationDate.getFullYear()},ante el Notario Público de Santiago don ${datos.notary}.`;
+  const societyFormationDate = datos.societyformationdate ? new Date(datos.societyformationdate) : formationDate;
+  const personeria2 = `La personería de ${datos.legalrepresentativesociety}, para representar a la comunidad ${datos.communityname} consta de escritura pública otorgada con fecha ${societyFormationDate.getDate()} de ${getMonthName(societyFormationDate.getMonth())} de ${societyFormationDate.getFullYear()}, ante el Notario Público de Santiago don ${datos.societynotary}.`;
   drawParagraph(personeria2, { spacingAfter: 20 });
 
   // FIRMAS - Ensure the entire block stays together

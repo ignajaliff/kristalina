@@ -1,9 +1,9 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Quote } from "@/utils/quoteStorage";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DatosContrato } from "@/utils/contractPdfGenerator";
+import { DatosContrato, PersonaAdicional } from "@/utils/contractPdfGenerator";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Eye, ArrowLeft, CheckCircle, Upload } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { FileText, Eye, ArrowLeft, CheckCircle, Upload, Plus, Trash2 } from "lucide-react";
 
 interface AcceptQuoteDialogProps {
   quote: Quote | null;
@@ -26,7 +27,18 @@ type Step = "form" | "preview";
 
 const DEVICE_INSTALLATION_OPTIONS = [
   "la sala de bombas y estanques de agua del edificio",
+  "la sala de bombas, estanques de agua y torres de enfriamiento del edificio",
 ];
+
+const DEFAULT_CONTEXTO_EMPRESA = (codigoVerificacion: string) =>
+  `consta de Certificado de Estatuto Actualizado emitido por el Registro de Empresas y Sociedades del Ministerio de Economía, Fomento y Turismo de fecha 12 de enero de 2026, código de verificación: ${codigoVerificacion || "[código de verificación]"}. Dichos instrumentos no se insertan por ser conocidos de las partes y del notario que autoriza`;
+
+const emptyPersona = (): PersonaAdicional => ({
+  nombre: "",
+  direccion: "",
+  telefono: "",
+  email: "",
+});
 
 const emptyLegalData = (): DatosContrato => ({
   communityname: "",
@@ -35,17 +47,23 @@ const emptyLegalData = (): DatosContrato => ({
   communityaddress: "",
   communityregion: "",
   communityformationdate: "",
+  communitynotary: "",
   legalrepresentative: "",
   legalrepresentativerut: "",
   legalrepresentativesociety: "",
   societyrut: "",
+  societyformationdate: "",
+  societyverificationcode: "",
+  societyaddress: "",
+  contextoempresa: DEFAULT_CONTEXTO_EMPRESA(""),
   legalrepresentativenationality: "",
   legalrepresentativemaritalstatus: "",
   legalrepresentativeprofession: "",
-  notary: "",
+  societynotary: "",
   deviceinstallation: DEVICE_INSTALLATION_OPTIONS[0],
   legalrepresentativephone: "",
   contractTerm: "1",
+  personasadicionales: [],
 });
 
 export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptComplete }: AcceptQuoteDialogProps) {
@@ -55,9 +73,41 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
   const [manualContractFile, setManualContractFile] = useState<File | null>(null);
   const [legalData, setLegalData] = useState<DatosContrato>(emptyLegalData());
 
-  const handleChange = (field: keyof DatosContrato, value: string) => {
-    setLegalData(prev => ({ ...prev, [field]: value }));
-  };
+  const handleChange = useCallback((field: keyof DatosContrato, value: string) => {
+    setLegalData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Auto-update contextoempresa when verification code changes, only if not manually edited
+      if (field === "societyverificationcode") {
+        const currentDefault = DEFAULT_CONTEXTO_EMPRESA(prev.societyverificationcode || "");
+        if (prev.contextoempresa === currentDefault || !prev.contextoempresa) {
+          updated.contextoempresa = DEFAULT_CONTEXTO_EMPRESA(value);
+        }
+      }
+      return updated;
+    });
+  }, []);
+
+  const handlePersonaChange = useCallback((index: number, field: keyof PersonaAdicional, value: string) => {
+    setLegalData(prev => {
+      const personas = [...(prev.personasadicionales || [])];
+      personas[index] = { ...personas[index], [field]: value };
+      return { ...prev, personasadicionales: personas };
+    });
+  }, []);
+
+  const addPersona = useCallback(() => {
+    setLegalData(prev => ({
+      ...prev,
+      personasadicionales: [...(prev.personasadicionales || []), emptyPersona()],
+    }));
+  }, []);
+
+  const removePersona = useCallback((index: number) => {
+    setLegalData(prev => ({
+      ...prev,
+      personasadicionales: (prev.personasadicionales || []).filter((_, i) => i !== index),
+    }));
+  }, []);
 
   const handlePreview = () => {
     if (!legalData.legalrepresentative.trim()) {
@@ -153,6 +203,8 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
     </div>
   );
 
+  const personasAdicionales = legalData.personasadicionales || [];
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
@@ -196,6 +248,11 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                   <Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} />
                 </FormField>
               </div>
+              <div className="grid grid-cols-1 gap-4">
+                <FormField label="Notario Público Comunidad">
+                  <Input placeholder="Notario Público de Santiago" value={legalData.communitynotary} onChange={e => handleChange("communitynotary", e.target.value)} />
+                </FormField>
+              </div>
 
               {/* ── DATOS DEL REPRESENTANTE LEGAL ── */}
               <SectionTitle>Datos del representante legal</SectionTitle>
@@ -215,6 +272,30 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                   <Input placeholder="12.345.678-9" value={legalData.societyrut} onChange={e => handleChange("societyrut", e.target.value)} />
                 </FormField>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Fecha de Constitución Sociedad">
+                  <Input type="date" value={legalData.societyformationdate} onChange={e => handleChange("societyformationdate", e.target.value)} />
+                </FormField>
+                <FormField label="Código de Verificación">
+                  <Input placeholder="Ej: CRhHZW7rBhPL" value={legalData.societyverificationcode} onChange={e => handleChange("societyverificationcode", e.target.value)} />
+                </FormField>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <FormField label="Dirección de la Sociedad">
+                  <Input placeholder="Av. Providencia 1234, Santiago" value={legalData.societyaddress} onChange={e => handleChange("societyaddress", e.target.value)} />
+                </FormField>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <FormField label="Contexto Empresa">
+                  <Textarea
+                    placeholder="Texto del contexto empresa para el contrato..."
+                    value={legalData.contextoempresa}
+                    onChange={e => handleChange("contextoempresa", e.target.value)}
+                    className="min-h-[100px] text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">Se autocompleta con el código de verificación. Puedes editarlo libremente.</p>
+                </FormField>
+              </div>
               <div className="grid grid-cols-3 gap-4">
                 <FormField label="Nacionalidad Rep.">
                   <Input placeholder="Chilena" value={legalData.legalrepresentativenationality} onChange={e => handleChange("legalrepresentativenationality", e.target.value)} />
@@ -227,13 +308,48 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                 </FormField>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Notario Público">
-                  <Input placeholder="Notario Público de Santiago" value={legalData.notary} onChange={e => handleChange("notary", e.target.value)} />
+                <FormField label="Notario Público Sociedad">
+                  <Input placeholder="Notario Público de Santiago" value={legalData.societynotary} onChange={e => handleChange("societynotary", e.target.value)} />
                 </FormField>
                 <FormField label="Teléfono Representante">
                   <Input placeholder="+56 9 1234 5678" value={legalData.legalrepresentativephone} onChange={e => handleChange("legalrepresentativephone", e.target.value)} />
                 </FormField>
               </div>
+
+              {/* ── PERSONAS ADICIONALES ── */}
+              {personasAdicionales.map((persona, index) => (
+                <div key={index} className="border border-blue-100 rounded-lg p-4 space-y-3 bg-blue-50/30">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-xs font-bold text-[#1A367F] uppercase tracking-wider">
+                      Persona {index + 2}
+                    </h5>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => removePersona(index)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField label="Nombre completo">
+                      <Input placeholder="Nombre completo" value={persona.nombre} onChange={e => handlePersonaChange(index, "nombre", e.target.value)} />
+                    </FormField>
+                    <FormField label="Dirección">
+                      <Input placeholder="Dirección" value={persona.direccion} onChange={e => handlePersonaChange(index, "direccion", e.target.value)} />
+                    </FormField>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField label="Teléfono">
+                      <Input placeholder="+56 9 1234 5678" value={persona.telefono} onChange={e => handlePersonaChange(index, "telefono", e.target.value)} />
+                    </FormField>
+                    <FormField label="Email">
+                      <Input type="email" placeholder="email@ejemplo.com" value={persona.email} onChange={e => handlePersonaChange(index, "email", e.target.value)} />
+                    </FormField>
+                  </div>
+                </div>
+              ))}
+
+              <Button variant="outline" size="sm" onClick={addPersona} className="gap-2 border-dashed border-blue-300 text-[#1A367F] hover:bg-blue-50">
+                <Plus className="h-4 w-4" />
+                Agregar persona al contrato
+              </Button>
 
               {/* ── DETALLE INSTALACIÓN ── */}
               <SectionTitle>Detalle Instalación Dispositivos</SectionTitle>
@@ -320,6 +436,9 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                 <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Región</Label><Input value={legalData.communityregion} onChange={e => handleChange("communityregion", e.target.value)} /></div>
                 <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Fecha Constitución</Label><Input type="date" value={legalData.communityformationdate} onChange={e => handleChange("communityformationdate", e.target.value)} /></div>
               </div>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Notario Público Comunidad</Label><Input value={legalData.communitynotary} onChange={e => handleChange("communitynotary", e.target.value)} /></div>
+              </div>
 
               <Separator />
 
@@ -333,15 +452,49 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                 <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Sociedad Rep. Legal</Label><Input value={legalData.legalrepresentativesociety} onChange={e => handleChange("legalrepresentativesociety", e.target.value)} /></div>
                 <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">RUT Sociedad</Label><Input value={legalData.societyrut} onChange={e => handleChange("societyrut", e.target.value)} /></div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Fecha Constitución Sociedad</Label><Input type="date" value={legalData.societyformationdate} onChange={e => handleChange("societyformationdate", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Código de Verificación</Label><Input value={legalData.societyverificationcode} onChange={e => handleChange("societyverificationcode", e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Dirección de la Sociedad</Label><Input value={legalData.societyaddress} onChange={e => handleChange("societyaddress", e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Contexto Empresa</Label>
+                  <Textarea value={legalData.contextoempresa} onChange={e => handleChange("contextoempresa", e.target.value)} className="min-h-[100px] text-xs" />
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Nacionalidad</Label><Input value={legalData.legalrepresentativenationality} onChange={e => handleChange("legalrepresentativenationality", e.target.value)} /></div>
                 <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Estado Civil</Label><Input value={legalData.legalrepresentativemaritalstatus} onChange={e => handleChange("legalrepresentativemaritalstatus", e.target.value)} /></div>
                 <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Profesión</Label><Input value={legalData.legalrepresentativeprofession} onChange={e => handleChange("legalrepresentativeprofession", e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Notario Público</Label><Input value={legalData.notary} onChange={e => handleChange("notary", e.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Notario Público Sociedad</Label><Input value={legalData.societynotary} onChange={e => handleChange("societynotary", e.target.value)} /></div>
                 <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Teléfono</Label><Input value={legalData.legalrepresentativephone} onChange={e => handleChange("legalrepresentativephone", e.target.value)} /></div>
               </div>
+
+              {/* Personas adicionales en preview */}
+              {personasAdicionales.length > 0 && (
+                <>
+                  <Separator />
+                  <h4 className="text-[11px] font-bold text-[#1A367F] uppercase tracking-wider">Personas adicionales</h4>
+                  {personasAdicionales.map((persona, index) => (
+                    <div key={index} className="border border-blue-100 rounded-lg p-3 space-y-3 bg-blue-50/30">
+                      <h5 className="text-xs font-bold text-[#1A367F]">Persona {index + 2}</h5>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Nombre</Label><Input value={persona.nombre} onChange={e => handlePersonaChange(index, "nombre", e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Dirección</Label><Input value={persona.direccion} onChange={e => handlePersonaChange(index, "direccion", e.target.value)} /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Teléfono</Label><Input value={persona.telefono} onChange={e => handlePersonaChange(index, "telefono", e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label className="text-xs font-semibold text-muted-foreground">Email</Label><Input value={persona.email} onChange={e => handlePersonaChange(index, "email", e.target.value)} /></div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
 
               <Separator />
 
