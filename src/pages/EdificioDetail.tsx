@@ -345,18 +345,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     }
   };
 
-  const handleMarcarPagado = async (mes: number) => {
-    const updatedPagos = pagosJson.map(p =>
-      p.mes === mes ? { ...p, pagado: true, fecha_pago_real: format(new Date(), "yyyy-MM-dd") } : p
-    );
-    const { error } = await supabase
-      .from("gestion")
-      .update({ pagos_json: updatedPagos as any, estadopago: "Mes pagado" })
-      .eq("id", item.id);
-    if (error) { toast.error("Error al marcar el pago"); return; }
-    toast.success(`Mes ${mes} marcado como pagado`);
-    queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
-  };
+  // Payment marking is done from GestionPagos page
 
   const proximoPago = pendientesList[0];
 
@@ -460,15 +449,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleMarcarPagado(proximoPago.mes)}
-                          className="h-7 px-3 text-[10px] font-bold border-[#10B981] text-[#10B981] hover:bg-[#F0FDF4] uppercase tracking-wider"
-                        >
-                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                          Pagado
-                        </Button>
+                        <span className="text-[10px] text-[#94A3B8] italic">Marcar en Gestión de Pagos</span>
                       </TableCell>
                     </TableRow>
                   )}
@@ -491,15 +472,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                       </TableCell>
                       <TableCell className="text-right">
                         {p.mes === proximoPago?.mes && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleMarcarPagado(p.mes)}
-                            className="h-7 px-3 text-[10px] font-bold border-[#10B981] text-[#10B981] hover:bg-[#F0FDF4] uppercase tracking-wider"
-                          >
-                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                            Pagado
-                          </Button>
+                          <span className="text-[10px] text-[#94A3B8] italic">Marcar en Gestión de Pagos</span>
                         )}
                       </TableCell>
                     </TableRow>
