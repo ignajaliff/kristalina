@@ -64,7 +64,6 @@ const emptyLegalData = (): DatosContrato => ({
   legalrepresentativesociety: "",
   societyrut: "",
   societyformationdate: "",
-  societyverificationcode: "",
   societyaddress: "",
   contextoempresa: DEFAULT_CONTEXTO_EMPRESA(""),
   legalrepresentativenationality: "",
@@ -85,17 +84,7 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
   const [legalData, setLegalData] = useState<DatosContrato>(emptyLegalData());
 
   const handleChange = useCallback((field: keyof DatosContrato, value: string) => {
-    setLegalData((prev) => {
-      const updated = { ...prev, [field]: value };
-      // Auto-update contextoempresa when verification code changes, only if not manually edited
-      if (field === "societyverificationcode") {
-        const currentDefault = DEFAULT_CONTEXTO_EMPRESA(prev.societyverificationcode || "");
-        if (prev.contextoempresa === currentDefault || !prev.contextoempresa) {
-          updated.contextoempresa = DEFAULT_CONTEXTO_EMPRESA(value);
-        }
-      }
-      return updated;
-    });
+    setLegalData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   const handlePersonaChange = useCallback((index: number, field: keyof PersonaAdicional, value: string) => {
@@ -339,13 +328,6 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                     type="date"
                     value={legalData.societyformationdate}
                     onChange={(e) => handleChange("societyformationdate", e.target.value)}
-                  />
-                </FormField>
-                <FormField label="Código de Verificación">
-                  <Input
-                    placeholder="Ej: CRhHZW7rBhPL"
-                    value={legalData.societyverificationcode}
-                    onChange={(e) => handleChange("societyverificationcode", e.target.value)}
                   />
                 </FormField>
               </div>
@@ -671,13 +653,6 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                     type="date"
                     value={legalData.societyformationdate}
                     onChange={(e) => handleChange("societyformationdate", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Código de Verificación</Label>
-                  <Input
-                    value={legalData.societyverificationcode}
-                    onChange={(e) => handleChange("societyverificationcode", e.target.value)}
                   />
                 </div>
               </div>
