@@ -138,24 +138,24 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
     "Producto de la alta concentración en algunas zonas del país de carbonatos de calcio y magnesio en el agua utilizada para consumo de personas y procesos industriales, se generan una serie de daños e incrustaciones en equipos, redes de cañerías, fittings y griferías producto del sarro.";
   doc.text(situacionText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitSituacion = doc.splitTextToSize(situacionText, contentWidth);
-  currentY += 10;
+  currentY += splitSituacion.length * 5 + 5;
 
   const techText =
     "Nuestros dispositivos fabricados en acero inoxidable 304, producen un efecto permanente evitando la generación de sarro e incrustaciones además de una eliminación en corto tiempo de las incrustaciones existentes. También una serie de beneficios para la piel y salud producto de la calidad del agua resultante para los Residentes.";
   doc.text(techText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitTech = doc.splitTextToSize(techText, contentWidth);
-  currentY += 10;
+  currentY += splitTech.length * 5 + 5;
 
   const propuestaText =
     "En base a la visita realizada al edificio, proponemos el suministro e instalación de un sistema Ionizador Central para el edificio, en la recirculación entre ambos estanques acumuladores de agua potable, generando por la cinética una inestabilidad constante de la dureza contenida en el agua.";
   doc.text(propuestaText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitPropuesta = doc.splitTextToSize(propuestaText, contentWidth);
-  currentY += 10;
+  currentY += splitTech.length * 5 + 5;
 
   const equiposText = "Los equipos a utilizar en este tratamiento son los siguientes:";
   doc.text(equiposText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitEquipos = doc.splitTextToSize(equiposText, contentWidth);
-  currentY += 15;
+  currentY += splitEquipos.length * 5 + 10;
 
   // Equipment List - DYNAMIC based on matriz_principal and recirculacion
   checkNewPage(40);
