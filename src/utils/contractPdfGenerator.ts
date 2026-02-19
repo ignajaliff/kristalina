@@ -45,6 +45,14 @@ export interface DatosContrato {
   deviceinstallation: string; // Detalle Instalación Dispositivos
   contractTerm?: string; // Años de Contrato
   personasadicionales?: PersonaAdicional[]; // persona2, persona3... (índice 0 = persona2)
+  datos_presupuesto?: {
+    moneda?: "Pesos" | "UF";
+    presupuesto_total_deptos?: number;
+    descuento_porcentaje?: number;
+    precio_instalacion?: number;
+    anos_contrato?: number;
+    [key: string]: any;
+  };
 }
 
 const getMonthName = (monthIndex: number) => {
@@ -63,6 +71,52 @@ const getMonthName = (monthIndex: number) => {
     "diciembre",
   ];
   return months[monthIndex];
+};
+
+// Convierte un número entero a palabras en español (hasta millones)
+const numberToWords = (n: number): string => {
+  const unidades = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve",
+    "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve",
+    "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"];
+  const decenas = ["", "", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
+  const centenas = ["", "cien", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"];
+
+  if (n === 0) return "cero";
+  if (n < 0) return "menos " + numberToWords(-n);
+
+  let result = "";
+
+  if (n >= 1000000) {
+    const m = Math.floor(n / 1000000);
+    result += (m === 1 ? "un millón" : numberToWords(m) + " millones") + " ";
+    n = n % 1000000;
+  }
+  if (n >= 1000) {
+    const m = Math.floor(n / 1000);
+    result += (m === 1 ? "mil" : numberToWords(m) + " mil") + " ";
+    n = n % 1000;
+  }
+  if (n >= 100) {
+    const c = Math.floor(n / 100);
+    result += (n === 100 ? "cien" : centenas[c]) + " ";
+    n = n % 100;
+  }
+  if (n >= 30) {
+    const d = Math.floor(n / 10);
+    const u = n % 10;
+    result += decenas[d] + (u > 0 ? " y " + unidades[u] : "") + " ";
+    n = 0;
+  } else if (n > 0) {
+    result += unidades[n] + " ";
+  }
+
+  return result.trim();
+};
+
+// Parsea una fecha "YYYY-MM-DD" sin desfase de zona horaria
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
 };
 
 const drawHeader = (doc: jsPDF, pageWidth: number) => {
@@ -318,10 +372,25 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
   doc.line(marginLeft, currentY + 0.5, marginLeft + fifthTitleWidth, currentY + 0.5);
   currentY += 8;
 
-  const montoClp = cliente.monto
-    ? new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(cliente.monto)
-    : "a convenir";
-  drawParagraph(`El precio del presente contrato es la renta mensual en pesos equivalente a ${montoClp}.`);
+  // Calcular precio según moneda del presupuesto
+  const presupData = datos.datos_presupuesto;
+  const monedaPresup = presupData?.moneda;
+  const totalDeptos = presupData?.presupuesto_total_deptos ?? 0;
+  const descuento = presupData?.descuento_porcentaje ?? 0;
+  const montoNeto = totalDeptos * (1 - descuento / 100);
+
+  let precioTexto: string;
+  if (monedaPresup === "UF") {
+    const ufFormateado = new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(montoNeto);
+    precioTexto = `El precio del presente contrato es la renta mensual en UF equivalente a ${ufFormateado} UF.`;
+  } else {
+    // Pesos
+    const montoRedondeado = Math.round(montoNeto);
+    const clpFormateado = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(montoRedondeado);
+    const enPalabras = numberToWords(montoRedondeado) + " pesos";
+    precioTexto = `El precio del presente contrato es la renta mensual en pesos equivalente a ${clpFormateado} (${enPalabras}) más IVA.`;
+  }
+  drawParagraph(precioTexto);
   drawParagraph(
     "El pago del precio referido se efectuará en forma mensual, dentro de los 5 días calendario siguientes a la fecha de facturación.",
   );
@@ -541,12 +610,12 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
     "La personería de don Arturo Ramírez Mendive para actuar en nombre y representación de la sociedad KRISTALINA SpA., consta de escritura pública otorgada con fecha 21 de febrero de 2023, mediante el sistema electrónico de Empresas y Sociedades.";
   drawParagraph(personeriaArturo);
 
-  const formationDate = new Date(datos.societyformationdate);
+  const formationDate = parseLocalDate(datos.societyformationdate);
   const personeriaCliente = `La personería de don ${datos.legalrepresentative} para actuar en nombre y representación de la sociedad ${datos.legalrepresentativesociety} ${datos.contextoempresa}. Consta de escritura pública otorgada con fecha ${formationDate.getDate()} de ${getMonthName(formationDate.getMonth())} de ${formationDate.getFullYear()}, ante la notaria de don ${datos.societynotary}.`;
   drawParagraph(personeriaCliente, { spacingAfter: 10 });
 
-  const personeriaClient = new Date(datos.communityformationdate);
-  const personeria2 = `La personería de ${datos.legalrepresentativesociety}, para representar a la comunidad ${datos.communityname} consta de escritura pública otorgada con fecha ${formationDate.getDate()} de ${getMonthName(formationDate.getMonth())} de ${formationDate.getFullYear()},ante el Notario Público de Santiago don ${datos.communitynotary}.`;
+  const communityFormationDate = parseLocalDate(datos.communityformationdate);
+  const personeria2 = `La personería de ${datos.legalrepresentativesociety}, para representar a la comunidad ${datos.communityname} consta de escritura pública otorgada con fecha ${communityFormationDate.getDate()} de ${getMonthName(communityFormationDate.getMonth())} de ${communityFormationDate.getFullYear()}, ante el Notario Público de Santiago don ${datos.communitynotary}.`;
   drawParagraph(personeria2, { spacingAfter: 20 });
 
   // FIRMAS - Ensure the entire block stays together

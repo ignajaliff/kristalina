@@ -169,7 +169,7 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
           prospecto_id: quote.id,
           estado_contrato: "Contrato no firmado",
           estado_equipos: "Equipos sin instalar",
-          datos_contrato: legalData as any,
+          datos_contrato: { ...legalData, datos_presupuesto: quote.datos_presupuesto } as any,
           doc_contrato: docUrl,
         },
       ]);
