@@ -217,6 +217,35 @@ export type Database = {
           },
         ]
       }
+      reportes: {
+        Row: {
+          created_at: string
+          datos_reporte: Json
+          gestion_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          datos_reporte?: Json
+          gestion_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          datos_reporte?: Json
+          gestion_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reportes_gestion_id_fkey"
+            columns: ["gestion_id"]
+            isOneToOne: false
+            referencedRelation: "gestion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
