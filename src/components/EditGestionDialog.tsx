@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 
@@ -27,22 +26,18 @@ interface EditGestionDialogProps {
 }
 
 interface GestionFormData {
-  mesrenting: number;
   fechapago: string;
-  estadopago: string;
 }
 
 const EditGestionDialog = ({ open, onOpenChange, item, onSuccess }: EditGestionDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<GestionFormData>();
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<GestionFormData>();
 
   useEffect(() => {
     if (item && open) {
       reset({
-        mesrenting: item.mesrenting,
         fechapago: item.fechapago.split('T')[0],
-        estadopago: item.estadopago
       });
     }
   }, [item, open, reset]);
@@ -56,9 +51,7 @@ const EditGestionDialog = ({ open, onOpenChange, item, onSuccess }: EditGestionD
       const { error } = await supabase
         .from('gestion')
         .update({
-          mesrenting: data.mesrenting,
           fechapago: data.fechapago,
-          estadopago: data.estadopago,
           updated_at: new Date().toISOString()
         })
         .eq('id', item.id);
@@ -109,25 +102,6 @@ const EditGestionDialog = ({ open, onOpenChange, item, onSuccess }: EditGestionD
         
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="mesrenting">Mes de Renting</Label>
-            <Input
-              id="mesrenting"
-              type="number"
-              min="1"
-              max="12"
-              {...register("mesrenting", { 
-                required: "El mes de renting es requerido",
-                min: { value: 1, message: "El mes debe ser entre 1 y 12" },
-                max: { value: 12, message: "El mes debe ser entre 1 y 12" }
-              })}
-              placeholder="Mes (1-12)"
-            />
-            {errors.mesrenting && (
-              <p className="text-sm text-red-500">{errors.mesrenting.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="fechapago">Fecha de Pago</Label>
             <Input
               id="fechapago"
@@ -139,23 +113,6 @@ const EditGestionDialog = ({ open, onOpenChange, item, onSuccess }: EditGestionD
             {errors.fechapago && (
               <p className="text-sm text-red-500">{errors.fechapago.message}</p>
             )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="estadopago">Estado del Pago</Label>
-            <Select
-              value={watch("estadopago")}
-              onValueChange={(value) => setValue("estadopago", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona el estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="No en fecha">No en fecha</SelectItem>
-                <SelectItem value="En fecha/No pagado">En fecha/No pagado</SelectItem>
-                <SelectItem value="Mes pagado">Mes pagado</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

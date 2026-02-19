@@ -63,7 +63,7 @@ const getRelevantPago = (
     const nextPending = pagos.find(p => !p.pagado);
     return {
       pago: nextPending || pagos[pagos.length - 1],
-      estadoDisplay: nextPending ? "Pendiente" : "Al día",
+      estadoDisplay: nextPending ? "En fecha/No pagado" : "Al día",
     };
   }
 
@@ -82,7 +82,7 @@ const getRelevantPago = (
 
   return {
     pago: targetPago,
-    estadoDisplay: targetPago.pagado ? "Mes pagado" : "Pendiente",
+    estadoDisplay: targetPago.pagado ? "Mes pagado" : "En fecha/No pagado",
   };
 };
 
@@ -173,13 +173,18 @@ const GestionEdificios = () => {
       case "Al día":
         return (
           <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] font-bold text-[10px] uppercase tracking-wider">
-            {status}
+            {status === "Al día" ? "Al día" : "Mes pagado"}
           </Badge>
         );
-      case "Pendiente":
       case "En fecha/No pagado":
         return (
           <Badge className="bg-[#FEF2F2] text-[#EF4444] border-[#FEE2E2] hover:bg-[#FEF2F2] font-bold text-[10px] uppercase tracking-wider">
+            En fecha/No pagado
+          </Badge>
+        );
+      case "Pendiente":
+        return (
+          <Badge className="bg-[#EFF6FF] text-[#3B82F6] border-[#BFDBFE] hover:bg-[#EFF6FF] font-bold text-[10px] uppercase tracking-wider">
             Pendiente
           </Badge>
         );
@@ -244,7 +249,7 @@ const GestionEdificios = () => {
         // Status filter
         if (statusFilter !== "all") {
           if (statusFilter === "Mes pagado" && estadoDisplay !== "Mes pagado" && estadoDisplay !== "Al día") return false;
-          if (statusFilter === "Pendiente" && estadoDisplay !== "Pendiente") return false;
+          if (statusFilter === "En fecha/No pagado" && estadoDisplay !== "En fecha/No pagado") return false;
           if (statusFilter === "No en fecha" && estadoDisplay !== "No en fecha") return false;
         }
 
@@ -262,7 +267,7 @@ const GestionEdificios = () => {
   // Stats
   const totalEdificios = displayRows.length;
   const mesPagado = displayRows.filter(r => r.estadoDisplay === "Mes pagado" || r.estadoDisplay === "Al día").length;
-  const pendientes = displayRows.filter(r => r.estadoDisplay === "Pendiente").length;
+  const pendientes = displayRows.filter(r => r.estadoDisplay === "En fecha/No pagado").length;
   const noEnFecha = displayRows.filter(r => r.estadoDisplay === "No en fecha").length;
 
   return (
@@ -341,7 +346,7 @@ const GestionEdificios = () => {
                   <SelectContent>
                     <SelectItem value="all" className="text-xs">Todos los estados</SelectItem>
                     <SelectItem value="Mes pagado" className="text-xs">Mes pagado</SelectItem>
-                    <SelectItem value="Pendiente" className="text-xs">Pendiente</SelectItem>
+                    <SelectItem value="En fecha/No pagado" className="text-xs">En fecha/No pagado</SelectItem>
                     <SelectItem value="No en fecha" className="text-xs">No en fecha</SelectItem>
                   </SelectContent>
                 </Select>
@@ -445,11 +450,11 @@ const GestionEdificios = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => pago && handleConfirmPayment(item, pago.mes)}
-                              disabled={!pago || pago.pagado || estadoDisplay === "Al día" || estadoDisplay === "Sin pago"}
+                              onClick={() => pago && estadoDisplay === "En fecha/No pagado" && handleConfirmPayment(item, pago.mes)}
+                              disabled={!pago || estadoDisplay !== "En fecha/No pagado"}
                               className={cn(
                                 "h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
-                                pago && !pago.pagado && estadoDisplay !== "Sin pago"
+                                estadoDisplay === "En fecha/No pagado"
                                   ? "border-[#10B981] text-[#10B981] hover:bg-[#F0FDF4]"
                                   : "border-[#E2E8F0] text-[#94A3B8] cursor-not-allowed"
                               )}
