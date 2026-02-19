@@ -152,10 +152,10 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   const splitPropuesta = doc.splitTextToSize(propuestaText, contentWidth);
   currentY += splitTech.length * 5 + 10;
 
-  const propuestaText = "Los equipos a utilizar en este tratamiento son los siguientes:";
-  doc.text(propuestaText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
-  const splitPropuesta = doc.splitTextToSize(propuestaText, contentWidth);
-  currentY += splitPropuesta.length * 5 + 12;
+  const equiposText = "Los equipos a utilizar en este tratamiento son los siguientes:";
+  doc.text(equiposText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
+  const splitEquipos = doc.splitTextToSize(equiposText, contentWidth);
+  currentY += splitEquipos.length * 5 + 12;
 
   // Equipment List - DYNAMIC based on matriz_principal and recirculacion
   checkNewPage(40);
