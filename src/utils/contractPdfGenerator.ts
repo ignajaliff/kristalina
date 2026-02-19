@@ -75,11 +75,51 @@ const getMonthName = (monthIndex: number) => {
 
 // Convierte un número entero a palabras en español (hasta millones)
 const numberToWords = (n: number): string => {
-  const unidades = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve",
-    "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve",
-    "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"];
+  const unidades = [
+    "",
+    "uno",
+    "dos",
+    "tres",
+    "cuatro",
+    "cinco",
+    "seis",
+    "siete",
+    "ocho",
+    "nueve",
+    "diez",
+    "once",
+    "doce",
+    "trece",
+    "catorce",
+    "quince",
+    "dieciséis",
+    "diecisiete",
+    "dieciocho",
+    "diecinueve",
+    "veinte",
+    "veintiuno",
+    "veintidós",
+    "veintitrés",
+    "veinticuatro",
+    "veinticinco",
+    "veintiséis",
+    "veintisiete",
+    "veintiocho",
+    "veintinueve",
+  ];
   const decenas = ["", "", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
-  const centenas = ["", "cien", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"];
+  const centenas = [
+    "",
+    "cien",
+    "doscientos",
+    "trescientos",
+    "cuatrocientos",
+    "quinientos",
+    "seiscientos",
+    "setecientos",
+    "ochocientos",
+    "novecientos",
+  ];
 
   if (n === 0) return "cero";
   if (n < 0) return "menos " + numberToWords(-n);
@@ -226,7 +266,7 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
     "",
     "Y",
     "",
-    "EL CLIENTE",
+    `${datos.communityname}`,
   ];
 
   titles.forEach((title) => {
@@ -381,12 +421,16 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
 
   let precioTexto: string;
   if (monedaPresup === "UF") {
-    const ufFormateado = new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(montoNeto);
+    const ufFormateado = new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+      montoNeto,
+    );
     precioTexto = `El precio del presente contrato es la renta mensual en UF equivalente a ${ufFormateado} UF.`;
   } else {
     // Pesos
     const montoRedondeado = Math.round(montoNeto);
-    const clpFormateado = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(montoRedondeado);
+    const clpFormateado = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP" }).format(
+      montoRedondeado,
+    );
     const enPalabras = numberToWords(montoRedondeado) + " pesos";
     precioTexto = `El precio del presente contrato es la renta mensual en pesos equivalente a ${clpFormateado} (${enPalabras}) más IVA.`;
   }
