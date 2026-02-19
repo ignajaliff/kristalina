@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { generatePresupuestoPDF } from "@/utils/pdfGenerator";
 import { generateContratoPDF } from "@/utils/contractPdfGenerator";
+import { generateReportePDF } from "@/utils/reportPdfGenerator";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +9,9 @@ import MobileDrawer from "@/components/MobileDrawer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -17,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Building2, ArrowLeft, MapPin, Users, DollarSign, Mail,
   FileText, Calendar, BarChart3, TrendingUp, CheckCircle, Download,
-  ChevronDown, ChevronUp, Upload, ClipboardList, Loader2
+  ChevronDown, ChevronUp, Upload, ClipboardList, Loader2, PlusIcon
 } from "lucide-react";
 import { format, parseISO, addMonths } from "date-fns";
 import { es } from "date-fns/locale";
@@ -298,11 +302,35 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // New report dialog state
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [isCreatingReport, setIsCreatingReport] = useState(false);
+  const [efectividad, setEfectividad] = useState("");
+  const [efectividadComentario, setEfectividadComentario] = useState("");
+  const [condicionGeneral, setCondicionGeneral] = useState("");
+  const [funcionamiento, setFuncionamiento] = useState("");
+  const [fechaRevision, setFechaRevision] = useState("");
+  const [revisadoPor, setRevisadoPor] = useState("");
+
   const pagosJson: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
   const montoRenting = item.monto_renting || 0;
 
   const pagadosList = pagosJson.filter(p => p.pagado);
   const pendientesList = pagosJson.filter(p => !p.pagado);
+
+  // Fetch reportes for this gestion
+  const { data: reportes, isLoading: loadingReportes } = useQuery({
+    queryKey: ['reportes', item.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reportes")
+        .select("*")
+        .eq("gestion_id", item.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const handleUploadFactura = async () => {
     if (!selectedFile || !selectedMes) return;
@@ -321,7 +349,6 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         .getPublicUrl(filePath);
       const facturaUrl = publicUrlData.publicUrl;
 
-      // Update pagos_json
       const updatedPagos = pagosJson.map(p =>
         p.mes === mesNum ? { ...p, factura_url: facturaUrl } : p
       );
@@ -345,7 +372,67 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     }
   };
 
-  // Payment marking is done from GestionPagos page
+  const handleCreateReport = async () => {
+    if (!efectividad || !condicionGeneral) {
+      toast.error("Completa los campos obligatorios");
+      return;
+    }
+    setIsCreatingReport(true);
+    try {
+      const datosReporte = {
+        efectividad,
+        efectividad_comentario: efectividadComentario,
+        condicion_general: condicionGeneral,
+        funcionamiento,
+        fecha_revision: fechaRevision,
+        revisado_por: revisadoPor,
+      };
+
+      const { error } = await supabase
+        .from("reportes")
+        .insert({
+          gestion_id: item.id,
+          datos_reporte: datosReporte as any,
+        });
+
+      if (error) throw error;
+
+      toast.success("Reporte creado exitosamente");
+      queryClient.invalidateQueries({ queryKey: ['reportes', item.id] });
+      setReportDialogOpen(false);
+      // Reset form
+      setEfectividad("");
+      setEfectividadComentario("");
+      setCondicionGeneral("");
+      setFuncionamiento("");
+      setFechaRevision("");
+      setRevisadoPor("");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al crear el reporte");
+    } finally {
+      setIsCreatingReport(false);
+    }
+  };
+
+  const handleDownloadReport = (reporte: any, index: number) => {
+    const numero = (reportes?.length || 0) - index;
+    const cliente = item.cliente as any || {};
+    const blob = generateReportePDF({
+      cliente,
+      pagosJson,
+      montoRenting,
+      datosReporte: reporte.datos_reporte,
+      numero,
+      fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `reporte_${numero}_${cliente.communityname || 'edificio'}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const proximoPago = pendientesList[0];
 
@@ -400,7 +487,6 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                 </TableRow>
               ) : (
                 <>
-                  {/* Paid months */}
                   {pagadosList.map((p) => (
                     <TableRow key={p.mes} className="hover:bg-[#F8FAFC]">
                       <TableCell className="text-[12px] font-semibold text-[#1E293B]">Mes {p.mes}</TableCell>
@@ -430,7 +516,6 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                     </TableRow>
                   ))}
 
-                  {/* Next pending payment */}
                   {!showUpcoming && proximoPago && (
                     <TableRow className="bg-[#FFFBEB] border-l-2 border-[#F59E0B]">
                       <TableCell className="text-[12px] font-semibold text-[#1E293B]">Mes {proximoPago.mes}</TableCell>
@@ -454,10 +539,9 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                     </TableRow>
                   )}
 
-                  {/* All upcoming payments (shown when expanded) */}
                   {showUpcoming && pendientesList.map((p) => (
                     <TableRow key={`upcoming-${p.mes}`} className={cn("hover:bg-[#F8FAFC]", p.mes === proximoPago?.mes && "bg-[#FFFBEB]")}>
-                      <TableCell className="text-[12px] font-semibold text-[p.mes === proximoPago?.mes ? '#1E293B' : '#94A3B8']">Mes {p.mes}</TableCell>
+                      <TableCell className="text-[12px] font-semibold text-[#94A3B8]">Mes {p.mes}</TableCell>
                       <TableCell className="text-[12px] text-[#94A3B8]">{formatDate(p.fecha_pago)}</TableCell>
                       <TableCell className="text-[12px] font-semibold text-[#94A3B8]">${Number(p.monto).toLocaleString()}</TableCell>
                       <TableCell>
@@ -494,6 +578,83 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Reportes Generados */}
+      <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
+        <CardHeader className="border-b border-[#F1F5F9] p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+                <ClipboardList className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
+              </div>
+              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Reportes Generados</CardTitle>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setReportDialogOpen(true)}
+              className="h-8 px-4 bg-[#1A367F] hover:bg-[#152D6B] text-white text-[11px] font-bold rounded-lg gap-1.5"
+            >
+              <PlusIcon className="h-3.5 w-3.5" />
+              Nuevo Reporte
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-[#F8FAFC] hover:bg-[#F8FAFC]">
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">#</TableHead>
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Fecha</TableHead>
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Efectividad</TableHead>
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Condición</TableHead>
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider text-right">Archivo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loadingReportes ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-[#64748B]" />
+                      <span className="text-[12px] text-[#94A3B8]">Cargando...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : !reportes || reportes.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-[12px] text-[#94A3B8]">
+                    No hay reportes generados
+                  </TableCell>
+                </TableRow>
+              ) : (
+                reportes.map((reporte, index) => {
+                  const numero = reportes.length - index;
+                  const datos = reporte.datos_reporte as any || {};
+                  return (
+                    <TableRow key={reporte.id} className="hover:bg-[#F8FAFC]">
+                      <TableCell className="text-[12px] font-semibold text-[#1E293B]">#{numero}</TableCell>
+                      <TableCell className="text-[12px] text-[#64748B]">{format(parseISO(reporte.created_at), "dd/MM/yyyy")}</TableCell>
+                      <TableCell className="text-[12px] text-[#64748B]">{datos.efectividad || "N/A"}</TableCell>
+                      <TableCell className="text-[12px] text-[#64748B]">{datos.condicion_general || "N/A"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadReport(reporte, index)}
+                          className="h-7 px-2 text-[#1A367F] hover:bg-[#EFF6FF]"
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1" />
+                          <span className="text-[11px]">PDF</span>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
@@ -538,6 +699,91 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
               className="bg-[#1A367F] hover:bg-[#142a5f]"
             >
               {isUploading ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Subiendo...</> : "Cargar Factura"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Report Dialog */}
+      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nuevo Reporte</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-2">
+            {/* Effectiveness section */}
+            <div className="space-y-3">
+              <Label className="text-sm font-bold text-[#1E293B]">Evaluación de efectividad de la solución</Label>
+              <Select value={efectividad} onValueChange={setEfectividad}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una opción" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Efectiva">Efectiva</SelectItem>
+                  <SelectItem value="En observación">En observación</SelectItem>
+                  <SelectItem value="Requiere Ajustes">Requiere Ajustes</SelectItem>
+                </SelectContent>
+              </Select>
+              <Textarea
+                placeholder="Comentario sobre la efectividad..."
+                value={efectividadComentario}
+                onChange={e => setEfectividadComentario(e.target.value)}
+                className="min-h-[60px]"
+              />
+            </div>
+
+            {/* General condition section */}
+            <div className="space-y-3">
+              <Label className="text-sm font-bold text-[#1E293B]">Condición general</Label>
+              <Select value={condicionGeneral} onValueChange={setCondicionGeneral}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una opción" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Óptima">Óptima</SelectItem>
+                  <SelectItem value="Buena">Buena</SelectItem>
+                  <SelectItem value="Regular">Regular</SelectItem>
+                  <SelectItem value="Deficiente">Deficiente</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#64748B]">Funcionamiento</Label>
+                <Textarea
+                  placeholder="Describe el funcionamiento..."
+                  value={funcionamiento}
+                  onChange={e => setFuncionamiento(e.target.value)}
+                  className="min-h-[50px]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#64748B]">Fecha de Revisión</Label>
+                <Input
+                  type="date"
+                  value={fechaRevision}
+                  onChange={e => setFechaRevision(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#64748B]">Revisado por</Label>
+                <Input
+                  placeholder="Nombre del revisor"
+                  value={revisadoPor}
+                  onChange={e => setRevisadoPor(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReportDialogOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleCreateReport}
+              disabled={!efectividad || !condicionGeneral || isCreatingReport}
+              className="bg-[#1A367F] hover:bg-[#142a5f]"
+            >
+              {isCreatingReport ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Creando...</> : "Crear Reporte"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -45,6 +45,18 @@ interface GestionItem {
   vendedor_id: string | null;
 }
 
+// Compute dynamic status based on today's date vs fecha_pago
+const computeEstado = (pago: PagoRecord): string => {
+  if (pago.pagado) return "Mes pagado";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [year, month, day] = pago.fecha_pago.split("-").map(Number);
+  const fechaPago = new Date(year, month - 1, day);
+  // If today >= fecha_pago => "En fecha/No pagado" (payment is due or overdue)
+  // If today < fecha_pago => "No en fecha" (not yet due)
+  return today >= fechaPago ? "En fecha/No pagado" : "No en fecha";
+};
+
 // For each building, find the payment that corresponds to the selected month/year
 // If "all", return the next pending payment
 const getRelevantPago = (
@@ -61,9 +73,12 @@ const getRelevantPago = (
   if (monthFilter === "all") {
     // Show next pending payment
     const nextPending = pagos.find(p => !p.pagado);
+    if (!nextPending) {
+      return { pago: pagos[pagos.length - 1], estadoDisplay: "Mes pagado" };
+    }
     return {
-      pago: nextPending || pagos[pagos.length - 1],
-      estadoDisplay: nextPending ? "En fecha/No pagado" : "Al día",
+      pago: nextPending,
+      estadoDisplay: computeEstado(nextPending),
     };
   }
 
@@ -82,7 +97,7 @@ const getRelevantPago = (
 
   return {
     pago: targetPago,
-    estadoDisplay: targetPago.pagado ? "Mes pagado" : "En fecha/No pagado",
+    estadoDisplay: computeEstado(targetPago),
   };
 };
 
@@ -170,10 +185,9 @@ const GestionEdificios = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Mes pagado":
-      case "Al día":
         return (
           <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] font-bold text-[10px] uppercase tracking-wider">
-            {status === "Al día" ? "Al día" : "Mes pagado"}
+            Mes pagado
           </Badge>
         );
       case "En fecha/No pagado":
@@ -182,15 +196,9 @@ const GestionEdificios = () => {
             En fecha/No pagado
           </Badge>
         );
-      case "Pendiente":
-        return (
-          <Badge className="bg-[#EFF6FF] text-[#3B82F6] border-[#BFDBFE] hover:bg-[#EFF6FF] font-bold text-[10px] uppercase tracking-wider">
-            Pendiente
-          </Badge>
-        );
       case "No en fecha":
         return (
-          <Badge className="bg-[#F5F3FF] text-[#7C3AED] border-[#EDE9FE] hover:bg-[#F5F3FF] font-bold text-[10px] uppercase tracking-wider">
+          <Badge className="bg-[#EFF6FF] text-[#38BDF8] border-[#BAE6FD] hover:bg-[#EFF6FF] font-bold text-[10px] uppercase tracking-wider">
             No en fecha
           </Badge>
         );
@@ -266,8 +274,8 @@ const GestionEdificios = () => {
 
   // Stats
   const totalEdificios = displayRows.length;
-  const mesPagado = displayRows.filter(r => r.estadoDisplay === "Mes pagado" || r.estadoDisplay === "Al día").length;
-  const pendientes = displayRows.filter(r => r.estadoDisplay === "En fecha/No pagado").length;
+  const mesPagado = displayRows.filter(r => r.estadoDisplay === "Mes pagado").length;
+  const enFecha = displayRows.filter(r => r.estadoDisplay === "En fecha/No pagado").length;
   const noEnFecha = displayRows.filter(r => r.estadoDisplay === "No en fecha").length;
 
   return (
@@ -303,8 +311,8 @@ const GestionEdificios = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard title="Total Edificios" value={totalEdificios.toString()} description="En gestión" icon={Building2} iconColor="text-[#1A367F]" iconBg="bg-[#F1F3F9]" />
           <StatCard title="Mes Pagado" value={mesPagado.toString()} description="Este período" icon={CheckCircle} iconColor="text-[#10B981]" iconBg="bg-[#F0FDF4]" />
-          <StatCard title="Pendientes" value={pendientes.toString()} description="Por cobrar" icon={Users} iconColor="text-[#F59E0B]" iconBg="bg-[#FFFBEB]" />
-          <StatCard title="No en Fecha" value={noEnFecha.toString()} description="Requieren atención" icon={TrendingUp} iconColor="text-[#7C3AED]" iconBg="bg-[#F5F3FF]" />
+          <StatCard title="En Fecha/No Pagado" value={enFecha.toString()} description="Por cobrar" icon={Users} iconColor="text-[#EF4444]" iconBg="bg-[#FEF2F2]" />
+          <StatCard title="No en Fecha" value={noEnFecha.toString()} description="Aún no vencen" icon={TrendingUp} iconColor="text-[#38BDF8]" iconBg="bg-[#EFF6FF]" />
         </div>
 
         {/* Filters Card */}
