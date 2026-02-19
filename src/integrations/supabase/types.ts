@@ -66,7 +66,6 @@ export type Database = {
           data_presupuesto: Json | null
           dia_pago: number
           estadopago: string
-          fecha_primera_factura: string | null
           fechapago: string
           id: string
           mesrenting: number
@@ -82,7 +81,6 @@ export type Database = {
           data_presupuesto?: Json | null
           dia_pago?: number
           estadopago?: string
-          fecha_primera_factura?: string | null
           fechapago: string
           id?: string
           mesrenting?: number
@@ -98,7 +96,6 @@ export type Database = {
           data_presupuesto?: Json | null
           dia_pago?: number
           estadopago?: string
-          fecha_primera_factura?: string | null
           fechapago?: string
           id?: string
           mesrenting?: number
