@@ -87,7 +87,10 @@ const PaymentConfigDialog = ({ open, onConfirm }: PaymentConfigDialogProps) => {
   );
 };
 
-/** Generate all monthly payment records for the contract duration */
+/** Generate all monthly payment records for the contract duration.
+ * Mes 1 uses fechaPrimeraFactura as-is.
+ * Months 2+ are generated using diaPago day of each subsequent month.
+ */
 const generatePagosJson = (
   fechaPrimeraFactura: string,
   diaPago: 1 | 30,
@@ -95,11 +98,21 @@ const generatePagosJson = (
   duracionMeses: number
 ) => {
   const pagos = [];
-  const firstDate = new Date(fechaPrimeraFactura + "T00:00:00");
 
-  for (let i = 0; i < duracionMeses; i++) {
+  // Mes 1: use the exact first invoice date
+  pagos.push({
+    mes: 1,
+    fecha_pago: fechaPrimeraFactura,
+    monto: montoRenting,
+    pagado: false,
+    factura_url: null,
+    fecha_pago_real: null,
+  });
+
+  // Months 2+: use diaPago of each subsequent month
+  const firstDate = new Date(fechaPrimeraFactura + "T00:00:00");
+  for (let i = 1; i < duracionMeses; i++) {
     const mesDate = addMonths(firstDate, i);
-    // Set day to configured billing day (handle month-end for 30)
     const lastDayOfMonth = new Date(mesDate.getFullYear(), mesDate.getMonth() + 1, 0).getDate();
     const targetDay = Math.min(diaPago, lastDayOfMonth);
     const fechaPago = new Date(mesDate.getFullYear(), mesDate.getMonth(), targetDay);
@@ -170,10 +183,11 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
       .single();
     if (cErr) throw cErr;
 
-    // 4. Extract monto renting from presupuesto (total with discount applied)
+    // 4. Extract monto renting from presupuesto (total minus discount)
     const datosPresupuesto = presupuesto?.datos_presupuesto as any || {};
-    // presupuesto_total_deptos already has discount applied according to business logic
-    const montoRenting = datosPresupuesto.presupuesto_total_deptos || 0;
+    const totalDeptos = datosPresupuesto.presupuesto_total_deptos || 0;
+    const descuentoPct = datosPresupuesto.descuento_porcentaje || 0;
+    const montoRenting = totalDeptos - (totalDeptos * descuentoPct) / 100;
 
     // 5. Contract duration in months
     const duracionMeses = datosPresupuesto.anos_contrato
@@ -203,7 +217,7 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
       fecha_instalacion_equipos: form.fecha_instalacion_equipos || contratoFull.fecha_instalacion_equipos,
     };
 
-    // 9. Insert into gestion
+    // 9. Insert into gestion (fecha_primera_factura removed — stored as mes 1 in pagos_json)
     const { error: gErr } = await supabase
       .from("gestion")
       .insert({
@@ -212,10 +226,9 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
         data_contrato: dataContratoJson,
         mesrenting: 1,
         fechapago: primeraFechaPago,
-        estadopago: "No en fecha",
+        estadopago: "En fecha/No pagado",
         vendedor_id: prospecto.vendedor_id,
         dia_pago: paymentConfig.diaPago,
-        fecha_primera_factura: paymentConfig.fechaPrimeraFactura,
         monto_renting: montoRenting,
         pagos_json: pagosJson,
       });
