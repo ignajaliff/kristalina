@@ -146,7 +146,13 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   const splitTech = doc.splitTextToSize(techText, contentWidth);
   currentY += splitTech.length * 5 + 10;
 
-  const propuestaText = `En base a la visita realizada al edificio, proponemos el suministro e instalación de un sistema Ionizador Central para el edificio, en la recirculación entre ambos estanques acumuladores de agua potable, generando por la cinética una inestabilidad constante de la dureza contenida en el agua.`;
+  const propuestaText =
+    "En base a la visita realizada al edificio, proponemos el suministro e instalación de un sistema Ionizador Central para el edificio, en la recirculación entre ambos estanques acumuladores de agua potable, generando por la cinética una inestabilidad constante de la dureza contenida en el agua.";
+  doc.text(propuestaText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
+  const splitPropuesta = doc.splitTextToSize(propuestaText, contentWidth);
+  currentY += splitTech.length * 5 + 10;
+
+  const propuestaText = "Los equipos a utilizar en este tratamiento son los siguientes:";
   doc.text(propuestaText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
   const splitPropuesta = doc.splitTextToSize(propuestaText, contentWidth);
   currentY += splitPropuesta.length * 5 + 12;
@@ -195,13 +201,6 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
     currentY += splitItem.length * 5 + 2;
   });
 
-  currentY += 8;
-  const closingText =
-    "Esta propuesta considera todos los materiales, elementos y accesorios para la óptima instalación y funcionamiento del sistema, bajo modalidad “Llave en mano”.";
-  doc.text(closingText, margin, currentY, { maxWidth: contentWidth, align: "justify", lineHeightFactor: 1.2 });
-  const splitClosing = doc.splitTextToSize(closingText, contentWidth);
-  currentY += splitClosing.length * 5 + 12;
-
   // Propuesta Económica
   checkNewPage(60);
   doc.setFont("helvetica", "bold");
@@ -237,6 +236,7 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   doc.setFont("helvetica", "normal");
   doc.text(`,${formatCurrency(costoTotalMensualEquipos)}.- más IVA mensual.`, valueX, currentY);
   currentY += 8;
+
   doc.setFont("helvetica", "normal");
   const visitsText = "Se incluyen 3 visitas anuales de seguimiento y control de la solución, incluidas en el servicio.";
   doc.text("•", margin + 5, currentY);
@@ -244,6 +244,11 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   currentY += 6;
   doc.text("•", margin + 5, currentY);
   doc.text("Tiempo de Ejecución: 2 días", margin + 10, currentY);
+  currentY += 6;
+  const turnkeyText =
+    "Esta propuesta considera todos los materiales, elementos y accesorios para la óptima instalación y funcionamiento del sistema, bajo modalidad “Llave en mano”.";
+  doc.text("•", margin + 5, currentY);
+  doc.text(turnkeyText, margin + 10, currentY, { maxWidth: contentWidth - 10, align: "justify" });
   currentY += 12;
 
   // Forma de Pago y Contrato
