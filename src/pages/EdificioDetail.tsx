@@ -21,13 +21,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Building2, ArrowLeft, MapPin, Users, DollarSign, Mail,
   FileText, Calendar, BarChart3, TrendingUp, CheckCircle, Download,
-  ChevronDown, ChevronUp, Upload, ClipboardList, Loader2, PlusIcon
+  ChevronDown, ChevronUp, Upload, ClipboardList, Loader2, PlusIcon, Activity
 } from "lucide-react";
-import { format, parseISO, addMonths } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+
+// --- Types ---
+interface PagoRecord {
+  mes: number;
+  fecha_pago: string;
+  monto: number;
+  pagado: boolean;
+  factura_url: string | null;
+  fecha_pago_real: string | null;
+}
+
+interface ActividadRow {
+  item: string;
+  horario_activo: string;
+  horario_reposo: string;
+}
+
+const EMPTY_ACTIVIDAD: ActividadRow[] = Array.from({ length: 8 }, () => ({
+  item: "",
+  horario_activo: "",
+  horario_reposo: "",
+}));
 
 const EdificioDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -42,7 +64,6 @@ const EdificioDetail = () => {
         .select('*')
         .eq('id', id)
         .single();
-
       if (error) throw error;
       return data;
     },
@@ -80,9 +101,6 @@ const EdificioDetail = () => {
   const dataContrato = item.data_contrato as any || {};
   const datosPresupuesto = dataPresupuesto.datos_presupuesto || {};
   const datosContrato = dataContrato.datos_contrato || {};
-
-  // Calculate report data
-  const totalPagado = item.estadopago === 'Mes pagado' ? item.mesrenting : 0;
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -130,11 +148,14 @@ const EdificioDetail = () => {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs - 3 tabs now */}
         <Tabs defaultValue="informacion" className="space-y-6">
           <TabsList className="bg-[#F1F5F9] border border-[#E2E8F0] p-1 rounded-lg">
             <TabsTrigger value="informacion" className="text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A367F] data-[state=active]:shadow-sm rounded-md px-4">
               Información
+            </TabsTrigger>
+            <TabsTrigger value="pagos" className="text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A367F] data-[state=active]:shadow-sm rounded-md px-4">
+              Historial de Pagos
             </TabsTrigger>
             <TabsTrigger value="reportes" className="text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-[#1A367F] data-[state=active]:shadow-sm rounded-md px-4">
               Reportes
@@ -272,6 +293,11 @@ const EdificioDetail = () => {
             </div>
           </TabsContent>
 
+          {/* Historial de Pagos Tab */}
+          <TabsContent value="pagos" className="space-y-6">
+            <HistorialPagosTab item={item} formatDate={formatDate} />
+          </TabsContent>
+
           {/* Reports Tab */}
           <TabsContent value="reportes" className="space-y-6">
             <ReportesTab item={item} formatDate={formatDate} />
@@ -282,55 +308,23 @@ const EdificioDetail = () => {
   );
 };
 
-// --- Reportes Tab Component ---
-interface PagoRecord {
-  mes: number;
-  fecha_pago: string;
-  monto: number;
-  pagado: boolean;
-  factura_url: string | null;
-  fecha_pago_real: string | null;
-}
-
-const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) => string }) => {
+// ═══════════════════════════════════════════════════════════════════════
+// Historial de Pagos Tab
+// ═══════════════════════════════════════════════════════════════════════
+const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: string) => string }) => {
   const queryClient = useQueryClient();
   const [showUpcoming, setShowUpcoming] = useState(false);
-  const [uploadingMes, setUploadingMes] = useState<number | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [selectedMes, setSelectedMes] = useState<string>("");
+  const [selectedMes, setSelectedMes] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // New report dialog state
-  const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [isCreatingReport, setIsCreatingReport] = useState(false);
-  const [efectividad, setEfectividad] = useState("");
-  const [efectividadComentario, setEfectividadComentario] = useState("");
-  const [condicionGeneral, setCondicionGeneral] = useState("");
-  const [funcionamiento, setFuncionamiento] = useState("");
-  const [fechaRevision, setFechaRevision] = useState("");
-  const [revisadoPor, setRevisadoPor] = useState("");
-
   const pagosJson: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
   const montoRenting = item.monto_renting || 0;
-
   const pagadosList = pagosJson.filter(p => p.pagado);
   const pendientesList = pagosJson.filter(p => !p.pagado);
-
-  // Fetch reportes for this gestion
-  const { data: reportes, isLoading: loadingReportes } = useQuery({
-    queryKey: ['reportes', item.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("reportes")
-        .select("*")
-        .eq("gestion_id", item.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
+  const proximoPago = pendientesList[0];
 
   const handleUploadFactura = async () => {
     if (!selectedFile || !selectedMes) return;
@@ -338,27 +332,12 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     try {
       const mesNum = parseInt(selectedMes);
       const filePath = `facturas/${item.id}/mes-${mesNum}-${Date.now()}.${selectedFile.name.split('.').pop()}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("presupuestos-pdf")
-        .upload(filePath, selectedFile, { upsert: true });
+      const { error: uploadError } = await supabase.storage.from("presupuestos-pdf").upload(filePath, selectedFile, { upsert: true });
       if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from("presupuestos-pdf")
-        .getPublicUrl(filePath);
-      const facturaUrl = publicUrlData.publicUrl;
-
-      const updatedPagos = pagosJson.map(p =>
-        p.mes === mesNum ? { ...p, factura_url: facturaUrl } : p
-      );
-
-      const { error: updateError } = await supabase
-        .from("gestion")
-        .update({ pagos_json: updatedPagos as any })
-        .eq("id", item.id);
+      const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
+      const updatedPagos = pagosJson.map(p => p.mes === mesNum ? { ...p, factura_url: publicUrlData.publicUrl } : p);
+      const { error: updateError } = await supabase.from("gestion").update({ pagos_json: updatedPagos as any }).eq("id", item.id);
       if (updateError) throw updateError;
-
       toast.success(`Factura del mes ${mesNum} cargada correctamente`);
       queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
       setUploadDialogOpen(false);
@@ -372,70 +351,6 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     }
   };
 
-  const handleCreateReport = async () => {
-    if (!efectividad || !condicionGeneral) {
-      toast.error("Completa los campos obligatorios");
-      return;
-    }
-    setIsCreatingReport(true);
-    try {
-      const datosReporte = {
-        efectividad,
-        efectividad_comentario: efectividadComentario,
-        condicion_general: condicionGeneral,
-        funcionamiento,
-        fecha_revision: fechaRevision,
-        revisado_por: revisadoPor,
-      };
-
-      const { error } = await supabase
-        .from("reportes")
-        .insert({
-          gestion_id: item.id,
-          datos_reporte: datosReporte as any,
-        });
-
-      if (error) throw error;
-
-      toast.success("Reporte creado exitosamente");
-      queryClient.invalidateQueries({ queryKey: ['reportes', item.id] });
-      setReportDialogOpen(false);
-      // Reset form
-      setEfectividad("");
-      setEfectividadComentario("");
-      setCondicionGeneral("");
-      setFuncionamiento("");
-      setFechaRevision("");
-      setRevisadoPor("");
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al crear el reporte");
-    } finally {
-      setIsCreatingReport(false);
-    }
-  };
-
-  const handleDownloadReport = (reporte: any, index: number) => {
-    const numero = (reportes?.length || 0) - index;
-    const cliente = item.cliente as any || {};
-    const blob = generateReportePDF({
-      cliente,
-      pagosJson,
-      montoRenting,
-      datosReporte: reporte.datos_reporte,
-      numero,
-      fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `reporte_${numero}_${cliente.communityname || 'edificio'}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const proximoPago = pendientesList[0];
-
   return (
     <div className="space-y-6">
       {/* Summary cards */}
@@ -446,7 +361,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         <ReportCard title="Próximo Pago" value={proximoPago ? formatDate(proximoPago.fecha_pago) : "N/A"} icon={TrendingUp} iconColor="text-[#7C3AED]" iconBg="bg-[#F5F3FF]" />
       </div>
 
-      {/* Payment history */}
+      {/* Payment history table */}
       <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
         <CardHeader className="border-b border-[#F1F5F9] p-5">
           <div className="flex items-center justify-between">
@@ -581,7 +496,179 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         </CardContent>
       </Card>
 
-      {/* Reportes Generados */}
+      {/* Upload invoice dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Cargar Factura</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#64748B]">Selecciona el mes al que corresponde</label>
+              <Select value={selectedMes} onValueChange={setSelectedMes}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elige el mes de renting" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pagosJson.map(p => (
+                    <SelectItem key={p.mes} value={p.mes.toString()}>
+                      Mes {p.mes} — {formatDate(p.fecha_pago)} {p.pagado ? "(Pagado)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#64748B]">Archivo de factura (PDF, imagen)</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="block w-full text-sm text-[#64748B] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#EFF6FF] file:text-[#1A367F] hover:file:bg-[#DBEAFE] cursor-pointer"
+                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleUploadFactura}
+              disabled={!selectedFile || !selectedMes || isUploading}
+              className="bg-[#1A367F] hover:bg-[#142a5f]"
+            >
+              {isUploading ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Subiendo...</> : "Cargar Factura"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// Reportes Tab
+// ═══════════════════════════════════════════════════════════════════════
+const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) => string }) => {
+  const queryClient = useQueryClient();
+
+  // Report dialog state
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [isCreatingReport, setIsCreatingReport] = useState(false);
+  const [efectividad, setEfectividad] = useState("");
+  const [efectividadComentario, setEfectividadComentario] = useState("");
+  const [condicionGeneral, setCondicionGeneral] = useState("");
+  const [funcionamiento, setFuncionamiento] = useState("");
+  const [fechaRevision, setFechaRevision] = useState("");
+  const [revisadoPor, setRevisadoPor] = useState("");
+
+  // Actividad de solución state
+  const savedActividad: ActividadRow[] = Array.isArray(item.actividad_solucion) && item.actividad_solucion.length > 0
+    ? item.actividad_solucion
+    : EMPTY_ACTIVIDAD;
+  const [actividad, setActividad] = useState<ActividadRow[]>(savedActividad);
+  const [isSavingActividad, setIsSavingActividad] = useState(false);
+
+  const pagosJson: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
+  const montoRenting = item.monto_renting || 0;
+
+  // Fetch reportes
+  const { data: reportes, isLoading: loadingReportes } = useQuery({
+    queryKey: ['reportes', item.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reportes")
+        .select("*")
+        .eq("gestion_id", item.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleUpdateActividad = (index: number, field: keyof ActividadRow, value: string) => {
+    const updated = [...actividad];
+    updated[index] = { ...updated[index], [field]: value };
+    setActividad(updated);
+  };
+
+  const handleSaveActividad = async () => {
+    setIsSavingActividad(true);
+    try {
+      const { error } = await supabase
+        .from("gestion")
+        .update({ actividad_solucion: actividad as any })
+        .eq("id", item.id);
+      if (error) throw error;
+      toast.success("Actividad de solución guardada");
+      queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al guardar");
+    } finally {
+      setIsSavingActividad(false);
+    }
+  };
+
+  const handleCreateReport = async () => {
+    if (!efectividad || !condicionGeneral) {
+      toast.error("Completa los campos obligatorios");
+      return;
+    }
+    setIsCreatingReport(true);
+    try {
+      const datosReporte = {
+        efectividad,
+        efectividad_comentario: efectividadComentario,
+        condicion_general: condicionGeneral,
+        funcionamiento,
+        fecha_revision: fechaRevision,
+        revisado_por: revisadoPor,
+      };
+      const { error } = await supabase.from("reportes").insert({
+        gestion_id: item.id,
+        datos_reporte: datosReporte as any,
+      });
+      if (error) throw error;
+      toast.success("Reporte creado exitosamente");
+      queryClient.invalidateQueries({ queryKey: ['reportes', item.id] });
+      setReportDialogOpen(false);
+      setEfectividad("");
+      setEfectividadComentario("");
+      setCondicionGeneral("");
+      setFuncionamiento("");
+      setFechaRevision("");
+      setRevisadoPor("");
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al crear el reporte");
+    } finally {
+      setIsCreatingReport(false);
+    }
+  };
+
+  const handleDownloadReport = (reporte: any, index: number) => {
+    const numero = (reportes?.length || 0) - index;
+    const cliente = item.cliente as any || {};
+    const blob = generateReportePDF({
+      cliente,
+      pagosJson,
+      montoRenting,
+      datosReporte: reporte.datos_reporte,
+      numero,
+      fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
+      actividadSolucion: actividad,
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `reporte_${numero}_${cliente.communityname || 'edificio'}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Reportes Generados CRM */}
       <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
         <CardHeader className="border-b border-[#F1F5F9] p-5">
           <div className="flex items-center justify-between">
@@ -658,51 +745,69 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         </CardContent>
       </Card>
 
-      {/* Upload invoice dialog */}
-      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Cargar Factura</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#64748B]">Selecciona el mes al que corresponde</label>
-              <Select value={selectedMes} onValueChange={setSelectedMes}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Elige el mes de renting" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pagosJson.map(p => (
-                    <SelectItem key={p.mes} value={p.mes.toString()}>
-                      Mes {p.mes} — {formatDate(p.fecha_pago)} {p.pagado ? "(Pagado)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Actividad de Solución */}
+      <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
+        <CardHeader className="border-b border-[#F1F5F9] p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+                <Activity className="h-4 w-4 text-[#7C3AED]" strokeWidth={2.5} />
+              </div>
+              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Actividad de Solución</CardTitle>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#64748B]">Archivo de factura (PDF, imagen)</label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="block w-full text-sm text-[#64748B] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#EFF6FF] file:text-[#1A367F] hover:file:bg-[#DBEAFE] cursor-pointer"
-                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancelar</Button>
             <Button
-              onClick={handleUploadFactura}
-              disabled={!selectedFile || !selectedMes || isUploading}
-              className="bg-[#1A367F] hover:bg-[#142a5f]"
+              size="sm"
+              onClick={handleSaveActividad}
+              disabled={isSavingActividad}
+              className="h-8 px-4 bg-[#1A367F] hover:bg-[#152D6B] text-white text-[11px] font-bold rounded-lg gap-1.5"
             >
-              {isUploading ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Subiendo...</> : "Cargar Factura"}
+              {isSavingActividad ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
+              Guardar
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-[#F8FAFC] hover:bg-[#F8FAFC]">
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider w-[40%]">Item</TableHead>
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider w-[30%]">Horario Activo</TableHead>
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider w-[30%]">Horario Reposo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {actividad.map((row, i) => (
+                <TableRow key={i} className="hover:bg-[#F8FAFC]">
+                  <TableCell className="py-1 px-2">
+                    <Input
+                      value={row.item}
+                      onChange={e => handleUpdateActividad(i, 'item', e.target.value)}
+                      placeholder={`Item ${i + 1}`}
+                      className="h-8 text-[12px] border-[#E2E8F0]"
+                    />
+                  </TableCell>
+                  <TableCell className="py-1 px-2">
+                    <Input
+                      value={row.horario_activo}
+                      onChange={e => handleUpdateActividad(i, 'horario_activo', e.target.value)}
+                      placeholder="Ej: 08:00 - 12:00"
+                      className="h-8 text-[12px] border-[#E2E8F0]"
+                    />
+                  </TableCell>
+                  <TableCell className="py-1 px-2">
+                    <Input
+                      value={row.horario_reposo}
+                      onChange={e => handleUpdateActividad(i, 'horario_reposo', e.target.value)}
+                      placeholder="Ej: 12:00 - 16:00"
+                      className="h-8 text-[12px] border-[#E2E8F0]"
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Create Report Dialog */}
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
@@ -711,13 +816,10 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
             <DialogTitle>Nuevo Reporte</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-2">
-            {/* Effectiveness section */}
             <div className="space-y-3">
               <Label className="text-sm font-bold text-[#1E293B]">Evaluación de efectividad de la solución</Label>
               <Select value={efectividad} onValueChange={setEfectividad}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una opción" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecciona una opción" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Efectiva">Efectiva</SelectItem>
                   <SelectItem value="En observación">En observación</SelectItem>
@@ -731,14 +833,10 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                 className="min-h-[60px]"
               />
             </div>
-
-            {/* General condition section */}
             <div className="space-y-3">
               <Label className="text-sm font-bold text-[#1E293B]">Condición general</Label>
               <Select value={condicionGeneral} onValueChange={setCondicionGeneral}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una opción" />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecciona una opción" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Óptima">Óptima</SelectItem>
                   <SelectItem value="Buena">Buena</SelectItem>
@@ -746,33 +844,17 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                   <SelectItem value="Deficiente">Deficiente</SelectItem>
                 </SelectContent>
               </Select>
-
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-[#64748B]">Funcionamiento</Label>
-                <Textarea
-                  placeholder="Describe el funcionamiento..."
-                  value={funcionamiento}
-                  onChange={e => setFuncionamiento(e.target.value)}
-                  className="min-h-[50px]"
-                />
+                <Textarea placeholder="Describe el funcionamiento..." value={funcionamiento} onChange={e => setFuncionamiento(e.target.value)} className="min-h-[50px]" />
               </div>
-
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-[#64748B]">Fecha de Revisión</Label>
-                <Input
-                  type="date"
-                  value={fechaRevision}
-                  onChange={e => setFechaRevision(e.target.value)}
-                />
+                <Input type="date" value={fechaRevision} onChange={e => setFechaRevision(e.target.value)} />
               </div>
-
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-[#64748B]">Revisado por</Label>
-                <Input
-                  placeholder="Nombre del revisor"
-                  value={revisadoPor}
-                  onChange={e => setRevisadoPor(e.target.value)}
-                />
+                <Input placeholder="Nombre del revisor" value={revisadoPor} onChange={e => setRevisadoPor(e.target.value)} />
               </div>
             </div>
           </div>
@@ -792,6 +874,9 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
   );
 };
 
+// ═══════════════════════════════════════════════════════════════════════
+// Shared components
+// ═══════════════════════════════════════════════════════════════════════
 const InfoRow = ({ label, value, icon: Icon }: { label: string; value?: string; icon?: any }) => {
   if (!value) return null;
   return (
@@ -827,4 +912,3 @@ const ReportCard = ({ title, value, icon: Icon, iconColor, iconBg }: ReportCardP
 );
 
 export default EdificioDetail;
-

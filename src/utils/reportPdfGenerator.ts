@@ -1,5 +1,11 @@
 import jsPDF from "jspdf";
 
+interface ActividadRow {
+  item: string;
+  horario_activo: string;
+  horario_reposo: string;
+}
+
 interface ReportData {
   cliente: any;
   pagosJson: any[];
@@ -13,7 +19,8 @@ interface ReportData {
     revisado_por: string;
   };
   numero: number;
-  fecha: string; // mes o fecha del reporte
+  fecha: string;
+  actividadSolucion?: ActividadRow[];
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -22,7 +29,6 @@ const BLUE_DARK: [number, number, number] = [0, 51, 102];
 const BLUE_LIGHT: [number, number, number] = [230, 238, 250];
 const GRAY_TEXT: [number, number, number] = [80, 80, 80];
 
-/** Dibuja un separador con rectángulo de fondo y texto de sección */
 const drawSectionTitle = (doc: jsPDF, y: number, label: string, margin: number, cw: number) => {
   doc.setFillColor(...BLUE_DARK);
   doc.rect(margin, y, cw, 7, "F");
@@ -33,7 +39,6 @@ const drawSectionTitle = (doc: jsPDF, y: number, label: string, margin: number, 
   doc.setTextColor(0, 0, 0);
 };
 
-/** Dibuja par clave-valor en dos columnas */
 const drawRow = (doc: jsPDF, y: number, label: string, value: string, margin: number) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
@@ -44,14 +49,7 @@ const drawRow = (doc: jsPDF, y: number, label: string, value: string, margin: nu
   doc.text(value, margin + 50, y);
 };
 
-/** Dibuja un checkbox cuadrado con o sin tilde */
-const drawCheckbox = (
-  doc: jsPDF,
-  x: number,
-  y: number,
-  label: string,
-  checked: boolean
-) => {
+const drawCheckbox = (doc: jsPDF, x: number, y: number, label: string, checked: boolean) => {
   const size = 4;
   doc.setDrawColor(60, 60, 60);
   doc.setLineWidth(0.3);
@@ -70,7 +68,6 @@ const drawCheckbox = (
   doc.text(label, x + size + 2, y);
 };
 
-/** Footer con URL de la empresa */
 const drawFooter = (doc: jsPDF, pw: number, ph: number) => {
   doc.setDrawColor(0, 51, 102);
   doc.setLineWidth(0.3);
@@ -105,7 +102,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
   // ════════════════════════════════════════════════════════════════════════════
   let y = 16;
 
-  // ── Encabezado: título izquierda / logo derecha ───────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
   doc.setTextColor(...BLUE_DARK);
@@ -118,26 +114,20 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y, 48, 17);
-  } catch (_) {
-    // Logo no disponible
-  }
+  } catch (_) {}
 
   y += 26;
 
-  // ── Subtítulo centrado ────────────────────────────────────────────────────
   doc.setFillColor(...BLUE_LIGHT);
   doc.rect(margin, y, cw, 9, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(...BLUE_DARK);
-  doc.text("MONITOREO DE RENDIMIENTO Y MÉTRICA OPERATIVA", pageWidth / 2, y + 6.2, {
-    align: "center",
-  });
+  doc.text("MONITOREO DE RENDIMIENTO Y MÉTRICA OPERATIVA", pageWidth / 2, y + 6.2, { align: "center" });
   doc.setTextColor(0, 0, 0);
 
   y += 15;
 
-  // ── Datos generales del cliente ───────────────────────────────────────────
   drawSectionTitle(doc, y, "Datos generales del cliente", margin, cw);
   y += 11;
 
@@ -145,10 +135,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
     ["Comunidad:", cliente.communityname || "N/A"],
     ["Administrador:", cliente.adminname || "N/A"],
     ["Email:", cliente.adminemail || "N/A"],
-    [
-      "Dirección:",
-      [cliente.buildingaddress, cliente.comuna, cliente.region].filter(Boolean).join(", ") || "N/A",
-    ],
+    ["Dirección:", [cliente.buildingaddress, cliente.comuna, cliente.region].filter(Boolean).join(", ") || "N/A"],
     ["Tipo de edificio:", cliente.buildingtype || "N/A"],
     ["N° Unidades:", cliente.units?.toString() || "N/A"],
   ];
@@ -160,7 +147,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 6;
 
-  // ── Descripción breve del servicio ────────────────────────────────────────
   drawSectionTitle(doc, y, "Descripción breve del servicio", margin, cw);
   y += 11;
 
@@ -173,7 +159,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.text(descLines, margin + 2, y, { lineHeightFactor: 1.4 });
   y += descLines.length * 5.3 + 7;
 
-  // ── Datos del contrato ────────────────────────────────────────────────────
   drawSectionTitle(doc, y, "Datos del contrato", margin, cw);
   y += 11;
 
@@ -192,7 +177,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 6;
 
-  // ── Resumen del contrato ──────────────────────────────────────────────────
   drawSectionTitle(doc, y, "Resumen del contrato", margin, cw);
   y += 11;
 
@@ -225,12 +209,10 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.addPage();
   y = 18;
 
-  // Referenciar el encabezado con logo
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
   } catch (_) {}
 
-  // ── Título principal ──────────────────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(...BLUE_DARK);
@@ -242,7 +224,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 20;
 
-  // ── Estado de la Solución ─────────────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
@@ -262,7 +243,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 10;
 
-  // Comentario de efectividad
   if (data.datosReporte?.efectividad_comentario) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
@@ -274,13 +254,11 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 8;
 
-  // ── Separador ─────────────────────────────────────────────────────────────
   doc.setDrawColor(200, 210, 230);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
   y += 8;
 
-  // ── Condición General ─────────────────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
@@ -297,7 +275,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 14;
 
-  // ── Funcionamiento ────────────────────────────────────────────────────────
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
@@ -314,7 +291,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.text(funcLines, margin + 2, y, { lineHeightFactor: 1.4 });
   y += funcLines.length * 5.2 + 14;
 
-  // ── Caja inferior: Fecha de revisión / Revisado por ──────────────────────
   doc.setFillColor(...BLUE_LIGHT);
   doc.rect(margin, y, cw, 30, "F");
   doc.setDrawColor(...BLUE_DARK);
@@ -337,6 +313,124 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0, 0, 0);
   doc.text(data.datosReporte?.revisado_por || "N/A", margin + 70, y);
+
+  drawFooter(doc, pageWidth, pageHeight);
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PÁGINA 3 — Actividad de Solución
+  // ════════════════════════════════════════════════════════════════════════════
+  doc.addPage();
+  y = 18;
+
+  try {
+    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
+  } catch (_) {}
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...BLUE_DARK);
+  doc.text("ACTIVIDAD DE SOLUCIÓN", margin, y + 8);
+
+  doc.setDrawColor(...BLUE_DARK);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y + 10, pageWidth - margin, y + 10);
+
+  y += 20;
+
+  // Introductory text
+  const introText =
+    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de acetificación y reposo.\n\nEn la tabla anexa se informa la hora del proceso completo.";
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(50, 50, 50);
+  const introLines = doc.splitTextToSize(introText, cw - 4);
+  doc.text(introLines, margin + 2, y, { lineHeightFactor: 1.5 });
+  y += introLines.length * 5.5 + 10;
+
+  // Table header
+  const colWidths = [cw * 0.4, cw * 0.3, cw * 0.3];
+  const headerH = 8;
+
+  doc.setFillColor(...BLUE_DARK);
+  doc.rect(margin, y, cw, headerH, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255);
+
+  let tx = margin;
+  const headers = ["Item", "Horario Activo", "Horario Reposo"];
+  headers.forEach((h, i) => {
+    doc.text(h, tx + 3, y + 5.5);
+    tx += colWidths[i];
+  });
+
+  y += headerH;
+
+  // Table rows
+  const rows = data.actividadSolucion || [];
+  const rowH = 7;
+
+  rows.forEach((row, idx) => {
+    const isEven = idx % 2 === 0;
+    if (isEven) {
+      doc.setFillColor(245, 248, 255);
+      doc.rect(margin, y, cw, rowH, "F");
+    }
+
+    doc.setDrawColor(220, 225, 235);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y + rowH, margin + cw, y + rowH);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(30, 30, 30);
+
+    tx = margin;
+    const vals = [row.item || "", row.horario_activo || "", row.horario_reposo || ""];
+    vals.forEach((v, i) => {
+      doc.text(v, tx + 3, y + 5);
+      tx += colWidths[i];
+    });
+
+    // vertical lines
+    let lx = margin;
+    colWidths.forEach((w) => {
+      doc.line(lx, y, lx, y + rowH);
+      lx += w;
+    });
+    doc.line(lx, y, lx, y + rowH);
+
+    y += rowH;
+  });
+
+  // If no rows, draw empty rows
+  if (rows.length === 0) {
+    for (let i = 0; i < 8; i++) {
+      const isEven = i % 2 === 0;
+      if (isEven) {
+        doc.setFillColor(245, 248, 255);
+        doc.rect(margin, y, cw, rowH, "F");
+      }
+      doc.setDrawColor(220, 225, 235);
+      doc.setLineWidth(0.2);
+      doc.line(margin, y + rowH, margin + cw, y + rowH);
+
+      let lx = margin;
+      colWidths.forEach((w) => {
+        doc.line(lx, y, lx, y + rowH);
+        lx += w;
+      });
+      doc.line(margin + cw, y, margin + cw, y + rowH);
+
+      y += rowH;
+    }
+  }
+
+  // outer border
+  const tableStartY = y - (rows.length > 0 ? rows.length : 8) * rowH;
+  doc.setDrawColor(...BLUE_DARK);
+  doc.setLineWidth(0.4);
+  doc.rect(margin, tableStartY, cw, (rows.length > 0 ? rows.length : 8) * rowH, "S");
 
   drawFooter(doc, pageWidth, pageHeight);
 

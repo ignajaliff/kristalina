@@ -60,6 +60,7 @@ export type Database = {
       }
       gestion: {
         Row: {
+          actividad_solucion: Json | null
           cliente: Json | null
           created_at: string
           data_contrato: Json | null
@@ -75,6 +76,7 @@ export type Database = {
           vendedor_id: string | null
         }
         Insert: {
+          actividad_solucion?: Json | null
           cliente?: Json | null
           created_at?: string
           data_contrato?: Json | null
@@ -90,6 +92,7 @@ export type Database = {
           vendedor_id?: string | null
         }
         Update: {
+          actividad_solucion?: Json | null
           cliente?: Json | null
           created_at?: string
           data_contrato?: Json | null

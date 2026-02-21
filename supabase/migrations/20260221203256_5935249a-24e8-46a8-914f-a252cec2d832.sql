@@ -1,0 +1,1 @@
+ALTER TABLE public.gestion ADD COLUMN actividad_solucion jsonb DEFAULT '[]'::jsonb;
