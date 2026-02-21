@@ -17,10 +17,16 @@ interface ReportData {
     funcionamiento: string;
     fecha_revision: string;
     revisado_por: string;
+    requiere_mantenimiento?: boolean;
+    detalle_mantenimiento?: string;
+    fecha_proxima_mantenimiento?: string;
+    observaciones_generales?: string;
+    conclusion?: string;
   };
   numero: number;
   fecha: string;
   actividadSolucion?: ActividadRow[];
+  imagenesReporte?: string[];
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -317,7 +323,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   drawFooter(doc, pageWidth, pageHeight);
 
   // ════════════════════════════════════════════════════════════════════════════
-  // PÁGINA 3 — Actividad de Solución
+  // PÁGINA 3 — Actividad de Solución + Imágenes
   // ════════════════════════════════════════════════════════════════════════════
   doc.addPage();
   y = 18;
@@ -431,6 +437,147 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setDrawColor(...BLUE_DARK);
   doc.setLineWidth(0.4);
   doc.rect(margin, tableStartY, cw, (rows.length > 0 ? rows.length : 8) * rowH, "S");
+
+  // Images below table
+  y += 10;
+  const imagenes = data.imagenesReporte || [];
+  if (imagenes.length > 0) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...BLUE_DARK);
+    doc.text("Registro fotográfico", margin, y);
+    y += 6;
+
+    const imgW = imagenes.length === 1 ? cw : (cw - 6) / 2;
+    const imgH = 55;
+    imagenes.forEach((url, i) => {
+      try {
+        const xPos = margin + (i === 1 ? imgW + 6 : 0);
+        doc.addImage(url, "JPEG", xPos, y, imgW, imgH);
+      } catch (_) {}
+    });
+  }
+
+  drawFooter(doc, pageWidth, pageHeight);
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PÁGINA 4 — Mantenimiento, Observaciones, Conclusión, Firma
+  // ════════════════════════════════════════════════════════════════════════════
+  doc.addPage();
+  y = 18;
+
+  try {
+    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
+  } catch (_) {}
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...BLUE_DARK);
+  doc.text("MANTENIMIENTO Y CONCLUSIONES", margin, y + 8);
+
+  doc.setDrawColor(...BLUE_DARK);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y + 10, pageWidth - margin, y + 10);
+
+  y += 22;
+
+  // Requiere mantenimiento
+  drawSectionTitle(doc, y, "¿Requiere mantenimiento la Solución?", margin, cw);
+  y += 11;
+
+  const reqMant = data.datosReporte?.requiere_mantenimiento;
+  cbX = margin + 2;
+  drawCheckbox(doc, cbX, y, "Sí", reqMant === true);
+  drawCheckbox(doc, cbX + 30, y, "No", reqMant === false || reqMant === undefined);
+  y += 10;
+
+  // Detalle mantenimiento
+  if (data.datosReporte?.detalle_mantenimiento) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...GRAY_TEXT);
+    doc.text("Detalle de mantenimiento:", margin + 2, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    const detLines = doc.splitTextToSize(data.datosReporte.detalle_mantenimiento, cw - 4);
+    doc.text(detLines, margin + 2, y, { lineHeightFactor: 1.4 });
+    y += detLines.length * 5.2 + 6;
+  }
+
+  // Fecha próxima mantenimiento
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text("Fecha próxima de mantenimiento:", margin + 2, y);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.datosReporte?.fecha_proxima_mantenimiento || "N/A", margin + 72, y);
+  y += 14;
+
+  // Separator
+  doc.setDrawColor(200, 210, 230);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 10;
+
+  // Observaciones generales
+  drawSectionTitle(doc, y, "Observaciones generales", margin, cw);
+  y += 11;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(50, 50, 50);
+  const obsText = data.datosReporte?.observaciones_generales || "Sin observaciones.";
+  const obsLines = doc.splitTextToSize(obsText, cw - 4);
+  doc.text(obsLines, margin + 2, y, { lineHeightFactor: 1.4 });
+  y += obsLines.length * 5.2 + 10;
+
+  // Conclusión
+  drawSectionTitle(doc, y, "Conclusión", margin, cw);
+  y += 11;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(50, 50, 50);
+  const concText = data.datosReporte?.conclusion || "Sin conclusión.";
+  const concLines = doc.splitTextToSize(concText, cw - 4);
+  doc.text(concLines, margin + 2, y, { lineHeightFactor: 1.4 });
+  y += concLines.length * 5.2 + 20;
+
+  // Separator
+  doc.setDrawColor(200, 210, 230);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 14;
+
+  // Signature space
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...BLUE_DARK);
+  doc.text("Firma:", margin, y);
+  y += 20;
+
+  doc.setDrawColor(100, 100, 100);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y, margin + 70, y);
+
+  y += 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text(data.datosReporte?.revisado_por || "Responsable", margin, y);
+
+  y += 10;
+  const today = new Date();
+  const fechaHoy = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text("Fecha:", margin, y);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+  doc.text(fechaHoy, margin + 15, y);
 
   drawFooter(doc, pageWidth, pageHeight);
 

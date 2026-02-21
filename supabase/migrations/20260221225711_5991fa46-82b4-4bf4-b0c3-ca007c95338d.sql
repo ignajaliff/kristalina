@@ -1,0 +1,1 @@
+ALTER TABLE public.gestion ADD COLUMN imagenes_reporte jsonb DEFAULT '[]'::jsonb;
