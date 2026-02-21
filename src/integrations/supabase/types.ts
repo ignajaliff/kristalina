@@ -69,6 +69,7 @@ export type Database = {
           estadopago: string
           fechapago: string
           id: string
+          imagenes_reporte: Json | null
           mesrenting: number
           monto_renting: number | null
           pagos_json: Json | null
@@ -85,6 +86,7 @@ export type Database = {
           estadopago?: string
           fechapago: string
           id?: string
+          imagenes_reporte?: Json | null
           mesrenting?: number
           monto_renting?: number | null
           pagos_json?: Json | null
@@ -101,6 +103,7 @@ export type Database = {
           estadopago?: string
           fechapago?: string
           id?: string
+          imagenes_reporte?: Json | null
           mesrenting?: number
           monto_renting?: number | null
           pagos_json?: Json | null

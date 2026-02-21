@@ -560,6 +560,17 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
   const [funcionamiento, setFuncionamiento] = useState("");
   const [fechaRevision, setFechaRevision] = useState("");
   const [revisadoPor, setRevisadoPor] = useState("");
+  const [requiereMantenimiento, setRequiereMantenimiento] = useState(false);
+  const [detalleMantenimiento, setDetalleMantenimiento] = useState("");
+  const [fechaProximaMantenimiento, setFechaProximaMantenimiento] = useState("");
+  const [observacionesGenerales, setObservacionesGenerales] = useState("");
+  const [conclusion, setConclusion] = useState("");
+
+  // Imagenes state
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const savedImagenes: string[] = Array.isArray(item.imagenes_reporte) ? item.imagenes_reporte as string[] : [];
 
   // Actividad de solución state
   const savedActividad: ActividadRow[] = Array.isArray(item.actividad_solucion) && item.actividad_solucion.length > 0
@@ -609,6 +620,45 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     }
   };
 
+  const handleUploadImages = async () => {
+    if (imageFiles.length === 0) return;
+    setIsUploadingImages(true);
+    try {
+      const urls: string[] = [...savedImagenes];
+      for (const file of imageFiles) {
+        const filePath = `imagenes-reporte/${item.id}/${Date.now()}-${file.name}`;
+        const { error: uploadError } = await supabase.storage.from("presupuestos-pdf").upload(filePath, file, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
+        urls.push(publicUrlData.publicUrl);
+      }
+      const finalUrls = urls.slice(0, 2); // max 2
+      const { error } = await supabase.from("gestion").update({ imagenes_reporte: finalUrls as any }).eq("id", item.id);
+      if (error) throw error;
+      toast.success("Imágenes guardadas");
+      queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
+      setImageFiles([]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al subir imágenes");
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const handleDeleteImage = async (index: number) => {
+    try {
+      const updated = savedImagenes.filter((_, i) => i !== index);
+      const { error } = await supabase.from("gestion").update({ imagenes_reporte: updated as any }).eq("id", item.id);
+      if (error) throw error;
+      toast.success("Imagen eliminada");
+      queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al eliminar imagen");
+    }
+  };
+
   const handleCreateReport = async () => {
     if (!efectividad || !condicionGeneral) {
       toast.error("Completa los campos obligatorios");
@@ -623,6 +673,11 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         funcionamiento,
         fecha_revision: fechaRevision,
         revisado_por: revisadoPor,
+        requiere_mantenimiento: requiereMantenimiento,
+        detalle_mantenimiento: detalleMantenimiento,
+        fecha_proxima_mantenimiento: fechaProximaMantenimiento,
+        observaciones_generales: observacionesGenerales,
+        conclusion,
       };
       const { error } = await supabase.from("reportes").insert({
         gestion_id: item.id,
@@ -638,6 +693,11 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
       setFuncionamiento("");
       setFechaRevision("");
       setRevisadoPor("");
+      setRequiereMantenimiento(false);
+      setDetalleMantenimiento("");
+      setFechaProximaMantenimiento("");
+      setObservacionesGenerales("");
+      setConclusion("");
     } catch (err) {
       console.error(err);
       toast.error("Error al crear el reporte");
@@ -657,6 +717,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
       numero,
       fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
       actividadSolucion: actividad,
+      imagenesReporte: savedImagenes,
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -742,6 +803,65 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
               )}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* Imágenes del Reporte */}
+      <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
+        <CardHeader className="border-b border-[#F1F5F9] p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+                <Upload className="h-4 w-4 text-[#10B981]" strokeWidth={2.5} />
+              </div>
+              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Imágenes del Reporte</CardTitle>
+              <span className="text-[10px] text-[#94A3B8]">(máx. 2)</span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-5 space-y-4">
+          {savedImagenes.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {savedImagenes.map((url, i) => (
+                <div key={i} className="relative group border border-[#E2E8F0] rounded-lg overflow-hidden">
+                  <img src={url} alt={`Imagen ${i + 1}`} className="w-full h-48 object-cover" />
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2 h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"
+                    onClick={() => handleDeleteImage(i)}
+                  >
+                    Eliminar
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {savedImagenes.length < 2 && (
+            <div className="flex items-center gap-3">
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                multiple
+                className="block w-full text-sm text-[#64748B] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#EFF6FF] file:text-[#1A367F] hover:file:bg-[#DBEAFE] cursor-pointer"
+                onChange={e => {
+                  const files = Array.from(e.target.files || []);
+                  const maxAllowed = 2 - savedImagenes.length;
+                  setImageFiles(files.slice(0, maxAllowed));
+                }}
+              />
+              <Button
+                size="sm"
+                onClick={handleUploadImages}
+                disabled={imageFiles.length === 0 || isUploadingImages}
+                className="h-8 px-4 bg-[#1A367F] hover:bg-[#152D6B] text-white text-[11px] font-bold rounded-lg gap-1.5 shrink-0"
+              >
+                {isUploadingImages ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                Subir
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -855,6 +975,42 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-[#64748B]">Revisado por</Label>
                 <Input placeholder="Nombre del revisor" value={revisadoPor} onChange={e => setRevisadoPor(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-sm font-bold text-[#1E293B]">Mantenimiento</Label>
+              <div className="flex items-center gap-3">
+                <Label className="text-xs font-semibold text-[#64748B]">¿Requiere mantenimiento la Solución?</Label>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="mantenimiento" checked={requiereMantenimiento} onChange={() => setRequiereMantenimiento(true)} className="accent-[#1A367F]" />
+                    <span className="text-xs font-semibold">Sí</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="mantenimiento" checked={!requiereMantenimiento} onChange={() => setRequiereMantenimiento(false)} className="accent-[#1A367F]" />
+                    <span className="text-xs font-semibold">No</span>
+                  </label>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#64748B]">Detalle de mantenimiento</Label>
+                <Textarea placeholder="Detalle del mantenimiento requerido..." value={detalleMantenimiento} onChange={e => setDetalleMantenimiento(e.target.value)} className="min-h-[50px]" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#64748B]">Fecha próxima de mantenimiento</Label>
+                <Input type="date" value={fechaProximaMantenimiento} onChange={e => setFechaProximaMantenimiento(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-bold text-[#1E293B]">Observaciones generales</Label>
+                <Textarea placeholder="Observaciones generales del reporte..." value={observacionesGenerales} onChange={e => setObservacionesGenerales(e.target.value)} className="min-h-[80px]" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-bold text-[#1E293B]">Conclusión</Label>
+                <Textarea placeholder="Conclusión del reporte..." value={conclusion} onChange={e => setConclusion(e.target.value)} className="min-h-[80px]" />
               </div>
             </div>
           </div>
