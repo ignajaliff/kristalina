@@ -254,7 +254,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setFontSize(9.5);
   doc.setTextColor(50, 50, 50);
   const descResultadosLines = doc.splitTextToSize(
-    data.datosReporte?.descripcion_resultados || "Sin descripción.",
+    data.datosReporte?.efectividad_comentario || "Sin descripción.",
     cw - 4,
   );
   doc.text(descResultadosLines, margin + 2, y, { lineHeightFactor: 1.4 });
