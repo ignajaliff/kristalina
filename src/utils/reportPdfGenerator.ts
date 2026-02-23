@@ -98,9 +98,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   const pagados = (data.pagosJson || []).filter((p) => p.pagado);
   const noPagados = (data.pagosJson || []).filter((p) => !p.pagado);
   const mesesContrato =
-    cliente.meses_contrato ?? cliente.anos_contrato
-      ? (cliente.anos_contrato || 0) * 12
-      : data.pagosJson.length;
+    (cliente.meses_contrato ?? cliente.anos_contrato) ? (cliente.anos_contrato || 0) * 12 : data.pagosJson.length;
   const porPagar = Math.max(0, mesesContrato - pagados.length);
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -170,7 +168,14 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   const contratoRows: [string, string][] = [
     ["N° de Contrato:", cliente.numero_contrato || data.numero?.toString() || "N/A"],
-    ["Duración:", cliente.duracion_contrato ? `${cliente.duracion_contrato} meses` : (cliente.anos_contrato ? `${cliente.anos_contrato} años` : "N/A")],
+    [
+      "Duración:",
+      cliente.duracion_contrato
+        ? `${cliente.duracion_contrato} meses`
+        : cliente.anos_contrato
+          ? `${cliente.anos_contrato} años`
+          : "N/A",
+    ],
     ["Tipo de contrato:", cliente.tipo_contrato || "Arriendo mensual"],
     ["Renting mensual:", `$${Number(data.montoRenting || cliente.renting_mensual || 0).toLocaleString("es-CL")}`],
     ["Vendedor:", cliente.vendedor || "N/A"],
@@ -214,31 +219,24 @@ export const generateReportePDF = (data: ReportData): Blob => {
   // ════════════════════════════════════════════════════════════════════════════
   doc.addPage();
   y = 18;
-
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
   } catch (_) {}
-
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(...BLUE_DARK);
   doc.text("EVALUACIÓN DE EFECTIVIDAD DE LA SOLUCIÓN", margin, y + 8);
-
   doc.setDrawColor(...BLUE_DARK);
   doc.setLineWidth(0.4);
   doc.line(margin, y + 10, pageWidth - margin, y + 10);
-
   y += 20;
-
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text("Estado de la Solución:", margin, y);
   y += 8;
-
   const opciones = ["Optima", "Buena", "Regular", "Deficiente"];
   const efectividad = (data.datosReporte?.efectividad || "").toLowerCase().trim();
-
   let cbX = margin + 2;
   const cbSpacing = 40;
   opciones.forEach((op) => {
@@ -246,31 +244,31 @@ export const generateReportePDF = (data: ReportData): Blob => {
     drawCheckbox(doc, cbX, y, op, checked);
     cbX += cbSpacing;
   });
-
   y += 10;
-
-  if (data.datosReporte?.efectividad_comentario) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
-    doc.setTextColor(50, 50, 50);
-    const efLines = doc.splitTextToSize(data.datosReporte.efectividad_comentario, cw - 4);
-    doc.text(efLines, margin + 2, y, { lineHeightFactor: 1.4 });
-    y += efLines.length * 5.2 + 6;
-  }
-
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Descripcion de resultados:", margin, y);
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(50, 50, 50);
+  const descResultadosLines = doc.splitTextToSize(
+    data.datosReporte?.descripcion_resultados || "Sin descripción.",
+    cw - 4,
+  );
+  doc.text(descResultadosLines, margin + 2, y, { lineHeightFactor: 1.4 });
+  y += descResultadosLines.length * 5.2 + 6;
   y += 8;
-
   doc.setDrawColor(200, 210, 230);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
   y += 8;
-
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text("Condición general:", margin, y);
   y += 8;
-
   const condicion = (data.datosReporte?.condicion_general || "").toLowerCase().trim();
   cbX = margin + 2;
   opciones.forEach((op) => {
@@ -278,31 +276,23 @@ export const generateReportePDF = (data: ReportData): Blob => {
     drawCheckbox(doc, cbX, y, op, checked);
     cbX += cbSpacing;
   });
-
   y += 14;
-
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text("Funcionamiento:", margin, y);
   y += 7;
-
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(50, 50, 50);
-  const funcLines = doc.splitTextToSize(
-    data.datosReporte?.funcionamiento || "Sin observaciones.",
-    cw - 4
-  );
+  const funcLines = doc.splitTextToSize(data.datosReporte?.funcionamiento || "Sin observaciones.", cw - 4);
   doc.text(funcLines, margin + 2, y, { lineHeightFactor: 1.4 });
   y += funcLines.length * 5.2 + 14;
-
   doc.setFillColor(...BLUE_LIGHT);
   doc.rect(margin, y, cw, 30, "F");
   doc.setDrawColor(...BLUE_DARK);
   doc.setLineWidth(0.4);
   doc.rect(margin, y, cw, 30, "S");
-
   y += 9;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
@@ -311,7 +301,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0, 0, 0);
   doc.text(data.datosReporte?.fecha_revision || "N/A", margin + 70, y);
-
   y += 9;
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...BLUE_DARK);
@@ -319,7 +308,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0, 0, 0);
   doc.text(data.datosReporte?.revisado_por || "N/A", margin + 70, y);
-
   drawFooter(doc, pageWidth, pageHeight);
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -570,7 +558,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 10;
   const today = new Date();
-  const fechaHoy = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+  const fechaHoy = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getFullYear()}`;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...GRAY_TEXT);
