@@ -37,6 +37,9 @@ interface PagoRecord {
   pagado: boolean;
   factura_url: string | null;
   fecha_pago_real: string | null;
+  fecha_emision?: string | null;
+  fecha_confirmacion?: string | null;
+  es_inmediato?: boolean;
 }
 
 interface ActividadRow {
@@ -322,6 +325,7 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
 
   const pagosJson: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
   const montoRenting = item.monto_renting || 0;
+  const metodoCobro = item.metodo_cobro || "Inmediato";
   const pagadosList = pagosJson.filter(p => p.pagado);
   const pendientesList = pagosJson.filter(p => !p.pagado);
   const proximoPago = pendientesList[0];
@@ -354,11 +358,12 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <ReportCard title="Renting Mensual" value={montoRenting ? `$${Number(montoRenting).toLocaleString()}` : "N/A"} icon={DollarSign} iconColor="text-[#1A367F]" iconBg="bg-[#F1F3F9]" />
         <ReportCard title="Estado Actual" value={item.estadopago} icon={CheckCircle} iconColor="text-[#10B981]" iconBg="bg-[#F0FDF4]" />
         <ReportCard title="Meses Pagados" value={`${pagadosList.length} / ${pagosJson.length}`} icon={Calendar} iconColor="text-[#F59E0B]" iconBg="bg-[#FFFBEB]" />
         <ReportCard title="Próximo Pago" value={proximoPago ? formatDate(proximoPago.fecha_pago) : "N/A"} icon={TrendingUp} iconColor="text-[#7C3AED]" iconBg="bg-[#F5F3FF]" />
+        <ReportCard title="Método de Cobro" value={metodoCobro} icon={FileText} iconColor="text-[#3B82F6]" iconBg="bg-[#EFF6FF]" />
       </div>
 
       {/* Payment history table */}
@@ -408,7 +413,12 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                       <TableCell className="text-[12px] text-[#64748B]">{formatDate(p.fecha_pago)}</TableCell>
                       <TableCell className="text-[12px] font-semibold text-[#1E293B]">${Number(p.monto).toLocaleString()}</TableCell>
                       <TableCell>
-                        <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] text-[10px] font-bold uppercase tracking-wider">Pagado</Badge>
+                        <div className="space-y-1">
+                          <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] text-[10px] font-bold uppercase tracking-wider">Pagado</Badge>
+                          {p.fecha_emision && (
+                            <p className="text-[10px] text-[#94A3B8]">Emitida: {formatDate(p.fecha_emision)}</p>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {p.factura_url ? (
