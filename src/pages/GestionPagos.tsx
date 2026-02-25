@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle, Building2, TrendingUp, Users, DollarSign, Edit } from "lucide-react";
+import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle, Building2, TrendingUp, Users, DollarSign, Edit, FileText, Send } from "lucide-react";
 import { format, parseISO, getMonth, getYear } from "date-fns";
 import { es } from "date-fns/locale";
 import AddGestionDialog from "@/components/AddGestionDialog";
@@ -26,6 +26,10 @@ interface PagoRecord {
   pagado: boolean;
   factura_url: string | null;
   fecha_pago_real: string | null;
+  // Emisión de Factura fields
+  fecha_emision?: string | null;
+  fecha_confirmacion?: string | null;
+  es_inmediato?: boolean;
 }
 
 interface GestionItem {
@@ -37,28 +41,45 @@ interface GestionItem {
   monto_renting: number | null;
   fechapago: string;
   estadopago: string;
-  dia_pago: number | null;
-  fecha_primera_factura: string | null;
+  metodo_cobro: string;
   pagos_json: PagoRecord[] | null;
   created_at: string;
   updated_at: string;
   vendedor_id: string | null;
 }
 
-// Compute dynamic status based on today's date vs fecha_pago
-const computeEstado = (pago: PagoRecord): string => {
+// Compute dynamic status based on today's date, metodo_cobro, and pago state
+const computeEstado = (pago: PagoRecord, metodoCobro: string): string => {
   if (pago.pagado) return "Mes pagado";
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [year, month, day] = pago.fecha_pago.split("-").map(Number);
   const fechaPago = new Date(year, month - 1, day);
-  // If today >= fecha_pago => "En fecha/No pagado" (payment is due or overdue)
-  // If today < fecha_pago => "No en fecha" (not yet due)
+
+  // For "Emisión de Factura" method
+  if (metodoCobro === "Emisión de Factura" && !pago.es_inmediato) {
+    // If invoice was emitted
+    if (pago.fecha_emision) {
+      // Check if we've passed to the next month without payment
+      const emisionDate = new Date(pago.fecha_emision + "T00:00:00");
+      const nextMonth1st = new Date(emisionDate.getFullYear(), emisionDate.getMonth() + 1, 1);
+      if (today >= nextMonth1st) {
+        return "En fecha/No pagado"; // Overdue - emitted but not paid by next month
+      }
+      return "Factura Emitida";
+    }
+    // Not yet emitted - check if we've reached the payment date (1st of month)
+    if (today >= fechaPago) {
+      return "Factura no Emitida";
+    }
+    return "No en fecha";
+  }
+
+  // For "Inmediato" method (and first payment of Emisión de Factura)
   return today >= fechaPago ? "En fecha/No pagado" : "No en fecha";
 };
 
-// For each building, find the payment that corresponds to the selected month/year
-// If "all", return the next pending payment
 const getRelevantPago = (
   item: GestionItem,
   monthFilter: string,
@@ -71,19 +92,17 @@ const getRelevantPago = (
   }
 
   if (monthFilter === "all") {
-    // Show next pending payment
     const nextPending = pagos.find(p => !p.pagado);
     if (!nextPending) {
       return { pago: pagos[pagos.length - 1], estadoDisplay: "Mes pagado" };
     }
     return {
       pago: nextPending,
-      estadoDisplay: computeEstado(nextPending),
+      estadoDisplay: computeEstado(nextPending, item.metodo_cobro),
     };
   }
 
-  // Find pago matching month+year
-  const month = parseInt(monthFilter); // 0-indexed
+  const month = parseInt(monthFilter);
   const targetPago = pagos.find(p => {
     try {
       const d = parseISO(p.fecha_pago + "T00:00:00");
@@ -97,7 +116,7 @@ const getRelevantPago = (
 
   return {
     pago: targetPago,
-    estadoDisplay: computeEstado(targetPago),
+    estadoDisplay: computeEstado(targetPago, item.metodo_cobro),
   };
 };
 
@@ -112,7 +131,6 @@ const GestionEdificios = () => {
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
 
-  // Fetch ALL gestion items (no date filter at DB level — we filter client-side via pagos_json)
   const { data: gestionItems, isLoading, refetch } = useQuery({
     queryKey: ["gestion-all"],
     queryFn: async () => {
@@ -131,11 +149,10 @@ const GestionEdificios = () => {
       const pagos: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
       const updatedPagos = pagos.map(p =>
         p.mes === mes
-          ? { ...p, pagado: true, fecha_pago_real: format(new Date(), "yyyy-MM-dd") }
+          ? { ...p, pagado: true, fecha_pago_real: format(new Date(), "yyyy-MM-dd"), ...(p.fecha_emision !== undefined ? { fecha_confirmacion: format(new Date(), "yyyy-MM-dd") } : {}) }
           : p
       );
 
-      // Next pending after marking this one
       const nextPending = updatedPagos.find(p => !p.pagado);
 
       const { error } = await supabase
@@ -150,7 +167,6 @@ const GestionEdificios = () => {
 
       if (error) throw error;
 
-      // Send webhook
       const webhookUrl =
         "https://n8n-n8n.qqtfab.easypanel.host/webhook-test/8cdde499-cc85-4d5a-b5b4-c40545844fdc";
       fetch(webhookUrl, {
@@ -182,6 +198,41 @@ const GestionEdificios = () => {
     }
   };
 
+  const handleEmitInvoice = async (item: GestionItem, mes: number) => {
+    try {
+      const pagos: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
+      const updatedPagos = pagos.map(p =>
+        p.mes === mes
+          ? { ...p, fecha_emision: format(new Date(), "yyyy-MM-dd") }
+          : p
+      );
+
+      const { error } = await supabase
+        .from("gestion")
+        .update({
+          pagos_json: updatedPagos as any,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Factura emitida",
+        description: `Factura del mes ${mes} marcada como emitida.`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["gestion-all"] });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "No se pudo emitir la factura.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Mes pagado":
@@ -200,6 +251,18 @@ const GestionEdificios = () => {
         return (
           <Badge className="bg-[#EFF6FF] text-[#38BDF8] border-[#BAE6FD] hover:bg-[#EFF6FF] font-bold text-[10px] uppercase tracking-wider">
             No en fecha
+          </Badge>
+        );
+      case "Factura no Emitida":
+        return (
+          <Badge className="bg-[#FFFBEB] text-[#F59E0B] border-[#FDE68A] hover:bg-[#FFFBEB] font-bold text-[10px] uppercase tracking-wider">
+            Factura no Emitida
+          </Badge>
+        );
+      case "Factura Emitida":
+        return (
+          <Badge className="bg-[#EFF6FF] text-[#3B82F6] border-[#BFDBFE] hover:bg-[#EFF6FF] font-bold text-[10px] uppercase tracking-wider">
+            Factura Emitida
           </Badge>
         );
       case "Sin pago":
@@ -241,7 +304,6 @@ const GestionEdificios = () => {
     { value: "11", label: "Diciembre" },
   ];
 
-  // Build display rows: one per building, with the relevant pago for the selected month
   const displayRows = useMemo(() => {
     if (!gestionItems) return [];
 
@@ -251,17 +313,16 @@ const GestionEdificios = () => {
         return { item, pago, estadoDisplay };
       })
       .filter(({ item, pago, estadoDisplay }) => {
-        // If a specific month is selected and there's no payment for that month, hide the row
         if (monthFilter !== "all" && !pago) return false;
 
-        // Status filter
         if (statusFilter !== "all") {
           if (statusFilter === "Mes pagado" && estadoDisplay !== "Mes pagado" && estadoDisplay !== "Al día") return false;
           if (statusFilter === "En fecha/No pagado" && estadoDisplay !== "En fecha/No pagado") return false;
           if (statusFilter === "No en fecha" && estadoDisplay !== "No en fecha") return false;
+          if (statusFilter === "Factura no Emitida" && estadoDisplay !== "Factura no Emitida") return false;
+          if (statusFilter === "Factura Emitida" && estadoDisplay !== "Factura Emitida") return false;
         }
 
-        // Search filter
         const cliente = item.cliente || {};
         const searchLower = searchTerm.toLowerCase();
         return (
@@ -272,11 +333,12 @@ const GestionEdificios = () => {
       });
   }, [gestionItems, monthFilter, yearFilter, statusFilter, searchTerm]);
 
-  // Stats
   const totalEdificios = displayRows.length;
   const mesPagado = displayRows.filter(r => r.estadoDisplay === "Mes pagado").length;
   const enFecha = displayRows.filter(r => r.estadoDisplay === "En fecha/No pagado").length;
   const noEnFecha = displayRows.filter(r => r.estadoDisplay === "No en fecha").length;
+  const facturaNoEmitida = displayRows.filter(r => r.estadoDisplay === "Factura no Emitida").length;
+  const facturaEmitida = displayRows.filter(r => r.estadoDisplay === "Factura Emitida").length;
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -308,11 +370,13 @@ const GestionEdificios = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard title="Total Edificios" value={totalEdificios.toString()} description="En gestión" icon={Building2} iconColor="text-[#1A367F]" iconBg="bg-[#F1F3F9]" />
           <StatCard title="Mes Pagado" value={mesPagado.toString()} description="Este período" icon={CheckCircle} iconColor="text-[#10B981]" iconBg="bg-[#F0FDF4]" />
           <StatCard title="En Fecha/No Pagado" value={enFecha.toString()} description="Por cobrar" icon={Users} iconColor="text-[#EF4444]" iconBg="bg-[#FEF2F2]" />
           <StatCard title="No en Fecha" value={noEnFecha.toString()} description="Aún no vencen" icon={TrendingUp} iconColor="text-[#38BDF8]" iconBg="bg-[#EFF6FF]" />
+          <StatCard title="Factura no Emitida" value={facturaNoEmitida.toString()} description="Pendiente emisión" icon={FileText} iconColor="text-[#F59E0B]" iconBg="bg-[#FFFBEB]" />
+          <StatCard title="Factura Emitida" value={facturaEmitida.toString()} description="Esperando pago" icon={Send} iconColor="text-[#3B82F6]" iconBg="bg-[#EFF6FF]" />
         </div>
 
         {/* Filters Card */}
@@ -345,7 +409,7 @@ const GestionEdificios = () => {
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px] h-10 border-[#E2E8F0] bg-white text-xs font-semibold">
+                  <SelectTrigger className="w-full sm:w-[200px] h-10 border-[#E2E8F0] bg-white text-xs font-semibold">
                     <div className="flex items-center gap-2">
                       <FilterIcon className="h-3.5 w-3.5 text-[#64748B]" />
                       <SelectValue placeholder="Filtrar por estado" />
@@ -356,6 +420,8 @@ const GestionEdificios = () => {
                     <SelectItem value="Mes pagado" className="text-xs">Mes pagado</SelectItem>
                     <SelectItem value="En fecha/No pagado" className="text-xs">En fecha/No pagado</SelectItem>
                     <SelectItem value="No en fecha" className="text-xs">No en fecha</SelectItem>
+                    <SelectItem value="Factura no Emitida" className="text-xs">Factura no Emitida</SelectItem>
+                    <SelectItem value="Factura Emitida" className="text-xs">Factura Emitida</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -386,6 +452,7 @@ const GestionEdificios = () => {
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Renting</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Fecha Pago</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Mes</TableHead>
+                    <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 hidden lg:table-cell">Método</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 text-center">Estado</TableHead>
                     <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest py-4 text-right pr-6">Acciones</TableHead>
                   </TableRow>
@@ -393,7 +460,7 @@ const GestionEdificios = () => {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center">
+                      <TableCell colSpan={9} className="h-32 text-center">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#1A367F]"></div>
                           <span className="text-xs font-bold text-[#64748B] uppercase tracking-widest">Cargando...</span>
@@ -402,7 +469,7 @@ const GestionEdificios = () => {
                     </TableRow>
                   ) : displayRows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-48 text-center">
+                      <TableCell colSpan={9} className="h-48 text-center">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <Building2 className="h-8 w-8 text-[#E2E8F0]" />
                           <p className="text-xs font-bold text-[#64748B] uppercase tracking-widest">No se encontraron edificios</p>
@@ -442,6 +509,11 @@ const GestionEdificios = () => {
                             {pago ? `Mes ${pago.mes}` : "—"}
                           </p>
                         </TableCell>
+                        <TableCell className="py-4 hidden lg:table-cell">
+                          <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider">
+                            {item.metodo_cobro || "Inmediato"}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="py-4 text-center">
                           {getStatusBadge(estadoDisplay)}
                         </TableCell>
@@ -455,14 +527,29 @@ const GestionEdificios = () => {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
+
+                            {/* Emitir Factura button - only for "Factura no Emitida" state */}
+                            {estadoDisplay === "Factura no Emitida" && pago && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEmitInvoice(item, pago.mes)}
+                                className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md border-[#F59E0B] text-[#F59E0B] hover:bg-[#FFFBEB] transition-all"
+                              >
+                                <FileText className="h-3.5 w-3.5 mr-1" />
+                                Emitir
+                              </Button>
+                            )}
+
+                            {/* Confirmar button - for "En fecha/No pagado" and "Factura Emitida" */}
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => pago && estadoDisplay === "En fecha/No pagado" && handleConfirmPayment(item, pago.mes)}
-                              disabled={!pago || estadoDisplay !== "En fecha/No pagado"}
+                              onClick={() => pago && handleConfirmPayment(item, pago.mes)}
+                              disabled={!pago || (estadoDisplay !== "En fecha/No pagado" && estadoDisplay !== "Factura Emitida")}
                               className={cn(
                                 "h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
-                                estadoDisplay === "En fecha/No pagado"
+                                (estadoDisplay === "En fecha/No pagado" || estadoDisplay === "Factura Emitida")
                                   ? "border-[#10B981] text-[#10B981] hover:bg-[#F0FDF4]"
                                   : "border-[#E2E8F0] text-[#94A3B8] cursor-not-allowed"
                               )}
@@ -514,16 +601,16 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, description, icon: Icon, iconColor, iconBg }: StatCardProps) => (
   <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white overflow-hidden transition-all hover:shadow-md">
-    <CardContent className="p-6">
-      <div className="flex justify-between items-start mb-4">
-        <div className={cn("p-2.5 rounded-lg shrink-0", iconBg)}>
-          <Icon className={cn("h-5 w-5", iconColor)} strokeWidth={2.5} />
+    <CardContent className="p-5">
+      <div className="flex justify-between items-start mb-3">
+        <div className={cn("p-2 rounded-lg shrink-0", iconBg)}>
+          <Icon className={cn("h-4 w-4", iconColor)} strokeWidth={2.5} />
         </div>
       </div>
-      <div className="space-y-1">
-        <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-widest">{title}</p>
-        <h3 className="text-[28px] font-bold text-[#1E293B] leading-tight tracking-tight">{value}</h3>
-        <p className="text-[11px] font-medium text-[#94A3B8]">{description}</p>
+      <div className="space-y-0.5">
+        <p className="text-[9px] font-bold text-[#94A3B8] uppercase tracking-widest">{title}</p>
+        <h3 className="text-[22px] font-bold text-[#1E293B] leading-tight tracking-tight">{value}</h3>
+        <p className="text-[10px] font-medium text-[#94A3B8]">{description}</p>
       </div>
     </CardContent>
   </Card>

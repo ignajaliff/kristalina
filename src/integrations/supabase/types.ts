@@ -65,12 +65,12 @@ export type Database = {
           created_at: string
           data_contrato: Json | null
           data_presupuesto: Json | null
-          dia_pago: number
           estadopago: string
           fechapago: string
           id: string
           imagenes_reporte: Json | null
           mesrenting: number
+          metodo_cobro: string
           monto_renting: number | null
           pagos_json: Json | null
           updated_at: string
@@ -82,12 +82,12 @@ export type Database = {
           created_at?: string
           data_contrato?: Json | null
           data_presupuesto?: Json | null
-          dia_pago?: number
           estadopago?: string
           fechapago: string
           id?: string
           imagenes_reporte?: Json | null
           mesrenting?: number
+          metodo_cobro?: string
           monto_renting?: number | null
           pagos_json?: Json | null
           updated_at?: string
@@ -99,12 +99,12 @@ export type Database = {
           created_at?: string
           data_contrato?: Json | null
           data_presupuesto?: Json | null
-          dia_pago?: number
           estadopago?: string
           fechapago?: string
           id?: string
           imagenes_reporte?: Json | null
           mesrenting?: number
+          metodo_cobro?: string
           monto_renting?: number | null
           pagos_json?: Json | null
           updated_at?: string

@@ -29,15 +29,14 @@ interface EditContratoDialogProps {
   onSaveComplete: () => void;
 }
 
-// Step 2: Payment config dialog shown when installation is completed
 interface PaymentConfigDialogProps {
   open: boolean;
-  onConfirm: (config: { fechaPrimeraFactura: string; diaPago: 1 | 30 }) => void;
+  onConfirm: (config: { fechaPrimeraFactura: string; metodoCobro: "Inmediato" | "Emisión de Factura" }) => void;
 }
 
 const PaymentConfigDialog = ({ open, onConfirm }: PaymentConfigDialogProps) => {
   const [fechaPrimeraFactura, setFechaPrimeraFactura] = useState("");
-  const [diaPago, setDiaPago] = useState<"1" | "30">("1");
+  const [metodoCobro, setMetodoCobro] = useState<"Inmediato" | "Emisión de Factura">("Inmediato");
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -58,23 +57,28 @@ const PaymentConfigDialog = ({ open, onConfirm }: PaymentConfigDialogProps) => {
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-[#64748B]">¿Qué día del mes paga este edificio?</Label>
-            <Select value={diaPago} onValueChange={(v) => setDiaPago(v as "1" | "30")}>
+            <Label className="text-xs font-semibold text-[#64748B]">Método de cobro</Label>
+            <Select value={metodoCobro} onValueChange={(v) => setMetodoCobro(v as "Inmediato" | "Emisión de Factura")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">Día 1 de cada mes</SelectItem>
-                <SelectItem value="30">Día 30 de cada mes</SelectItem>
+                <SelectItem value="Inmediato">Inmediato</SelectItem>
+                <SelectItem value="Emisión de Factura">Emisión de Factura</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-[#94A3B8] mt-1">
+              {metodoCobro === "Inmediato"
+                ? "Se notificará cuando el pago esté en fecha. Todos los pagos serán el 1ro de cada mes."
+                : "Se deberá emitir factura cada 1ro de mes antes de confirmar el pago. La primera facturación funciona como pago inmediato."}
+            </p>
           </div>
         </div>
         <DialogFooter>
           <Button
             onClick={() => {
               if (!fechaPrimeraFactura) return;
-              onConfirm({ fechaPrimeraFactura, diaPago: parseInt(diaPago) as 1 | 30 });
+              onConfirm({ fechaPrimeraFactura, metodoCobro });
             }}
             disabled={!fechaPrimeraFactura}
             className="bg-[#1A367F] hover:bg-[#142a5f] w-full"
@@ -88,18 +92,19 @@ const PaymentConfigDialog = ({ open, onConfirm }: PaymentConfigDialogProps) => {
 };
 
 /** Generate all monthly payment records for the contract duration.
- * Mes 1 uses fechaPrimeraFactura as-is.
- * Months 2+ are generated using diaPago day of each subsequent month.
+ * Mes 1 uses fechaPrimeraFactura as-is (always treated as "Inmediato" logic).
+ * Months 2+ are always on the 1st of each subsequent month.
+ * For "Emisión de Factura" method, months 2+ get additional tracking fields.
  */
 const generatePagosJson = (
   fechaPrimeraFactura: string,
-  diaPago: 1 | 30,
+  metodoCobro: "Inmediato" | "Emisión de Factura",
   montoRenting: number,
   duracionMeses: number
 ) => {
   const pagos = [];
 
-  // Mes 1: use the exact first invoice date
+  // Mes 1: use the exact first invoice date - always "Inmediato" logic
   pagos.push({
     mes: 1,
     fecha_pago: fechaPrimeraFactura,
@@ -107,15 +112,15 @@ const generatePagosJson = (
     pagado: false,
     factura_url: null,
     fecha_pago_real: null,
+    // For Emisión de Factura, mes 1 is still Inmediato, no emission tracking
+    ...(metodoCobro === "Emisión de Factura" ? { fecha_emision: null, fecha_confirmacion: null, es_inmediato: true } : {}),
   });
 
-  // Months 2+: use diaPago of each subsequent month
+  // Months 2+: always 1st of each subsequent month
   const firstDate = new Date(fechaPrimeraFactura + "T00:00:00");
   for (let i = 1; i < duracionMeses; i++) {
     const mesDate = addMonths(firstDate, i);
-    const lastDayOfMonth = new Date(mesDate.getFullYear(), mesDate.getMonth() + 1, 0).getDate();
-    const targetDay = Math.min(diaPago, lastDayOfMonth);
-    const fechaPago = new Date(mesDate.getFullYear(), mesDate.getMonth(), targetDay);
+    const fechaPago = new Date(mesDate.getFullYear(), mesDate.getMonth(), 1);
 
     pagos.push({
       mes: i + 1,
@@ -124,6 +129,7 @@ const generatePagosJson = (
       pagado: false,
       factura_url: null,
       fecha_pago_real: null,
+      ...(metodoCobro === "Emisión de Factura" ? { fecha_emision: null, fecha_confirmacion: null, es_inmediato: false } : {}),
     });
   }
   return pagos;
@@ -154,58 +160,42 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
 
   const migrateToGestion = async (
     contratoData: ContratoRow,
-    paymentConfig: { fechaPrimeraFactura: string; diaPago: 1 | 30 }
+    paymentConfig: { fechaPrimeraFactura: string; metodoCobro: "Inmediato" | "Emisión de Factura" }
   ) => {
     const prospectoId = contratoData.prospecto_id;
     if (!prospectoId) throw new Error("No se encontró prospecto_id");
 
-    // 1. Fetch full prospecto data
     const { data: prospecto, error: pErr } = await supabase
-      .from("prospectos")
-      .select("*")
-      .eq("id", prospectoId)
-      .single();
+      .from("prospectos").select("*").eq("id", prospectoId).single();
     if (pErr) throw pErr;
 
-    // 2. Fetch presupuesto data
     const { data: presupuestos, error: prErr } = await supabase
-      .from("presupuestos")
-      .select("*")
-      .eq("prospecto_id", prospectoId);
+      .from("presupuestos").select("*").eq("prospecto_id", prospectoId);
     if (prErr) throw prErr;
     const presupuesto = presupuestos?.[0];
 
-    // 3. Fetch full contrato data from DB
     const { data: contratoFull, error: cErr } = await supabase
-      .from("contratos")
-      .select("*")
-      .eq("id", contratoData.id)
-      .single();
+      .from("contratos").select("*").eq("id", contratoData.id).single();
     if (cErr) throw cErr;
 
-    // 4. Extract monto renting from presupuesto (total minus discount)
     const datosPresupuesto = presupuesto?.datos_presupuesto as any || {};
     const totalDeptos = datosPresupuesto.presupuesto_total_deptos || 0;
     const descuentoPct = datosPresupuesto.descuento_porcentaje || 0;
     const montoRenting = totalDeptos - (totalDeptos * descuentoPct) / 100;
 
-    // 5. Contract duration in months
     const duracionMeses = datosPresupuesto.anos_contrato
       ? parseInt(datosPresupuesto.anos_contrato) * 12
-      : 60; // default 60 months
+      : 60;
 
-    // 6. Generate all monthly payment records
     const pagosJson = generatePagosJson(
       paymentConfig.fechaPrimeraFactura,
-      paymentConfig.diaPago,
+      paymentConfig.metodoCobro,
       montoRenting,
       duracionMeses
     );
 
-    // 7. First fechapago = the first payment date
     const primeraFechaPago = pagosJson[0]?.fecha_pago || paymentConfig.fechaPrimeraFactura;
 
-    // 8. Build gestion record
     const clienteJson = { ...prospecto };
     const dataPresupuestoJson = presupuesto
       ? { datos_presupuesto: presupuesto.datos_presupuesto }
@@ -217,7 +207,6 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
       fecha_instalacion_equipos: form.fecha_instalacion_equipos || contratoFull.fecha_instalacion_equipos,
     };
 
-    // 9. Insert into gestion (fecha_primera_factura removed — stored as mes 1 in pagos_json)
     const { error: gErr } = await supabase
       .from("gestion")
       .insert({
@@ -228,13 +217,12 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
         fechapago: primeraFechaPago,
         estadopago: "En fecha/No pagado",
         vendedor_id: prospecto.vendedor_id,
-        dia_pago: paymentConfig.diaPago,
+        metodo_cobro: paymentConfig.metodoCobro,
         monto_renting: montoRenting,
         pagos_json: pagosJson,
       });
     if (gErr) throw gErr;
 
-    // 10. Delete contrato, presupuestos, and prospecto (in order due to FK)
     await supabase.from("contratos").delete().eq("id", contratoData.id);
     if (presupuesto) {
       await supabase.from("presupuestos").delete().eq("prospecto_id", prospectoId);
@@ -250,7 +238,6 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
       contrato.estado_equipos !== "Instalacion completada y verificada";
 
     if (isCompletingInstallation) {
-      // Save form state and show payment config dialog
       setPendingForm(form);
       setShowPaymentConfig(true);
       return;
@@ -279,12 +266,11 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
     }
   };
 
-  const handlePaymentConfigConfirm = async (config: { fechaPrimeraFactura: string; diaPago: 1 | 30 }) => {
+  const handlePaymentConfigConfirm = async (config: { fechaPrimeraFactura: string; metodoCobro: "Inmediato" | "Emisión de Factura" }) => {
     if (!contrato) return;
     setShowPaymentConfig(false);
     setIsSubmitting(true);
     try {
-      // First update the contrato
       const { error } = await supabase
         .from("contratos")
         .update({
@@ -296,7 +282,6 @@ export default function EditContratoDialog({ contrato, open, onOpenChange, onSav
         .eq("id", contrato.id);
       if (error) throw error;
 
-      // Then migrate to gestion with payment config
       await migrateToGestion(contrato, config);
 
       toast({
