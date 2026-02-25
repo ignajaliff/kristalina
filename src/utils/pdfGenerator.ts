@@ -181,17 +181,17 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   const kitItems =
     rc > 1
       ? [
-          `${rc} aceleradores de sistemas K-IO - Iónico de 1” en acero inoxidable en recirculación entre ambos estanques.`,
-          `${rc} filtros para sedimentos de 1” con malla metálica para 100 micras con despiche automático.`,
-          `${rc} bombas recirculadoras monofásicas para un caudal de 8m3/h.`,
-          `${rc} controladores digitales.`,
-        ]
+        `${rc} aceleradores de sistemas K-IO - Iónico de 1” en acero inoxidable en recirculación entre ambos estanques.`,
+        `${rc} filtros para sedimentos de 1” con malla metálica para 100 micras con despiche automático.`,
+        `${rc} bombas recirculadoras monofásicas para un caudal de 8m3/h.`,
+        `${rc} controladores digitales.`,
+      ]
       : [
-          "1 acelerador de sistema K-IO - Iónico de 1” en acero inoxidable en recirculación entre ambos estanques.",
-          "1 filtro para sedimento de 1” con malla metálica para 100 micras con despiche automático.",
-          "1 bomba recirculadora monofásica para un caudal de 8m3/h.",
-          "1 controlador digital.",
-        ];
+        "1 acelerador de sistema K-IO - Iónico de 1” en acero inoxidable en recirculación entre ambos estanques.",
+        "1 filtro para sedimento de 1” con malla metálica para 100 micras con despiche automático.",
+        "1 bomba recirculadora monofásica para un caudal de 8m3/h.",
+        "1 controlador digital.",
+      ];
 
   kitItems.forEach((item) => {
     checkNewPage(10);
@@ -279,10 +279,20 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
 
   currentY += 8;
   doc.text("Quedamos atentos a sus comentarios.", margin, currentY);
-  currentY += 12;
+
+  // Aumentar margen superior antes de Atte y la firma
+  currentY += 30;
 
   doc.text("Atte.", margin, currentY);
-  currentY += 8;
+  try {
+    // Colocar al lado derecho de "Atte." (que ocupa unos 15mm)
+    doc.addImage("/firmaARM.jpg", "JPEG", margin + 20, currentY - 20, 66, 36);
+  } catch (e) {
+    console.warn("Signature image not found", e);
+  }
+
+  // Aumentar margen inferior despues de la firma
+  currentY += 35;
 
   // Arturo Signature Block
   checkNewPage(40);

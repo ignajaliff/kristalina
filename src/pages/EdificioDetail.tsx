@@ -140,8 +140,8 @@ const EdificioDetail = () => {
               item.estadopago === 'Mes pagado'
                 ? "bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4]"
                 : item.estadopago === 'En fecha/No pagado'
-                ? "bg-[#FEF2F2] text-[#EF4444] border-[#FEE2E2] hover:bg-[#FEF2F2]"
-                : "bg-[#F5F3FF] text-[#7C3AED] border-[#EDE9FE] hover:bg-[#F5F3FF]"
+                  ? "bg-[#FEF2F2] text-[#EF4444] border-[#FEE2E2] hover:bg-[#FEF2F2]"
+                  : "bg-[#F5F3FF] text-[#7C3AED] border-[#EDE9FE] hover:bg-[#F5F3FF]"
             )}>
               {item.estadopago}
             </Badge>
@@ -707,24 +707,33 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
   };
 
   const handleDownloadReport = (reporte: any, index: number) => {
-    const numero = (reportes?.length || 0) - index;
-    const cliente = item.cliente as any || {};
-    const blob = generateReportePDF({
-      cliente,
-      pagosJson,
-      montoRenting,
-      datosReporte: reporte.datos_reporte,
-      numero,
-      fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
-      actividadSolucion: actividad,
-      imagenesReporte: savedImagenes,
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `reporte_${numero}_${cliente.communityname || 'edificio'}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const numero = (reportes?.length || 0) - index;
+      const cliente = item.cliente as any || {};
+      const dataContrato = item.data_contrato as any || {};
+      const datosContrato = dataContrato.datos_contrato || {};
+
+      const blob = generateReportePDF({
+        cliente,
+        pagosJson,
+        montoRenting,
+        datosReporte: reporte.datos_reporte,
+        numero,
+        fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
+        actividadSolucion: actividad,
+        imagenesReporte: savedImagenes,
+        dataContrato: datosContrato,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reporte_${numero}_${cliente.communityname || 'edificio'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al descargar el reporte:", err);
+      toast.error("Hubo un error al generar el PDF del reporte");
+    }
   };
 
   return (

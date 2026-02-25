@@ -663,11 +663,23 @@ export function generateContratoPDF(cliente: ClienteContrato, datos: DatosContra
   drawParagraph(personeria2, { spacingAfter: 20 });
 
   // FIRMAS - Ensure the entire block stays together
-  checkNewPage(45);
+  checkNewPage(80);
   const signatureWidth = 70;
+
+  // Aumentar margen superior para no chocar con el texto anterior
+  currentY += 50;
   const lineY = currentY;
 
   // Arturo Signature
+  try {
+    // Centrar sobre la linea: (signatureWidth - imageWidth) / 2 -> (70 - 66) / 2 = 2.
+    // marginLeft + 2 centra la firma perfectamente.
+    // Posicionar justo encima de la linea (lineY - altura) -> lineY - 35
+    doc.addImage("/firmaARM.jpg", "JPEG", marginLeft + 2, lineY - 35, 66, 36);
+  } catch (e) {
+    console.warn("Signature image not found", e);
+  }
+
   doc.line(marginLeft, lineY, marginLeft + signatureWidth, lineY);
   doc.setFont("times", "normal");
   doc.text("Arturo Ramírez Mendive", marginLeft + signatureWidth / 2, lineY + 5, { align: "center" });

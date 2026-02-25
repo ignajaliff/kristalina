@@ -27,6 +27,7 @@ interface ReportData {
   fecha: string;
   actividadSolucion?: ActividadRow[];
   imagenesReporte?: string[];
+  dataContrato?: any;
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -45,14 +46,15 @@ const drawSectionTitle = (doc: jsPDF, y: number, label: string, margin: number, 
   doc.setTextColor(0, 0, 0);
 };
 
-const drawRow = (doc: jsPDF, y: number, label: string, value: string, margin: number) => {
+const drawRow = (doc: jsPDF, y: number, label: string, value: any, margin: number) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...GRAY_TEXT);
   doc.text(label, margin + 2, y);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0, 0, 0);
-  doc.text(value, margin + 50, y);
+  const valStr = String(value ?? "N/A");
+  doc.text(valStr, margin + 50, y);
 };
 
 const drawCheckbox = (doc: jsPDF, x: number, y: number, label: string, checked: boolean) => {
@@ -118,7 +120,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y, 48, 17);
-  } catch (_) {}
+  } catch (_) { }
 
   y += 26;
 
@@ -135,13 +137,14 @@ export const generateReportePDF = (data: ReportData): Blob => {
   drawSectionTitle(doc, y, "Datos generales del cliente", margin, cw);
   y += 11;
 
-  const clienteRows: [string, string][] = [
-    ["Comunidad:", cliente.communityname || "N/A"],
-    ["Administrador:", cliente.adminname || "N/A"],
-    ["Email:", cliente.adminemail || "N/A"],
-    ["Dirección:", [cliente.buildingaddress, cliente.comuna, cliente.region].filter(Boolean).join(", ") || "N/A"],
-    ["Tipo de edificio:", cliente.buildingtype || "N/A"],
-    ["N° Unidades:", cliente.units?.toString() || "N/A"],
+  const contrato = data.dataContrato || {};
+  const clienteRows: [string, any][] = [
+    ["Nombre de la Comunidad:", contrato.communityname || "N/A"],
+    ["RUT:", contrato.legalrepresentativerut || "N/A"],
+    ["Dirección:", contrato.communityaddress || "N/A"],
+    ["Persona de Contacto:", contrato.legalrepresentative || "N/A"],
+    ["Telefono:", contrato.legalrepresentativephone || "N/A"],
+    ["Email:", contrato.communityemail || "N/A"],
   ];
 
   clienteRows.forEach(([label, value]) => {
@@ -158,27 +161,21 @@ export const generateReportePDF = (data: ReportData): Blob => {
     "Producto de la alta concentración en algunas zonas del país de carbonatos de calcio y magnesio, se generan una serie de daños e incrustaciones en equipos, redes de cañerías, fittings y griferías producto del sarro. Nuestros dispositivos, producen un efecto permanente evitando la generación de sarro e incrustaciones además de una eliminación en corto tiempo de las incrustaciones existentes.";
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
-  doc.setTextColor(0, 0, 0);
+  doc.setTextColor(50, 50, 50);
   const descLines = doc.splitTextToSize(descripcion, cw - 4);
-  doc.text(descLines, margin + 2, y, { lineHeightFactor: 1.4 });
-  y += descLines.length * 5.3 + 7;
+  doc.text(descLines, margin + 2, y, { lineHeightFactor: 1.5 });
+  y += descLines.length * 5.7;
 
   drawSectionTitle(doc, y, "Datos del contrato", margin, cw);
   y += 11;
 
-  const contratoRows: [string, string][] = [
-    ["N° de Contrato:", cliente.numero_contrato || data.numero?.toString() || "N/A"],
-    [
-      "Duración:",
-      cliente.duracion_contrato
-        ? `${cliente.duracion_contrato} meses`
-        : cliente.anos_contrato
-          ? `${cliente.anos_contrato} años`
-          : "N/A",
-    ],
-    ["Tipo de contrato:", cliente.tipo_contrato || "Arriendo mensual"],
-    ["Renting mensual:", `$${Number(data.montoRenting || cliente.renting_mensual || 0).toLocaleString("es-CL")}`],
-    ["Vendedor:", cliente.vendedor || "N/A"],
+  const contratoRows: [string, any][] = [
+
+    ["Tipo de Contrato:", contrato.tipo_contrato || cliente.tipo_contrato || "Arriendo mensual"],
+    ["Duración del Contrato(años):", contrato.datos_presupuesto?.anos_contrato || contrato.contractTerm || "N/A"],
+    ["Fee Mensual:", `$${Math.round(
+      Number(contrato.datos_presupuesto?.precio_instalacion || 0) * (1 - Number(contrato.datos_presupuesto?.descuento_porcentaje || 0) / 100)
+    ).toLocaleString("es-CL")}`],
   ];
 
   contratoRows.forEach(([label, value]) => {
@@ -191,8 +188,11 @@ export const generateReportePDF = (data: ReportData): Blob => {
   drawSectionTitle(doc, y, "Resumen del contrato", margin, cw);
   y += 11;
 
-  doc.setFillColor(245, 248, 255);
+  doc.setFillColor(255, 255, 255);
   doc.rect(margin, y - 3, cw, 22, "F");
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.2);
+  doc.rect(margin, y - 3, cw, 22, "S");
 
   const resumenItems: [string, string][] = [
     ["Facturas pagadas:", `${pagados.length}`],
@@ -221,25 +221,25 @@ export const generateReportePDF = (data: ReportData): Blob => {
   y = 18;
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
-  } catch (_) {}
+  } catch (_) { }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(...BLUE_DARK);
   doc.text("EVALUACIÓN DE EFECTIVIDAD DE LA SOLUCIÓN", margin, y + 8);
   doc.setDrawColor(...BLUE_DARK);
   doc.setLineWidth(0.4);
-  doc.line(margin, y + 10, pageWidth - margin, y + 10);
+  doc.line(margin, y + 10, margin + cw, y + 10);
   y += 20;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text("Estado de la Solución:", margin, y);
   y += 8;
-  const opciones = ["Optima", "Buena", "Regular", "Deficiente"];
+  const opcionesEfectividad = ["Efectiva", "En observación", "Requiere Ajustes"];
   const efectividad = (data.datosReporte?.efectividad || "").toLowerCase().trim();
   let cbX = margin + 2;
-  const cbSpacing = 40;
-  opciones.forEach((op) => {
+  const cbSpacing = 50;
+  opcionesEfectividad.forEach((op) => {
     const checked = op.toLowerCase() === efectividad;
     drawCheckbox(doc, cbX, y, op, checked);
     cbX += cbSpacing;
@@ -270,11 +270,12 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.text("Condición general:", margin, y);
   y += 8;
   const condicion = (data.datosReporte?.condicion_general || "").toLowerCase().trim();
+  const opcionesCondicion = ["Optima", "Buena", "Regular", "Deficiente"];
   cbX = margin + 2;
-  opciones.forEach((op) => {
+  opcionesCondicion.forEach((op) => {
     const checked = op.toLowerCase() === condicion;
     drawCheckbox(doc, cbX, y, op, checked);
-    cbX += cbSpacing;
+    cbX += 40;
   });
   y += 14;
   doc.setFont("helvetica", "bold");
@@ -288,10 +289,10 @@ export const generateReportePDF = (data: ReportData): Blob => {
   const funcLines = doc.splitTextToSize(data.datosReporte?.funcionamiento || "Sin observaciones.", cw - 4);
   doc.text(funcLines, margin + 2, y, { lineHeightFactor: 1.4 });
   y += funcLines.length * 5.2 + 14;
-  doc.setFillColor(...BLUE_LIGHT);
+  doc.setFillColor(255, 255, 255);
   doc.rect(margin, y, cw, 30, "F");
-  doc.setDrawColor(...BLUE_DARK);
-  doc.setLineWidth(0.4);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.2);
   doc.rect(margin, y, cw, 30, "S");
   y += 9;
   doc.setFont("helvetica", "bold");
@@ -318,7 +319,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
-  } catch (_) {}
+  } catch (_) { }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
@@ -327,7 +328,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   doc.setDrawColor(...BLUE_DARK);
   doc.setLineWidth(0.4);
-  doc.line(margin, y + 10, pageWidth - margin, y + 10);
+  doc.line(margin, y + 10, margin + cw, y + 10);
 
   y += 20;
 
@@ -442,7 +443,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
       try {
         const xPos = margin + (i === 1 ? imgW + 6 : 0);
         doc.addImage(url, "JPEG", xPos, y, imgW, imgH);
-      } catch (_) {}
+      } catch (_) { }
     });
   }
 
@@ -456,7 +457,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
-  } catch (_) {}
+  } catch (_) { }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
@@ -465,7 +466,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   doc.setDrawColor(...BLUE_DARK);
   doc.setLineWidth(0.4);
-  doc.line(margin, y + 10, pageWidth - margin, y + 10);
+  doc.line(margin, y + 10, margin + cw, y + 10);
 
   y += 22;
 
@@ -544,17 +545,35 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setFontSize(10);
   doc.setTextColor(...BLUE_DARK);
   doc.text("Firma:", margin, y);
-  y += 20;
+
+  y += 35;
+
+  try {
+    // Posición y -> encima de la linea (y)
+    doc.addImage("/firmaARM.jpg", "JPEG", margin + 2, y - 35, 66, 36);
+  } catch (e) {
+    console.warn("Signature image not found", e);
+  }
 
   doc.setDrawColor(100, 100, 100);
   doc.setLineWidth(0.4);
   doc.line(margin, y, margin + 70, y);
 
   y += 6;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Arturo Ramírez Mendive", margin, y);
+
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(...GRAY_TEXT);
-  doc.text(data.datosReporte?.revisado_por || "Responsable", margin, y);
+  y += 5;
+  doc.text("Celular +56 9 7807 1418", margin, y);
+  y += 4.5;
+  doc.text("www.kristalina.cl", margin, y);
+  y += 4.5;
+  doc.text("Santiago-Chile", margin, y);
 
   y += 10;
   const today = new Date();
