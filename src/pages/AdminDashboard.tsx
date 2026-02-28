@@ -101,21 +101,6 @@ const AdminDashboard = () => {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-              <div className="hidden md:flex items-center bg-white border border-[#E2E8F0] rounded-lg p-1 mr-2 shadow-sm">
-                <Button variant="ghost" size="sm" className="h-8 text-xs font-bold text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF]">Hoy</Button>
-                <Button variant="ghost" size="sm" className="h-8 text-xs font-bold text-[#64748B] hover:text-[#1A367F] hover:bg-[#EFF6FF]">Semana</Button>
-                <Button variant="ghost" size="sm" className="h-8 text-xs font-bold text-[#1A367F] bg-[#EFF6FF]">Mes</Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" className="h-10 px-4 border-[#E2E8F0] bg-white text-[#1E293B] font-semibold text-xs gap-2 rounded-lg shadow-sm hover:bg-slate-50">
-                  <Filter className="h-4 w-4 text-[#64748B]" /> Filtros Avanzados
-                </Button>
-                <Button className="h-10 px-4 bg-[#1A367F] hover:bg-[#12285e] text-white font-bold text-xs gap-2 rounded-lg shadow-sm transition-all active:scale-[0.98]">
-                  <Plus className="h-4 w-4" strokeWidth={2.5} /> Registrar Cliente
-                </Button>
-              </div>
-            </div>
           </div>
 
           <AdminDashboardStats />
