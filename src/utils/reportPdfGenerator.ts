@@ -10,7 +10,6 @@ interface ReportData {
   cliente: any;
   pagosJson: any[];
   montoRenting: number;
-  moneda?: string;
   datosReporte: {
     efectividad: string;
     efectividad_comentario: string;
@@ -122,7 +121,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y, 48, 17);
-  } catch (_) { }
+  } catch (_) {}
 
   y += 26;
 
@@ -172,16 +171,15 @@ export const generateReportePDF = (data: ReportData): Blob => {
   y += 11;
 
   const contratoRows: [string, any][] = [
-
     ["Tipo de Contrato:", contrato.tipo_contrato || cliente.tipo_contrato || "Arriendo mensual"],
     ["Duración del Contrato(años):", contrato.datos_presupuesto?.anos_contrato || contrato.contractTerm || "N/A"],
-    ["Fee Mensual:", (() => {
-      const monto = data.montoRenting;
-      const moneda = data.moneda;
-      if (!monto) return "N/A";
-      if (moneda === "UF") return `${Number(monto).toFixed(2)} UF`;
-      return `$${Math.round(Number(monto)).toLocaleString("es-CL")}`;
-    })()],
+    [
+      "Fee Mensual:",
+      `$${Math.round(
+        Number(contrato.datos_presupuesto?.precio_instalacion || 0) *
+          (1 - Number(contrato.datos_presupuesto?.descuento_porcentaje || 0) / 100),
+      ).toLocaleString("es-CL")}`,
+    ],
   ];
 
   contratoRows.forEach(([label, value]) => {
@@ -227,7 +225,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   y = 18;
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
-  } catch (_) { }
+  } catch (_) {}
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(...BLUE_DARK);
@@ -275,12 +273,11 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setTextColor(0, 0, 0);
   doc.text("Condición general:", margin, y);
   y += 8;
-  const condicionRaw = (data.datosReporte?.condicion_general || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const condicion = (data.datosReporte?.condicion_general || "").toLowerCase().trim();
   const opcionesCondicion = ["Optima", "Buena", "Regular", "Deficiente"];
   cbX = margin + 2;
   opcionesCondicion.forEach((op) => {
-    const opNorm = op.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const checked = opNorm === condicionRaw;
+    const checked = op.toLowerCase() === condicion;
     drawCheckbox(doc, cbX, y, op, checked);
     cbX += 40;
   });
@@ -326,7 +323,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
-  } catch (_) { }
+  } catch (_) {}
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
@@ -348,7 +345,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   // Introductory text
   const introText =
-    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de acetificación y reposo.\n\nEn la tabla anexa se informa la hora del proceso completo.";
+    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de activacion y reposo.\n\nEn la tabla anexa se informa la hora del proceso completo.";
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(50, 50, 50);
@@ -443,7 +440,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   // Torre Enfriamiento table (if available)
   const torreRows = data.torreEnfriamiento || [];
-  if (torreRows.length > 0 && torreRows.some(r => r.item || r.horario_activo || r.horario_reposo)) {
+  if (torreRows.length > 0 && torreRows.some((r) => r.item || r.horario_activo || r.horario_reposo)) {
     y += 14;
 
     doc.setFont("helvetica", "bold");
@@ -520,7 +517,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
       try {
         const xPos = margin + (i === 1 ? imgW + 6 : 0);
         doc.addImage(url, "JPEG", xPos, y, imgW, imgH);
-      } catch (_) { }
+      } catch (_) {}
     });
   }
 
@@ -534,7 +531,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   try {
     doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
-  } catch (_) { }
+  } catch (_) {}
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
