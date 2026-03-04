@@ -335,37 +335,37 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 20;
 
-  // Subtitle: Sala de Bombas
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...BLUE_DARK);
-  doc.text("Sala de Bombas", margin, y);
-  y += 8;
-
   // Introductory text
   const introText =
-    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de activacion y reposo. En la tabla anexa se informa la hora del proceso completo.";
+    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de acetificación y reposo. En la tabla anexa se informa la hora del proceso completo.";
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(50, 50, 50);
   const introLines = doc.splitTextToSize(introText, cw - 4);
   doc.text(introLines, margin + 2, y, { lineHeightFactor: 1.5 });
-  y += introLines.length * 5.5 + 10;
+  y += introLines.length * 5.2 + 6;
+
+  // Subtitle: Sala de Bombas (debe ir sobre su tabla)
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BLUE_DARK);
+  doc.text("Sala de Bombas", margin, y);
+  y += 6;
 
   // Table header
   const colWidths = [cw * 0.4, cw * 0.3, cw * 0.3];
-  const headerH = 8;
+  const headerH = 7;
 
   doc.setFillColor(...BLUE_DARK);
   doc.rect(margin, y, cw, headerH, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(255, 255, 255);
 
   let tx = margin;
   const headers = ["Item", "Horario Activo", "Horario Reposo"];
   headers.forEach((h, i) => {
-    doc.text(h, tx + 3, y + 5.5);
+    doc.text(h, tx + 3, y + 5);
     tx += colWidths[i];
   });
 
@@ -373,7 +373,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   // Table rows
   const rows = data.actividadSolucion || [];
-  const rowH = 7;
+  const rowH = 6;
 
   rows.forEach((row, idx) => {
     const isEven = idx % 2 === 0;
@@ -387,13 +387,13 @@ export const generateReportePDF = (data: ReportData): Blob => {
     doc.line(margin, y + rowH, margin + cw, y + rowH);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(30, 30, 30);
 
     tx = margin;
     const vals = [row.item || "", row.horario_activo || "", row.horario_reposo || ""];
     vals.forEach((v, i) => {
-      doc.text(v, tx + 3, y + 5);
+      doc.text(v, tx + 3, y + 4.3);
       tx += colWidths[i];
     });
 
@@ -440,24 +440,24 @@ export const generateReportePDF = (data: ReportData): Blob => {
   // Torre Enfriamiento table (if available)
   const torreRows = data.torreEnfriamiento || [];
   if (torreRows.length > 0 && torreRows.some((r) => r.item || r.horario_activo || r.horario_reposo)) {
-    y += 14;
+    y += 10;
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(...BLUE_DARK);
     doc.text("Torre Enfriamiento", margin, y);
-    y += 8;
+    y += 6;
 
     // Table header
     doc.setFillColor(...BLUE_DARK);
     doc.rect(margin, y, cw, headerH, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(255, 255, 255);
 
     let ttx = margin;
     headers.forEach((h, i) => {
-      doc.text(h, ttx + 3, y + 5.5);
+      doc.text(h, ttx + 3, y + 5);
       ttx += colWidths[i];
     });
     y += headerH;
@@ -473,13 +473,13 @@ export const generateReportePDF = (data: ReportData): Blob => {
       doc.line(margin, y + rowH, margin + cw, y + rowH);
 
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setTextColor(30, 30, 30);
 
       let tvx = margin;
       const vals = [row.item || "", row.horario_activo || "", row.horario_reposo || ""];
       vals.forEach((v, i) => {
-        doc.text(v, tvx + 3, y + 5);
+        doc.text(v, tvx + 3, y + 4.3);
         tvx += colWidths[i];
       });
 
@@ -501,18 +501,20 @@ export const generateReportePDF = (data: ReportData): Blob => {
   }
 
   // Images below table
-  y += 10;
+  y += 8;
   const imagenes = data.imagenesReporte || [];
   if (imagenes.length > 0) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(...BLUE_DARK);
     doc.text("Registro fotográfico", margin, y);
-    y += 6;
+    y += 5;
 
     const imgW = imagenes.length === 1 ? cw : (cw - 6) / 2;
-    const imgH = 55;
-    imagenes.forEach((url, i) => {
+    const maxAvailableHeight = Math.max(28, pageHeight - y - 22);
+    const imgH = Math.min(45, maxAvailableHeight);
+
+    imagenes.slice(0, 2).forEach((url, i) => {
       try {
         const xPos = margin + (i === 1 ? imgW + 6 : 0);
         doc.addImage(url, "JPEG", xPos, y, imgW, imgH);
