@@ -10,6 +10,7 @@ interface ReportData {
   cliente: any;
   pagosJson: any[];
   montoRenting: number;
+  moneda?: string;
   datosReporte: {
     efectividad: string;
     efectividad_comentario: string;
@@ -98,11 +99,10 @@ export const generateReportePDF = (data: ReportData): Blob => {
   const cw = pageWidth - margin * 2;
 
   const cliente = data.cliente || {};
-  const pagados = (data.pagosJson || []).filter((p) => p.pagado);
-  const noPagados = (data.pagosJson || []).filter((p) => !p.pagado);
-  const mesesContrato =
-    (cliente.meses_contrato ?? cliente.anos_contrato) ? (cliente.anos_contrato || 0) * 12 : data.pagosJson.length;
-  const porPagar = Math.max(0, mesesContrato - pagados.length);
+  const allPagos = data.pagosJson || [];
+  const pagados = allPagos.filter((p) => p.pagado === true);
+  const noPagadosEmitidos = allPagos.filter((p) => !p.pagado && (p.fecha_emision || p.factura_url));
+  const porPagar = allPagos.filter((p) => !p.pagado);
 
   // ════════════════════════════════════════════════════════════════════════════
   // PÁGINA 1
@@ -169,16 +169,16 @@ export const generateReportePDF = (data: ReportData): Blob => {
   drawSectionTitle(doc, y, "Datos del contrato", margin, cw);
   y += 11;
 
+  const feeVal = Number(contrato.datos_presupuesto?.precio_instalacion || 0) *
+    (1 - Number(contrato.datos_presupuesto?.descuento_porcentaje || 0) / 100);
+  const montoFee = data.moneda === "UF"
+    ? `UF ${Number.isInteger(feeVal) ? feeVal : feeVal}`
+    : `$ ${Math.round(feeVal).toLocaleString("es-CL")}`;
+
   const contratoRows: [string, any][] = [
     ["Tipo de Contrato:", contrato.tipo_contrato || cliente.tipo_contrato || "Arriendo mensual"],
     ["Duración del Contrato(años):", contrato.datos_presupuesto?.anos_contrato || contrato.contractTerm || "N/A"],
-    [
-      "Fee Mensual:",
-      `$${Math.round(
-        Number(contrato.datos_presupuesto?.precio_instalacion || 0) *
-          (1 - Number(contrato.datos_presupuesto?.descuento_porcentaje || 0) / 100),
-      ).toLocaleString("es-CL")}`,
-    ],
+    ["Fee Mensual:", montoFee],
   ];
 
   contratoRows.forEach(([label, value]) => {
@@ -199,8 +199,8 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   const resumenItems: [string, string][] = [
     ["Facturas pagadas:", `${pagados.length}`],
-    ["Facturas no pagadas:", `${noPagados.length}`],
-    ["Facturas por pagar según contrato:", `${porPagar}`],
+    ["Facturas no pagadas:", `${noPagadosEmitidos.length}`],
+    ["Facturas por pagar según contrato:", `${porPagar.length}`],
   ];
 
   resumenItems.forEach(([label, val]) => {
