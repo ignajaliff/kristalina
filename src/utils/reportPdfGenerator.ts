@@ -10,7 +10,6 @@ interface ReportData {
   cliente: any;
   pagosJson: any[];
   montoRenting: number;
-  moneda?: string;
   datosReporte: {
     efectividad: string;
     efectividad_comentario: string;
@@ -30,6 +29,7 @@ interface ReportData {
   torreEnfriamiento?: ActividadRow[];
   imagenesReporte?: string[];
   dataContrato?: any;
+  moneda?: string;
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -101,8 +101,8 @@ export const generateReportePDF = (data: ReportData): Blob => {
   const cliente = data.cliente || {};
   const allPagos = data.pagosJson || [];
   const pagados = allPagos.filter((p) => p.pagado === true);
-  const noPagadosEmitidos = allPagos.filter((p) => !p.pagado && (p.fecha_emision || p.factura_url));
-  const porPagar = allPagos.filter((p) => !p.pagado);
+  const noPagados = allPagos.filter((p) => !p.pagado && (p.fecha_emision || p.factura_url));
+  const porPagar = allPagos.filter((p) => !p.pagado && !p.fecha_emision && !p.factura_url);
 
   // ════════════════════════════════════════════════════════════════════════════
   // PÁGINA 1
@@ -112,7 +112,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
   doc.setTextColor(...BLUE_DARK);
-  doc.text("Reporte Trimestral", margin, y + 7);
+  doc.text("Reporte Mensual", margin, y + 7);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
@@ -169,16 +169,21 @@ export const generateReportePDF = (data: ReportData): Blob => {
   drawSectionTitle(doc, y, "Datos del contrato", margin, cw);
   y += 11;
 
-  const feeVal = Number(contrato.datos_presupuesto?.precio_instalacion || 0) *
-    (1 - Number(contrato.datos_presupuesto?.descuento_porcentaje || 0) / 100);
-  const montoFee = data.moneda === "UF"
-    ? `UF ${Number.isInteger(feeVal) ? feeVal : feeVal}`
-    : `$ ${Math.round(feeVal).toLocaleString("es-CL")}`;
-
   const contratoRows: [string, any][] = [
     ["Tipo de Contrato:", contrato.tipo_contrato || cliente.tipo_contrato || "Arriendo mensual"],
     ["Duración del Contrato(años):", contrato.datos_presupuesto?.anos_contrato || contrato.contractTerm || "N/A"],
-    ["Fee Mensual:", montoFee],
+    [
+      "Fee Mensual:",
+      (() => {
+        const monto = data.montoRenting || 0;
+        const moneda = (data.moneda || "").toUpperCase();
+        if (moneda === "UF") {
+          const val = Number(monto);
+          return `UF ${Number.isInteger(val) ? val : val}`;
+        }
+        return `$ ${Math.round(Number(monto)).toLocaleString("es-CL")}`;
+      })(),
+    ],
   ];
 
   contratoRows.forEach(([label, value]) => {
@@ -199,7 +204,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   const resumenItems: [string, string][] = [
     ["Facturas pagadas:", `${pagados.length}`],
-    ["Facturas no pagadas:", `${noPagadosEmitidos.length}`],
+    ["Facturas no pagadas:", `${noPagados.length}`],
     ["Facturas por pagar según contrato:", `${porPagar.length}`],
   ];
 
@@ -335,13 +340,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 20;
 
-  // Subtitle: Sala de Bombas
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...BLUE_DARK);
-  doc.text("Sala de Bombas", margin, y);
-  y += 8;
-
   // Introductory text
   const introText =
     "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de activacion y reposo. En la tabla anexa se informa la hora del proceso completo.";
@@ -350,11 +348,18 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setTextColor(50, 50, 50);
   const introLines = doc.splitTextToSize(introText, cw - 4);
   doc.text(introLines, margin + 2, y, { lineHeightFactor: 1.5 });
-  y += introLines.length * 5.5 + 10;
+  y += introLines.length * 5.5 + 6;
+
+  // Subtitle: Sala de Bombas
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BLUE_DARK);
+  doc.text("Sala de Bombas", margin, y);
+  y += 6;
 
   // Table header
   const colWidths = [cw * 0.4, cw * 0.3, cw * 0.3];
-  const headerH = 8;
+  const headerH = 7;
 
   doc.setFillColor(...BLUE_DARK);
   doc.rect(margin, y, cw, headerH, "F");
@@ -373,7 +378,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   // Table rows
   const rows = data.actividadSolucion || [];
-  const rowH = 7;
+  const rowH = 6;
 
   rows.forEach((row, idx) => {
     const isEven = idx % 2 === 0;
@@ -511,7 +516,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
     y += 6;
 
     const imgW = imagenes.length === 1 ? cw : (cw - 6) / 2;
-    const imgH = 55;
+    const imgH = 45;
     imagenes.forEach((url, i) => {
       try {
         const xPos = margin + (i === 1 ? imgW + 6 : 0);
@@ -648,7 +653,11 @@ export const generateReportePDF = (data: ReportData): Blob => {
   y += 4.5;
   doc.text("Santiago-Chile", margin, y);
 
-  y += 10;
+  y += 6;
+  try {
+    doc.addImage("/kristalina-logo.png", "PNG", margin, y, 30, 10);
+  } catch (_) {}
+  y += 14;
   const today = new Date();
   const fechaHoy = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getFullYear()}`;
   doc.setFont("helvetica", "bold");
