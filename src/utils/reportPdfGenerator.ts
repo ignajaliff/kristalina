@@ -143,7 +143,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
     ["Nombre de la Comunidad:", contrato.communityname || "N/A"],
     ["RUT:", contrato.communityrut || "N/A"],
     ["Dirección:", contrato.communityaddress || "N/A"],
-    ["Persona de Contacto:", contrato.legalrepresentative || "N/A"],
+    ["Persona de Contacto:", cliente.adminname || "N/A"],
     ["Email:", contrato.communityemail || "N/A"],
   ];
 
