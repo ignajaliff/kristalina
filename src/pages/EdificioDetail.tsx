@@ -62,9 +62,15 @@ const TIME_OPTIONS = [
 ];
 
 const parseTimeRange = (value: string): [string, string] => {
-  if (!value || !value.includes(" - ")) return ["", ""];
-  const parts = value.split(" - ");
-  return [parts[0]?.trim() || "", parts[1]?.trim() || ""];
+  if (!value) return ["", ""];
+  if (value.includes(" - ")) {
+    const parts = value.split(" - ");
+    return [parts[0]?.trim() || "", parts[1]?.trim() || ""];
+  }
+  // Handle partial value (only from selected)
+  const trimmed = value.trim();
+  if (TIME_OPTIONS.includes(trimmed)) return [trimmed, ""];
+  return ["", ""];
 };
 
 const TimeRangeCell = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
@@ -72,14 +78,12 @@ const TimeRangeCell = ({ value, onChange }: { value: string; onChange: (val: str
   const handleChange = (side: "from" | "to", val: string) => {
     const newFrom = side === "from" ? val : from;
     const newTo = side === "to" ? val : to;
-    if (newFrom && newTo) onChange(`${newFrom} - ${newTo}`);
-    else if (newFrom) onChange(newFrom);
-    else if (newTo) onChange(newTo);
-    else onChange("");
+    // Always store with separator so parseTimeRange works
+    onChange(`${newFrom || ""} - ${newTo || ""}`);
   };
   return (
     <div className="flex items-center gap-1">
-      <Select value={from} onValueChange={v => handleChange("from", v)}>
+      <Select value={from || undefined} onValueChange={v => handleChange("from", v)}>
         <SelectTrigger className="h-8 text-[11px] border-[#E2E8F0] px-2 min-w-0">
           <SelectValue placeholder="Inicio" />
         </SelectTrigger>
@@ -88,7 +92,7 @@ const TimeRangeCell = ({ value, onChange }: { value: string; onChange: (val: str
         </SelectContent>
       </Select>
       <span className="text-[10px] text-[#94A3B8] shrink-0">-</span>
-      <Select value={to} onValueChange={v => handleChange("to", v)}>
+      <Select value={to || undefined} onValueChange={v => handleChange("to", v)}>
         <SelectTrigger className="h-8 text-[11px] border-[#E2E8F0] px-2 min-w-0">
           <SelectValue placeholder="Fin" />
         </SelectTrigger>
