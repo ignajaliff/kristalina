@@ -24,6 +24,7 @@ interface ContratoRow {
   fecha_contrato_firmado: string | null;
   created_at: string;
   datos_contrato: any;
+  doc_contrato: string | null;
   prospectos: {
     communityname: string;
     adminname: string;
@@ -164,30 +165,40 @@ const PresupuestosAceptados = () => {
                           <TableCell className="px-6 py-4"><span className="text-[12px] text-[#94A3B8] font-medium">{formatDate(contrato.fecha_instalacion_equipos)}</span></TableCell>
                           <TableCell className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              {contrato.datos_contrato && (
+                              {(contrato.doc_contrato || contrato.datos_contrato) && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="h-8 w-8 p-0 text-[#64748B] hover:text-orange-600 hover:bg-orange-50 rounded-md"
                                   title="Descargar PDF contrato"
                                   onClick={() => {
-                                    const datos = contrato.datos_contrato as any;
-                                    const blob = generateContratoPDF({
-                                      adminname: contrato.prospectos?.adminname || '',
-                                      adminemail: contrato.prospectos?.adminemail || '',
-                                      communityname: contrato.prospectos?.communityname || '',
-                                      buildingaddress: contrato.prospectos?.buildingaddress,
-                                      buildingtype: contrato.prospectos?.buildingtype || '',
-                                      units: contrato.prospectos?.units || 0,
-                                      vendedor: contrato.prospectos?.vendedor,
-                                      monto: null,
-                                    }, datos);
-                                    const url = URL.createObjectURL(blob);
-                                    const a = document.createElement("a");
-                                    a.href = url;
-                                    a.download = `contrato_${contrato.prospectos?.communityname}.pdf`;
-                                    a.click();
-                                    URL.revokeObjectURL(url);
+                                    if (contrato.doc_contrato) {
+                                      // Download the manually uploaded contract
+                                      const a = document.createElement("a");
+                                      a.href = contrato.doc_contrato;
+                                      a.target = "_blank";
+                                      a.download = `contrato_${contrato.prospectos?.communityname}.pdf`;
+                                      a.click();
+                                    } else {
+                                      // Fall back to template generation
+                                      const datos = contrato.datos_contrato as any;
+                                      const blob = generateContratoPDF({
+                                        adminname: contrato.prospectos?.adminname || '',
+                                        adminemail: contrato.prospectos?.adminemail || '',
+                                        communityname: contrato.prospectos?.communityname || '',
+                                        buildingaddress: contrato.prospectos?.buildingaddress,
+                                        buildingtype: contrato.prospectos?.buildingtype || '',
+                                        units: contrato.prospectos?.units || 0,
+                                        vendedor: contrato.prospectos?.vendedor,
+                                        monto: null,
+                                      }, datos);
+                                      const url = URL.createObjectURL(blob);
+                                      const a2 = document.createElement("a");
+                                      a2.href = url;
+                                      a2.download = `contrato_${contrato.prospectos?.communityname}.pdf`;
+                                      a2.click();
+                                      URL.revokeObjectURL(url);
+                                    }
                                   }}
                                 >
                                   <Download className="h-3.5 w-3.5" />

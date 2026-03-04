@@ -123,6 +123,11 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
   }, []);
 
   const handlePreview = () => {
+    // If manual contract is uploaded, skip preview and go directly to accept
+    if (manualContractFile) {
+      handleAccept();
+      return;
+    }
     if (!legalData.legalrepresentative.trim()) {
       toast({
         title: "Campo requerido",
@@ -503,7 +508,11 @@ export default function AcceptQuoteDialog({ quote, open, onOpenChange, onAcceptC
                 Cancelar
               </Button>
               <Button onClick={handlePreview} className="bg-[#1A367F] hover:bg-[#12285e] gap-2">
-                <Eye className="h-4 w-4" /> Vista Previa del Contrato
+                {manualContractFile ? (
+                  <><CheckCircle className="h-4 w-4" /> Confirmar y Subir Contrato</>
+                ) : (
+                  <><Eye className="h-4 w-4" /> Vista Previa del Contrato</>
+                )}
               </Button>
             </DialogFooter>
           </>
