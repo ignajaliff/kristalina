@@ -29,6 +29,7 @@ interface ReportData {
   torreEnfriamiento?: ActividadRow[];
   imagenesReporte?: string[];
   dataContrato?: any;
+  moneda?: string;
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
