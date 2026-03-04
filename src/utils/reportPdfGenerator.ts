@@ -339,7 +339,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   // Introductory text
   const introText =
-    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de activacion y reposo. En la tabla anexa se informa la hora del proceso completo.";
+    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de activo y reposo. En la tabla anexa se informa la hora del proceso completo.";
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(50, 50, 50);
