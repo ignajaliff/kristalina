@@ -54,6 +54,52 @@ const EMPTY_ACTIVIDAD: ActividadRow[] = Array.from({ length: 8 }, () => ({
   horario_reposo: "",
 }));
 
+const TIME_OPTIONS = [
+  "00.00 AM", "01.00 AM", "02.00 AM", "03.00 AM", "04.00 AM", "05.00 AM",
+  "06.00 AM", "07.00 AM", "08.00 AM", "09.00 AM", "10.00 AM", "11.00 AM",
+  "12.00 PM", "01.00 PM", "02.00 PM", "03.00 PM", "04.00 PM", "05.00 PM",
+  "06.00 PM", "07.00 PM", "08.00 PM", "09.00 PM", "10.00 PM", "11.00 PM",
+];
+
+const parseTimeRange = (value: string): [string, string] => {
+  if (!value || !value.includes(" - ")) return ["", ""];
+  const parts = value.split(" - ");
+  return [parts[0]?.trim() || "", parts[1]?.trim() || ""];
+};
+
+const TimeRangeCell = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
+  const [from, to] = parseTimeRange(value);
+  const handleChange = (side: "from" | "to", val: string) => {
+    const newFrom = side === "from" ? val : from;
+    const newTo = side === "to" ? val : to;
+    if (newFrom && newTo) onChange(`${newFrom} - ${newTo}`);
+    else if (newFrom) onChange(newFrom);
+    else if (newTo) onChange(newTo);
+    else onChange("");
+  };
+  return (
+    <div className="flex items-center gap-1">
+      <Select value={from} onValueChange={v => handleChange("from", v)}>
+        <SelectTrigger className="h-8 text-[11px] border-[#E2E8F0] px-2 min-w-0">
+          <SelectValue placeholder="Inicio" />
+        </SelectTrigger>
+        <SelectContent>
+          {TIME_OPTIONS.map(t => <SelectItem key={t} value={t} className="text-[11px]">{t}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <span className="text-[10px] text-[#94A3B8] shrink-0">-</span>
+      <Select value={to} onValueChange={v => handleChange("to", v)}>
+        <SelectTrigger className="h-8 text-[11px] border-[#E2E8F0] px-2 min-w-0">
+          <SelectValue placeholder="Fin" />
+        </SelectTrigger>
+        <SelectContent>
+          {TIME_OPTIONS.map(t => <SelectItem key={t} value={t} className="text-[11px]">{t}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+};
+
 const EdificioDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -766,10 +812,12 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
       const dataContrato = item.data_contrato as any || {};
       const datosContrato = dataContrato.datos_contrato || {};
 
+      const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
       const blob = generateReportePDF({
         cliente,
         pagosJson,
         montoRenting,
+        moneda,
         datosReporte: reporte.datos_reporte,
         numero,
         fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
@@ -960,19 +1008,15 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                     />
                   </TableCell>
                   <TableCell className="py-1 px-2">
-                    <Input
+                    <TimeRangeCell
                       value={row.horario_activo}
-                      onChange={e => handleUpdateActividad(i, 'horario_activo', e.target.value)}
-                      placeholder="Ej: 08:00 - 12:00"
-                      className="h-8 text-[12px] border-[#E2E8F0]"
+                      onChange={v => handleUpdateActividad(i, 'horario_activo', v)}
                     />
                   </TableCell>
                   <TableCell className="py-1 px-2">
-                    <Input
+                    <TimeRangeCell
                       value={row.horario_reposo}
-                      onChange={e => handleUpdateActividad(i, 'horario_reposo', e.target.value)}
-                      placeholder="Ej: 12:00 - 16:00"
-                      className="h-8 text-[12px] border-[#E2E8F0]"
+                      onChange={v => handleUpdateActividad(i, 'horario_reposo', v)}
                     />
                   </TableCell>
                 </TableRow>
@@ -1015,19 +1059,15 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                       />
                     </TableCell>
                     <TableCell className="py-1 px-2">
-                      <Input
+                      <TimeRangeCell
                         value={row.horario_activo}
-                        onChange={e => handleUpdateTorre(i, 'horario_activo', e.target.value)}
-                        placeholder="Ej: 08:00 - 12:00"
-                        className="h-8 text-[12px] border-[#E2E8F0]"
+                        onChange={v => handleUpdateTorre(i, 'horario_activo', v)}
                       />
                     </TableCell>
                     <TableCell className="py-1 px-2">
-                      <Input
+                      <TimeRangeCell
                         value={row.horario_reposo}
-                        onChange={e => handleUpdateTorre(i, 'horario_reposo', e.target.value)}
-                        placeholder="Ej: 12:00 - 16:00"
-                        className="h-8 text-[12px] border-[#E2E8F0]"
+                        onChange={v => handleUpdateTorre(i, 'horario_reposo', v)}
                       />
                     </TableCell>
                   </TableRow>
