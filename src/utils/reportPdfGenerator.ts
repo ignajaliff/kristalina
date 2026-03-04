@@ -169,11 +169,13 @@ export const generateReportePDF = (data: ReportData): Blob => {
   drawSectionTitle(doc, y, "Datos del contrato", margin, cw);
   y += 11;
 
-  const feeVal = Number(contrato.datos_presupuesto?.precio_instalacion || 0) *
+  const feeVal =
+    Number(contrato.datos_presupuesto?.presupuesto_total_deptos || 0) *
     (1 - Number(contrato.datos_presupuesto?.descuento_porcentaje || 0) / 100);
-  const montoFee = data.moneda === "UF"
-    ? `UF ${Number.isInteger(feeVal) ? feeVal : feeVal}`
-    : `$ ${Math.round(feeVal).toLocaleString("es-CL")}`;
+  const montoFee =
+    data.moneda === "UF"
+      ? `UF ${Number.isInteger(feeVal) ? feeVal : feeVal}`
+      : `$ ${Math.round(feeVal).toLocaleString("es-CL")}`;
 
   const contratoRows: [string, any][] = [
     ["Tipo de Contrato:", contrato.tipo_contrato || cliente.tipo_contrato || "Arriendo mensual"],
@@ -337,7 +339,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   // Introductory text
   const introText =
-    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de acetificación y reposo. En la tabla anexa se informa la hora del proceso completo.";
+    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de activacion y reposo. En la tabla anexa se informa la hora del proceso completo.";
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(50, 50, 50);
