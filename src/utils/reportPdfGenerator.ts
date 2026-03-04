@@ -273,7 +273,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.text("Condición general:", margin, y);
   y += 8;
   const condicion = (data.datosReporte?.condicion_general || "").toLowerCase().trim();
-  const opcionesCondicion = ["Optima", "Buena", "Regular", "Deficiente"];
+  const opcionesCondicion = ["Óptima", "Buena", "Regular", "Deficiente"];
   cbX = margin + 2;
   opcionesCondicion.forEach((op) => {
     const checked = op.toLowerCase() === condicion;
