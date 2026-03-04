@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 
 
 interface Cliente {
@@ -37,6 +38,7 @@ interface DatosPresupuesto {
   anos_contrato: number;
   matriz_principal: number;
   recirculacion: number;
+  torre_enfriamiento: boolean;
 }
 
 export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, onComplete }: EnviarPresupuestoDialogProps) {
@@ -50,9 +52,10 @@ export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, o
     anos_contrato: 0,
     matriz_principal: 1,
     recirculacion: 1,
+    torre_enfriamiento: false,
   });
 
-  const handleChange = (field: keyof DatosPresupuesto, value: string | number) => {
+  const handleChange = (field: keyof DatosPresupuesto, value: string | number | boolean) => {
     setDatos(prev => ({ ...prev, [field]: value }));
   };
 
@@ -98,7 +101,7 @@ export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, o
       toast({ title: "Presupuesto enviado", description: `El presupuesto para ${cliente.communityname} ha sido creado y enviado.` });
 
       // Reset form
-      setDatos({ moneda: "Pesos", presupuesto_total_deptos: 0, descuento_porcentaje: 0, precio_instalacion: 0, anos_contrato: 0, matriz_principal: 1, recirculacion: 1 });
+      setDatos({ moneda: "Pesos", presupuesto_total_deptos: 0, descuento_porcentaje: 0, precio_instalacion: 0, anos_contrato: 0, matriz_principal: 1, recirculacion: 1, torre_enfriamiento: false });
       onOpenChange(false);
       onComplete();
     } catch (error) {
@@ -170,6 +173,15 @@ export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, o
               <Label className="text-xs font-semibold text-[#64748B]">Recirculación</Label>
               <Input type="number" min="1" placeholder="1" value={datos.recirculacion || ""} onChange={e => handleChange("recirculacion", parseInt(e.target.value) || 1)} />
             </div>
+          </div>
+
+          {/* Torre de enfriamiento toggle */}
+          <div className="flex items-center justify-between p-3 border border-[#E2E8F0] rounded-lg bg-[#F8FAFC]">
+            <Label className="text-xs font-semibold text-[#64748B]">Torre de Enfriamiento</Label>
+            <Switch
+              checked={datos.torre_enfriamiento}
+              onCheckedChange={(checked) => handleChange("torre_enfriamiento", checked)}
+            />
           </div>
         </div>
 

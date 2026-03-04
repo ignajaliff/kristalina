@@ -359,7 +359,12 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <ReportCard title="Renting Mensual" value={montoRenting ? `$${Number(montoRenting).toLocaleString()}` : "N/A"} icon={DollarSign} iconColor="text-[#1A367F]" iconBg="bg-[#F1F3F9]" />
+        <ReportCard title="Renting Mensual" value={(() => {
+          if (!montoRenting) return "N/A";
+          const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
+          if (moneda === "UF") return `${Number(montoRenting).toFixed(2)} UF`;
+          return `$${Number(montoRenting).toLocaleString()}`;
+        })()} icon={DollarSign} iconColor="text-[#1A367F]" iconBg="bg-[#F1F3F9]" />
         <ReportCard title="Estado Actual" value={item.estadopago} icon={CheckCircle} iconColor="text-[#10B981]" iconBg="bg-[#F0FDF4]" />
         <ReportCard title="Meses Pagados" value={`${pagadosList.length} / ${pagosJson.length}`} icon={Calendar} iconColor="text-[#F59E0B]" iconBg="bg-[#FFFBEB]" />
         <ReportCard title="Próximo Pago" value={proximoPago ? formatDate(proximoPago.fecha_pago) : "N/A"} icon={TrendingUp} iconColor="text-[#7C3AED]" iconBg="bg-[#F5F3FF]" />
@@ -411,7 +416,11 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                     <TableRow key={p.mes} className="hover:bg-[#F8FAFC]">
                       <TableCell className="text-[12px] font-semibold text-[#1E293B]">Mes {p.mes}</TableCell>
                       <TableCell className="text-[12px] text-[#64748B]">{formatDate(p.fecha_pago)}</TableCell>
-                      <TableCell className="text-[12px] font-semibold text-[#1E293B]">${Number(p.monto).toLocaleString()}</TableCell>
+                      <TableCell className="text-[12px] font-semibold text-[#1E293B]">{(() => {
+                        const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
+                        if (moneda === "UF") return `${Number(p.monto).toFixed(2)} UF`;
+                        return `$${Number(p.monto).toLocaleString()}`;
+                      })()}</TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           <Badge className="bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4] text-[10px] font-bold uppercase tracking-wider">Pagado</Badge>
@@ -445,7 +454,11 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                     <TableRow className="bg-[#FFFBEB] border-l-2 border-[#F59E0B]">
                       <TableCell className="text-[12px] font-semibold text-[#1E293B]">Mes {proximoPago.mes}</TableCell>
                       <TableCell className="text-[12px] text-[#64748B]">{formatDate(proximoPago.fecha_pago)}</TableCell>
-                      <TableCell className="text-[12px] font-semibold text-[#1E293B]">${Number(proximoPago.monto).toLocaleString()}</TableCell>
+                      <TableCell className="text-[12px] font-semibold text-[#1E293B]">{(() => {
+                        const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
+                        if (moneda === "UF") return `${Number(proximoPago.monto).toFixed(2)} UF`;
+                        return `$${Number(proximoPago.monto).toLocaleString()}`;
+                      })()}</TableCell>
                       <TableCell>
                         <Badge className="bg-[#FFFBEB] text-[#F59E0B] border-[#FDE68A] hover:bg-[#FFFBEB] text-[10px] font-bold uppercase tracking-wider">Pendiente</Badge>
                       </TableCell>
@@ -468,7 +481,11 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                     <TableRow key={`upcoming-${p.mes}`} className={cn("hover:bg-[#F8FAFC]", p.mes === proximoPago?.mes && "bg-[#FFFBEB]")}>
                       <TableCell className="text-[12px] font-semibold text-[#94A3B8]">Mes {p.mes}</TableCell>
                       <TableCell className="text-[12px] text-[#94A3B8]">{formatDate(p.fecha_pago)}</TableCell>
-                      <TableCell className="text-[12px] font-semibold text-[#94A3B8]">${Number(p.monto).toLocaleString()}</TableCell>
+                      <TableCell className="text-[12px] font-semibold text-[#94A3B8]">{(() => {
+                        const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
+                        if (moneda === "UF") return `${Number(p.monto).toFixed(2)} UF`;
+                        return `$${Number(p.monto).toLocaleString()}`;
+                      })()}</TableCell>
                       <TableCell>
                         <Badge className="bg-[#F1F5F9] text-[#94A3B8] border-[#E2E8F0] hover:bg-[#F1F5F9] text-[10px] font-bold uppercase tracking-wider">Pendiente</Badge>
                       </TableCell>
@@ -587,7 +604,14 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     ? item.actividad_solucion
     : EMPTY_ACTIVIDAD;
   const [actividad, setActividad] = useState<ActividadRow[]>(savedActividad);
-  const [isSavingActividad, setIsSavingActividad] = useState(false);
+  
+
+  // Torre enfriamiento state
+  const hasTorreEnfriamiento = (item.data_presupuesto as any)?.datos_presupuesto?.torre_enfriamiento === true;
+  const savedTorre: ActividadRow[] = Array.isArray(item.torre_enfriamiento) && (item.torre_enfriamiento as any[]).length > 0
+    ? (item.torre_enfriamiento as ActividadRow[])
+    : EMPTY_ACTIVIDAD;
+  const [torreEnfriamiento, setTorreEnfriamiento] = useState<ActividadRow[]>(savedTorre);
 
   const pagosJson: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
   const montoRenting = item.monto_renting || 0;
@@ -610,24 +634,43 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     const updated = [...actividad];
     updated[index] = { ...updated[index], [field]: value };
     setActividad(updated);
+    // Auto-save
+    autoSaveActividad(updated);
   };
 
-  const handleSaveActividad = async () => {
-    setIsSavingActividad(true);
-    try {
-      const { error } = await supabase
-        .from("gestion")
-        .update({ actividad_solucion: actividad as any })
-        .eq("id", item.id);
-      if (error) throw error;
-      toast.success("Actividad de solución guardada");
-      queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al guardar");
-    } finally {
-      setIsSavingActividad(false);
-    }
+  const autoSaveActividadTimeout = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTorreTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const autoSaveActividad = (data: ActividadRow[]) => {
+    if (autoSaveActividadTimeout.current) clearTimeout(autoSaveActividadTimeout.current);
+    autoSaveActividadTimeout.current = setTimeout(async () => {
+      try {
+        await supabase.from("gestion").update({ actividad_solucion: data as any }).eq("id", item.id);
+        queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
+      } catch (err) {
+        console.error("Auto-save actividad error:", err);
+      }
+    }, 1000);
+  };
+
+  const handleUpdateTorre = (index: number, field: keyof ActividadRow, value: string) => {
+    const updated = [...torreEnfriamiento];
+    updated[index] = { ...updated[index], [field]: value };
+    setTorreEnfriamiento(updated);
+    // Auto-save
+    autoSaveTorre(updated);
+  };
+
+  const autoSaveTorre = (data: ActividadRow[]) => {
+    if (autoSaveTorreTimeout.current) clearTimeout(autoSaveTorreTimeout.current);
+    autoSaveTorreTimeout.current = setTimeout(async () => {
+      try {
+        await supabase.from("gestion").update({ torre_enfriamiento: data as any }).eq("id", item.id);
+        queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
+      } catch (err) {
+        console.error("Auto-save torre error:", err);
+      }
+    }, 1000);
   };
 
   const handleUploadImages = async () => {
@@ -731,6 +774,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         numero,
         fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
         actividadSolucion: actividad,
+        torreEnfriamiento: hasTorreEnfriamiento ? torreEnfriamiento : undefined,
         imagenesReporte: savedImagenes,
         dataContrato: datosContrato,
       });
@@ -884,25 +928,15 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         </CardContent>
       </Card>
 
-      {/* Actividad de Solución */}
+      {/* Sala de Bombas (previously Actividad de Solución) */}
       <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
         <CardHeader className="border-b border-[#F1F5F9] p-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
-                <Activity className="h-4 w-4 text-[#7C3AED]" strokeWidth={2.5} />
-              </div>
-              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Actividad de Solución</CardTitle>
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+              <Activity className="h-4 w-4 text-[#7C3AED]" strokeWidth={2.5} />
             </div>
-            <Button
-              size="sm"
-              onClick={handleSaveActividad}
-              disabled={isSavingActividad}
-              className="h-8 px-4 bg-[#1A367F] hover:bg-[#152D6B] text-white text-[11px] font-bold rounded-lg gap-1.5"
-            >
-              {isSavingActividad ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
-              Guardar
-            </Button>
+            <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Sala de Bombas</CardTitle>
+            <span className="text-[10px] text-[#94A3B8] italic">Guardado automático</span>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -947,6 +981,62 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
           </Table>
         </CardContent>
       </Card>
+
+      {/* Torre Enfriamiento - only if enabled in presupuesto */}
+      {hasTorreEnfriamiento && (
+        <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
+          <CardHeader className="border-b border-[#F1F5F9] p-5">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+                <Activity className="h-4 w-4 text-[#F59E0B]" strokeWidth={2.5} />
+              </div>
+              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Torre Enfriamiento</CardTitle>
+              <span className="text-[10px] text-[#94A3B8] italic">Guardado automático</span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#F8FAFC] hover:bg-[#F8FAFC]">
+                  <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider w-[40%]">Item</TableHead>
+                  <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider w-[30%]">Horario Activo</TableHead>
+                  <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider w-[30%]">Horario Reposo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {torreEnfriamiento.map((row, i) => (
+                  <TableRow key={i} className="hover:bg-[#F8FAFC]">
+                    <TableCell className="py-1 px-2">
+                      <Input
+                        value={row.item}
+                        onChange={e => handleUpdateTorre(i, 'item', e.target.value)}
+                        placeholder={`Item ${i + 1}`}
+                        className="h-8 text-[12px] border-[#E2E8F0]"
+                      />
+                    </TableCell>
+                    <TableCell className="py-1 px-2">
+                      <Input
+                        value={row.horario_activo}
+                        onChange={e => handleUpdateTorre(i, 'horario_activo', e.target.value)}
+                        placeholder="Ej: 08:00 - 12:00"
+                        className="h-8 text-[12px] border-[#E2E8F0]"
+                      />
+                    </TableCell>
+                    <TableCell className="py-1 px-2">
+                      <Input
+                        value={row.horario_reposo}
+                        onChange={e => handleUpdateTorre(i, 'horario_reposo', e.target.value)}
+                        placeholder="Ej: 12:00 - 16:00"
+                        className="h-8 text-[12px] border-[#E2E8F0]"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Create Report Dialog */}
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>

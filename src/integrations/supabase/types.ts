@@ -73,6 +73,7 @@ export type Database = {
           metodo_cobro: string
           monto_renting: number | null
           pagos_json: Json | null
+          torre_enfriamiento: Json | null
           updated_at: string
           vendedor_id: string | null
         }
@@ -90,6 +91,7 @@ export type Database = {
           metodo_cobro?: string
           monto_renting?: number | null
           pagos_json?: Json | null
+          torre_enfriamiento?: Json | null
           updated_at?: string
           vendedor_id?: string | null
         }
@@ -107,6 +109,7 @@ export type Database = {
           metodo_cobro?: string
           monto_renting?: number | null
           pagos_json?: Json | null
+          torre_enfriamiento?: Json | null
           updated_at?: string
           vendedor_id?: string | null
         }

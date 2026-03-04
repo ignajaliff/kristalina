@@ -26,6 +26,7 @@ interface ReportData {
   numero: number;
   fecha: string;
   actividadSolucion?: ActividadRow[];
+  torreEnfriamiento?: ActividadRow[];
   imagenesReporte?: string[];
   dataContrato?: any;
 }
@@ -332,6 +333,13 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 20;
 
+  // Subtitle: Sala de Bombas
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BLUE_DARK);
+  doc.text("Sala de Bombas", margin, y);
+  y += 8;
+
   // Introductory text
   const introText =
     "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de acetificación y reposo.\n\nEn la tabla anexa se informa la hora del proceso completo.";
@@ -426,6 +434,69 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setDrawColor(...BLUE_DARK);
   doc.setLineWidth(0.4);
   doc.rect(margin, tableStartY, cw, (rows.length > 0 ? rows.length : 8) * rowH, "S");
+
+  // Torre Enfriamiento table (if available)
+  const torreRows = data.torreEnfriamiento || [];
+  if (torreRows.length > 0 && torreRows.some(r => r.item || r.horario_activo || r.horario_reposo)) {
+    y += 14;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...BLUE_DARK);
+    doc.text("Torre Enfriamiento", margin, y);
+    y += 8;
+
+    // Table header
+    doc.setFillColor(...BLUE_DARK);
+    doc.rect(margin, y, cw, headerH, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+
+    let ttx = margin;
+    headers.forEach((h, i) => {
+      doc.text(h, ttx + 3, y + 5.5);
+      ttx += colWidths[i];
+    });
+    y += headerH;
+
+    torreRows.forEach((row, idx) => {
+      const isEven = idx % 2 === 0;
+      if (isEven) {
+        doc.setFillColor(245, 248, 255);
+        doc.rect(margin, y, cw, rowH, "F");
+      }
+      doc.setDrawColor(220, 225, 235);
+      doc.setLineWidth(0.2);
+      doc.line(margin, y + rowH, margin + cw, y + rowH);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(30, 30, 30);
+
+      let tvx = margin;
+      const vals = [row.item || "", row.horario_activo || "", row.horario_reposo || ""];
+      vals.forEach((v, i) => {
+        doc.text(v, tvx + 3, y + 5);
+        tvx += colWidths[i];
+      });
+
+      let tlx = margin;
+      colWidths.forEach((w) => {
+        doc.line(tlx, y, tlx, y + rowH);
+        tlx += w;
+      });
+      doc.line(tlx, y, tlx, y + rowH);
+
+      y += rowH;
+    });
+
+    // outer border
+    const torreTableStartY = y - torreRows.length * rowH;
+    doc.setDrawColor(...BLUE_DARK);
+    doc.setLineWidth(0.4);
+    doc.rect(margin, torreTableStartY, cw, torreRows.length * rowH, "S");
+  }
 
   // Images below table
   y += 10;

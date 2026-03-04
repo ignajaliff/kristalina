@@ -495,7 +495,11 @@ const GestionEdificios = () => {
                         <TableCell className="py-4 hidden lg:table-cell">
                           <p className="text-[12px] font-semibold text-[#1E293B]">
                             {item.monto_renting
-                              ? `$${Number(item.monto_renting).toLocaleString()}`
+                              ? (() => {
+                                  const moneda = item.data_presupuesto?.datos_presupuesto?.moneda;
+                                  if (moneda === "UF") return `${Number(item.monto_renting).toFixed(2)} UF`;
+                                  return `$${Number(item.monto_renting).toLocaleString()}`;
+                                })()
                               : "N/A"}
                           </p>
                         </TableCell>
