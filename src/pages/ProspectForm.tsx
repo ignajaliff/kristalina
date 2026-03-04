@@ -88,6 +88,10 @@ const ProspectForm = () => {
   useEffect(() => {
     if (selectedBuildingType) {
       form.setValue("buildingType", selectedBuildingType);
+      // Auto-set units to 1 for non-Condominio types
+      if (selectedBuildingType !== "Condominio") {
+        form.setValue("units", 1);
+      }
     }
   }, [selectedBuildingType, form]);
 
@@ -162,7 +166,7 @@ const ProspectForm = () => {
       comuna: "",
       region: "",
       buildingType: type,
-      units: undefined,
+      units: type !== "Condominio" ? 1 : undefined,
       nombrePortero: "",
       notas: "",
     });

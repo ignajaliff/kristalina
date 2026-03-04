@@ -213,16 +213,33 @@ export function generatePresupuestoPDF(cliente: Cliente, datos: DatosPresupuesto
   };
   const costoTotalMensualEquipos = datos.presupuesto_total_deptos * (1 - datos.descuento_porcentaje / 100);
   const discountVal = datos.presupuesto_total_deptos * (datos.descuento_porcentaje / 100);
-  const valorMensualArriendo = cliente.units > 0 ? costoTotalMensualEquipos / cliente.units : 0;
-  doc.text("Valor mensual de arriendo por Depto.: ", margin, currentY);
-  const labelWidth = doc.getTextWidth("Valor mensual de arriendo por Depto.: ");
-  doc.setFont("helvetica", "bold");
-  doc.text(`${formatCurrency(valorMensualArriendo)} más IVA mensual.`, margin + labelWidth, currentY);
-  currentY += 8;
+
+  const isCondominio = cliente.buildingtype === "Condominio";
+
+  if (isCondominio) {
+    const valorMensualArriendo = cliente.units > 0 ? costoTotalMensualEquipos / cliente.units : 0;
+    doc.text("Valor mensual de arriendo por Depto.: ", margin, currentY);
+    const labelWidth = doc.getTextWidth("Valor mensual de arriendo por Depto.: ");
+    doc.setFont("helvetica", "bold");
+    doc.text(`${formatCurrency(valorMensualArriendo)} más IVA mensual.`, margin + labelWidth, currentY);
+    currentY += 8;
+    const valueX = 100;
+    doc.setFont("helvetica", "normal");
+    doc.text(`Presupuesto total sobre un total de ${cliente.units} deptos. `, margin, currentY);
+    doc.text(`,${formatCurrency(datos.presupuesto_total_deptos)}.- más IVA mensual.`, valueX, currentY);
+  } else {
+    const valorMensualArriendo = costoTotalMensualEquipos;
+    doc.text("Valor mensual de arriendo: ", margin, currentY);
+    const labelWidth = doc.getTextWidth("Valor mensual de arriendo: ");
+    doc.setFont("helvetica", "bold");
+    doc.text(`${formatCurrency(valorMensualArriendo)} más IVA mensual.`, margin + labelWidth, currentY);
+    currentY += 8;
+    const valueX = 100;
+    doc.setFont("helvetica", "normal");
+    doc.text(`Presupuesto total `, margin, currentY);
+    doc.text(`,${formatCurrency(datos.presupuesto_total_deptos)}.- más IVA mensual.`, valueX, currentY);
+  }
   const valueX = 100;
-  doc.setFont("helvetica", "normal");
-  doc.text(`Presupuesto total sobre un total de ${cliente.units} deptos. `, margin, currentY);
-  doc.text(`,${formatCurrency(datos.presupuesto_total_deptos)}.- más IVA mensual.`, valueX, currentY);
   currentY += 4;
   doc.text("Descuento promoción ", margin, currentY);
   const promoLabelWidth = doc.getTextWidth("Descuento promoción ");

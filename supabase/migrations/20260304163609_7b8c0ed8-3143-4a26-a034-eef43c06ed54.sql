@@ -1,0 +1,1 @@
+ALTER TABLE public.gestion ADD COLUMN IF NOT EXISTS torre_enfriamiento jsonb DEFAULT '[]'::jsonb;
