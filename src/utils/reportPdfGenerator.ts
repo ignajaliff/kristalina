@@ -652,7 +652,11 @@ export const generateReportePDF = (data: ReportData): Blob => {
   y += 4.5;
   doc.text("Santiago-Chile", margin, y);
 
-  y += 10;
+  y += 6;
+  try {
+    doc.addImage("/kristalina-logo.png", "PNG", margin, y, 36, 13);
+  } catch (_) {}
+  y += 18;
   const today = new Date();
   const fechaHoy = `${today.getDate().toString().padStart(2, "0")}/${(today.getMonth() + 1).toString().padStart(2, "0")}/${today.getFullYear()}`;
   doc.setFont("helvetica", "bold");
