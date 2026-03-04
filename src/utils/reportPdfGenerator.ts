@@ -10,6 +10,7 @@ interface ReportData {
   cliente: any;
   pagosJson: any[];
   montoRenting: number;
+  moneda?: string;
   datosReporte: {
     efectividad: string;
     efectividad_comentario: string;
@@ -174,9 +175,13 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
     ["Tipo de Contrato:", contrato.tipo_contrato || cliente.tipo_contrato || "Arriendo mensual"],
     ["Duración del Contrato(años):", contrato.datos_presupuesto?.anos_contrato || contrato.contractTerm || "N/A"],
-    ["Fee Mensual:", `$${Math.round(
-      Number(contrato.datos_presupuesto?.precio_instalacion || 0) * (1 - Number(contrato.datos_presupuesto?.descuento_porcentaje || 0) / 100)
-    ).toLocaleString("es-CL")}`],
+    ["Fee Mensual:", (() => {
+      const monto = data.montoRenting;
+      const moneda = data.moneda;
+      if (!monto) return "N/A";
+      if (moneda === "UF") return `${Number(monto).toFixed(2)} UF`;
+      return `$${Math.round(Number(monto)).toLocaleString("es-CL")}`;
+    })()],
   ];
 
   contratoRows.forEach(([label, value]) => {
@@ -270,11 +275,12 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.setTextColor(0, 0, 0);
   doc.text("Condición general:", margin, y);
   y += 8;
-  const condicion = (data.datosReporte?.condicion_general || "").toLowerCase().trim();
+  const condicionRaw = (data.datosReporte?.condicion_general || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const opcionesCondicion = ["Optima", "Buena", "Regular", "Deficiente"];
   cbX = margin + 2;
   opcionesCondicion.forEach((op) => {
-    const checked = op.toLowerCase() === condicion;
+    const opNorm = op.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const checked = opNorm === condicionRaw;
     drawCheckbox(doc, cbX, y, op, checked);
     cbX += 40;
   });
