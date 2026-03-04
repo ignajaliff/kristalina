@@ -10,7 +10,6 @@ interface ReportData {
   cliente: any;
   pagosJson: any[];
   montoRenting: number;
-  moneda?: string;
   datosReporte: {
     efectividad: string;
     efectividad_comentario: string;
@@ -99,13 +98,11 @@ export const generateReportePDF = (data: ReportData): Blob => {
   const cw = pageWidth - margin * 2;
 
   const cliente = data.cliente || {};
-  const allPagos = data.pagosJson || [];
-  // Pagadas: pagado === true
-  const pagados = allPagos.filter((p) => p.pagado === true);
-  // No pagadas: emitidas (tienen fecha_emision o factura) pero no confirmadas/pagadas
-  const noPagados = allPagos.filter((p) => !p.pagado && (p.fecha_emision || p.factura_url));
-  // Por pagar: no emitidas aún
-  const porPagar = allPagos.filter((p) => !p.pagado && !p.fecha_emision && !p.factura_url);
+  const pagados = (data.pagosJson || []).filter((p) => p.pagado);
+  const noPagados = (data.pagosJson || []).filter((p) => !p.pagado);
+  const mesesContrato =
+    (cliente.meses_contrato ?? cliente.anos_contrato) ? (cliente.anos_contrato || 0) * 12 : data.pagosJson.length;
+  const porPagar = Math.max(0, mesesContrato - pagados.length);
 
   // ════════════════════════════════════════════════════════════════════════════
   // PÁGINA 1
@@ -147,7 +144,6 @@ export const generateReportePDF = (data: ReportData): Blob => {
     ["RUT:", contrato.legalrepresentativerut || "N/A"],
     ["Dirección:", contrato.communityaddress || "N/A"],
     ["Persona de Contacto:", contrato.legalrepresentative || "N/A"],
-    ["Telefono:", contrato.legalrepresentativephone || "N/A"],
     ["Email:", contrato.communityemail || "N/A"],
   ];
 
@@ -173,16 +169,16 @@ export const generateReportePDF = (data: ReportData): Blob => {
   drawSectionTitle(doc, y, "Datos del contrato", margin, cw);
   y += 11;
 
-  const monedaSymbol = data.moneda === "UF" ? "UF" : "$";
-  const feeValue = data.montoRenting || 0;
-  const feeDisplay = data.moneda === "UF"
-    ? `${feeValue.toLocaleString("es-CL", { minimumFractionDigits: 2 })} UF`
-    : `$${Math.round(feeValue).toLocaleString("es-CL")}`;
-
   const contratoRows: [string, any][] = [
     ["Tipo de Contrato:", contrato.tipo_contrato || cliente.tipo_contrato || "Arriendo mensual"],
     ["Duración del Contrato(años):", contrato.datos_presupuesto?.anos_contrato || contrato.contractTerm || "N/A"],
-    ["Fee Mensual:", feeDisplay],
+    [
+      "Fee Mensual:",
+      `$${Math.round(
+        Number(contrato.datos_presupuesto?.precio_instalacion || 0) *
+          (1 - Number(contrato.datos_presupuesto?.descuento_porcentaje || 0) / 100),
+      ).toLocaleString("es-CL")}`,
+    ],
   ];
 
   contratoRows.forEach(([label, value]) => {
@@ -204,7 +200,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   const resumenItems: [string, string][] = [
     ["Facturas pagadas:", `${pagados.length}`],
     ["Facturas no pagadas:", `${noPagados.length}`],
-    ["Facturas por pagar según contrato:", `${porPagar.length}`],
+    ["Facturas por pagar según contrato:", `${porPagar}`],
   ];
 
   resumenItems.forEach(([label, val]) => {
@@ -339,38 +335,37 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 20;
 
-  // Introductory text (no subtitle here)
-  const introText =
-    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de acetificación y reposo.\n\nEn la tabla anexa se informa la hora del proceso completo.";
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  doc.setTextColor(50, 50, 50);
-  const introLines = doc.splitTextToSize(introText, cw - 4);
-  doc.text(introLines, margin + 2, y, { lineHeightFactor: 1.5 });
-  y += introLines.length * 5.5 + 8;
-
   // Subtitle: Sala de Bombas
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BLUE_DARK);
   doc.text("Sala de Bombas", margin, y);
-  y += 6;
+  y += 8;
+
+  // Introductory text
+  const introText =
+    "Se deja constancia que la solución implementada en la recirculación de los sectores, tiene su horario de activacion y reposo.\n\nEn la tabla anexa se informa la hora del proceso completo.";
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(50, 50, 50);
+  const introLines = doc.splitTextToSize(introText, cw - 4);
+  doc.text(introLines, margin + 2, y, { lineHeightFactor: 1.5 });
+  y += introLines.length * 5.5 + 10;
 
   // Table header
   const colWidths = [cw * 0.4, cw * 0.3, cw * 0.3];
-  const headerH = 7;
-  const rowH = 6;
+  const headerH = 8;
 
   doc.setFillColor(...BLUE_DARK);
   doc.rect(margin, y, cw, headerH, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.setTextColor(255, 255, 255);
 
   let tx = margin;
   const headers = ["Item", "Horario Activo", "Horario Reposo"];
   headers.forEach((h, i) => {
-    doc.text(h, tx + 3, y + 5);
+    doc.text(h, tx + 3, y + 5.5);
     tx += colWidths[i];
   });
 
@@ -378,9 +373,9 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   // Table rows
   const rows = data.actividadSolucion || [];
-  const displayRows = rows.length > 0 ? rows : Array.from({ length: 8 }, () => ({ item: "", horario_activo: "", horario_reposo: "" }));
+  const rowH = 7;
 
-  displayRows.forEach((row, idx) => {
+  rows.forEach((row, idx) => {
     const isEven = idx % 2 === 0;
     if (isEven) {
       doc.setFillColor(245, 248, 255);
@@ -392,13 +387,13 @@ export const generateReportePDF = (data: ReportData): Blob => {
     doc.line(margin, y + rowH, margin + cw, y + rowH);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setTextColor(30, 30, 30);
 
     tx = margin;
     const vals = [row.item || "", row.horario_activo || "", row.horario_reposo || ""];
     vals.forEach((v, i) => {
-      doc.text(v, tx + 3, y + 4.5);
+      doc.text(v, tx + 3, y + 5);
       tx += colWidths[i];
     });
 
@@ -413,33 +408,56 @@ export const generateReportePDF = (data: ReportData): Blob => {
     y += rowH;
   });
 
+  // If no rows, draw empty rows
+  if (rows.length === 0) {
+    for (let i = 0; i < 8; i++) {
+      const isEven = i % 2 === 0;
+      if (isEven) {
+        doc.setFillColor(245, 248, 255);
+        doc.rect(margin, y, cw, rowH, "F");
+      }
+      doc.setDrawColor(220, 225, 235);
+      doc.setLineWidth(0.2);
+      doc.line(margin, y + rowH, margin + cw, y + rowH);
+
+      let lx = margin;
+      colWidths.forEach((w) => {
+        doc.line(lx, y, lx, y + rowH);
+        lx += w;
+      });
+      doc.line(margin + cw, y, margin + cw, y + rowH);
+
+      y += rowH;
+    }
+  }
+
   // outer border
-  const tableStartY = y - displayRows.length * rowH;
+  const tableStartY = y - (rows.length > 0 ? rows.length : 8) * rowH;
   doc.setDrawColor(...BLUE_DARK);
   doc.setLineWidth(0.4);
-  doc.rect(margin, tableStartY, cw, displayRows.length * rowH, "S");
+  doc.rect(margin, tableStartY, cw, (rows.length > 0 ? rows.length : 8) * rowH, "S");
 
   // Torre Enfriamiento table (if available)
   const torreRows = data.torreEnfriamiento || [];
   if (torreRows.length > 0 && torreRows.some((r) => r.item || r.horario_activo || r.horario_reposo)) {
-    y += 10;
+    y += 14;
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(...BLUE_DARK);
     doc.text("Torre Enfriamiento", margin, y);
-    y += 6;
+    y += 8;
 
     // Table header
     doc.setFillColor(...BLUE_DARK);
     doc.rect(margin, y, cw, headerH, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setTextColor(255, 255, 255);
 
     let ttx = margin;
     headers.forEach((h, i) => {
-      doc.text(h, ttx + 3, y + 5);
+      doc.text(h, ttx + 3, y + 5.5);
       ttx += colWidths[i];
     });
     y += headerH;
@@ -455,13 +473,13 @@ export const generateReportePDF = (data: ReportData): Blob => {
       doc.line(margin, y + rowH, margin + cw, y + rowH);
 
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
+      doc.setFontSize(9);
       doc.setTextColor(30, 30, 30);
 
       let tvx = margin;
       const vals = [row.item || "", row.horario_activo || "", row.horario_reposo || ""];
       vals.forEach((v, i) => {
-        doc.text(v, tvx + 3, y + 4.5);
+        doc.text(v, tvx + 3, y + 5);
         tvx += colWidths[i];
       });
 
@@ -483,7 +501,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   }
 
   // Images below table
-  y += 8;
+  y += 10;
   const imagenes = data.imagenesReporte || [];
   if (imagenes.length > 0) {
     doc.setFont("helvetica", "bold");
@@ -492,10 +510,8 @@ export const generateReportePDF = (data: ReportData): Blob => {
     doc.text("Registro fotográfico", margin, y);
     y += 6;
 
-    // Calculate remaining space for images
-    const availableH = pageHeight - y - 20;
     const imgW = imagenes.length === 1 ? cw : (cw - 6) / 2;
-    const imgH = Math.min(50, availableH);
+    const imgH = 55;
     imagenes.forEach((url, i) => {
       try {
         const xPos = margin + (i === 1 ? imgW + 6 : 0);
