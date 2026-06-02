@@ -10,7 +10,9 @@ import { toast } from "@/hooks/use-toast";
 
 interface GestionItem {
   id: string;
-  cliente: any;
+  communityname: string | null;
+  adminname: string | null;
+  buildingaddress: string | null;
   data_presupuesto: any;
   data_contrato: any;
   mesrenting: number;
@@ -92,11 +94,11 @@ const EditGestionDialog = ({ open, onOpenChange, item, onSuccess }: EditGestionD
           <DialogTitle>Editar Edificio</DialogTitle>
         </DialogHeader>
 
-        {item?.cliente && (
+        {item && (
           <div className="bg-[#F8FAFC] rounded-lg p-3 space-y-1 text-[12px] text-[#64748B]">
-            <p><strong>Comunidad:</strong> {item.cliente.communityname}</p>
-            <p><strong>Administrador:</strong> {item.cliente.adminname}</p>
-            <p><strong>Dirección:</strong> {item.cliente.buildingaddress || 'N/A'}</p>
+            <p><strong>Comunidad:</strong> {item.communityname}</p>
+            <p><strong>Administrador:</strong> {item.adminname}</p>
+            <p><strong>Dirección:</strong> {item.buildingaddress || 'N/A'}</p>
           </div>
         )}
         

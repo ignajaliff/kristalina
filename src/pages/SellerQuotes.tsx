@@ -67,6 +67,7 @@ const SellerQuotes = () => {
             estado_contacto: prospecto?.estado_contacto,
             additional_at,
             datos_presupuesto: item.datos_presupuesto,
+            doc_presupuesto: item.doc_presupuesto || undefined,
             estado: item.estado as "Enviado" | "Aceptado",
             fecha_aprobacion: item.fecha_aprobacion,
             created_at: item.created_at,
@@ -177,7 +178,11 @@ const SellerQuotes = () => {
                               <Button variant="outline" size="sm" onClick={() => { setSelectedQuote(quote); setIsViewDialogOpen(true); }}>
                                 <Eye className="mr-1 h-4 w-4" /> Ver
                               </Button>
-                              {quote.datos_presupuesto && (
+                              {quote.doc_presupuesto ? (
+                                <Button variant="outline" size="sm" title="Descargar presupuesto cargado" onClick={() => window.open(quote.doc_presupuesto, "_blank")}>
+                                  <Download className="mr-1 h-4 w-4" /> PDF
+                                </Button>
+                              ) : quote.datos_presupuesto && (
                                 <Button variant="outline" size="sm" title="Descargar PDF" onClick={() => {
                                   const datos = quote.datos_presupuesto as any;
                                   const blob = generatePresupuestoPDF({

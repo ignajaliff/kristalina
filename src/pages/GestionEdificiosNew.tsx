@@ -10,18 +10,85 @@ import { Building2, SearchIcon, MapPin, Users, DollarSign, Phone, Mail } from "l
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
+interface PagoRecord {
+  mes: number;
+  fecha_pago: string;
+  monto: number;
+  pagado: boolean;
+  fecha_emision?: string | null;
+  es_inmediato?: boolean;
+}
+
 interface GestionItem {
   id: string;
-  cliente: any;
+  communityname: string | null;
+  adminname: string | null;
+  adminemail: string | null;
+  managementcompany: string | null;
+  buildingaddress: string | null;
+  comuna: string | null;
+  region: string | null;
+  buildingtype: string | null;
+  units: number | null;
+  additional_at: any;
   data_presupuesto: any;
   data_contrato: any;
   mesrenting: number;
+  monto_renting: number | null;
+  metodo_cobro: string;
+  pagos: PagoRecord[] | null;
   fechapago: string;
   estadopago: string;
   created_at: string;
   updated_at: string;
   vendedor_id: string | null;
 }
+
+// Estado dinámico según la fecha de hoy y el método de cobro (igual que en Gestión de Pagos)
+const computeEstado = (pago: PagoRecord, metodoCobro: string): string => {
+  if (pago.pagado) return "Mes pagado";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [year, month, day] = pago.fecha_pago.split("-").map(Number);
+  const fechaPago = new Date(year, month - 1, day);
+
+  if (metodoCobro === "Emisión de Factura" && !pago.es_inmediato) {
+    if (pago.fecha_emision) {
+      const emisionDate = new Date(pago.fecha_emision + "T00:00:00");
+      const nextMonth1st = new Date(emisionDate.getFullYear(), emisionDate.getMonth() + 1, 1);
+      if (today >= nextMonth1st) return "En fecha/No pagado";
+      return "Factura Emitida";
+    }
+    if (today >= fechaPago) return "Factura no Emitida";
+    return "No en fecha";
+  }
+  return today >= fechaPago ? "En fecha/No pagado" : "No en fecha";
+};
+
+const getCurrentEstado = (item: GestionItem): string => {
+  const pagos = Array.isArray(item.pagos) ? [...item.pagos].sort((a, b) => a.mes - b.mes) : [];
+  if (pagos.length === 0) return item.estadopago;
+  const nextPending = pagos.find(p => !p.pagado);
+  if (!nextPending) return "Mes pagado";
+  return computeEstado(nextPending, item.metodo_cobro);
+};
+
+const getEstadoBadgeClasses = (estado: string): string => {
+  switch (estado) {
+    case "Mes pagado":
+      return "bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4]";
+    case "En fecha/No pagado":
+      return "bg-[#FEF2F2] text-[#EF4444] border-[#FEE2E2] hover:bg-[#FEF2F2]";
+    case "No en fecha":
+      return "bg-[#EFF6FF] text-[#38BDF8] border-[#BAE6FD] hover:bg-[#EFF6FF]";
+    case "Factura no Emitida":
+      return "bg-[#FFFBEB] text-[#F59E0B] border-[#FDE68A] hover:bg-[#FFFBEB]";
+    case "Factura Emitida":
+      return "bg-[#EFF6FF] text-[#3B82F6] border-[#BFDBFE] hover:bg-[#EFF6FF]";
+    default:
+      return "bg-[#F5F3FF] text-[#7C3AED] border-[#EDE9FE] hover:bg-[#F5F3FF]";
+  }
+};
 
 const GestionEdificiosNew = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,7 +100,7 @@ const GestionEdificiosNew = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('gestion')
-        .select('*')
+        .select('*, pagos(*)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -42,12 +109,11 @@ const GestionEdificiosNew = () => {
   });
 
   const filteredItems = gestionItems?.filter(item => {
-    const cliente = item.cliente || {};
     const searchLower = searchTerm.toLowerCase();
     return (
-      (cliente.communityname || '').toLowerCase().includes(searchLower) ||
-      (cliente.adminname || '').toLowerCase().includes(searchLower) ||
-      (cliente.buildingaddress || '').toLowerCase().includes(searchLower)
+      (item.communityname || '').toLowerCase().includes(searchLower) ||
+      (item.adminname || '').toLowerCase().includes(searchLower) ||
+      (item.buildingaddress || '').toLowerCase().includes(searchLower)
     );
   }) || [];
 
@@ -109,7 +175,21 @@ const GestionEdificiosNew = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredItems.map((item) => {
-              const cliente = item.cliente || {};
+              const cliente = {
+                communityname: item.communityname,
+                buildingtype: item.buildingtype,
+                buildingaddress: item.buildingaddress,
+                adminname: item.adminname,
+                units: item.units,
+                comuna: item.comuna,
+              };
+              const estado = getCurrentEstado(item);
+              const moneda = item.data_presupuesto?.datos_presupuesto?.moneda;
+              const montoFmt = item.monto_renting != null
+                ? (moneda === "UF"
+                    ? `${Number(item.monto_renting).toLocaleString("es-CL")} UF`
+                    : `$${Number(item.monto_renting).toLocaleString("es-CL")}`)
+                : "N/A";
               return (
                 <Card
                   key={item.id}
@@ -132,13 +212,9 @@ const GestionEdificiosNew = () => {
                       </div>
                       <Badge className={cn(
                         "font-bold text-[10px] uppercase tracking-wider shrink-0",
-                        item.estadopago === 'Mes pagado'
-                          ? "bg-[#F0FDF4] text-[#10B981] border-[#DCFCE7] hover:bg-[#F0FDF4]"
-                          : item.estadopago === 'En fecha/No pagado'
-                          ? "bg-[#FEF2F2] text-[#EF4444] border-[#FEE2E2] hover:bg-[#FEF2F2]"
-                          : "bg-[#F5F3FF] text-[#7C3AED] border-[#EDE9FE] hover:bg-[#F5F3FF]"
+                        getEstadoBadgeClasses(estado)
                       )}>
-                        {item.estadopago}
+                        {estado}
                       </Badge>
                     </div>
 
@@ -156,7 +232,7 @@ const GestionEdificiosNew = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-3.5 w-3.5 text-[#94A3B8] shrink-0" />
-                        <p className="text-[12px] font-semibold text-[#1E293B]">${item.mesrenting?.toLocaleString()}/mes</p>
+                        <p className="text-[12px] font-semibold text-[#1E293B]">{montoFmt}/mes</p>
                       </div>
                     </div>
 

@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle, Building2, TrendingUp, Users, DollarSign, Edit, FileText, Send } from "lucide-react";
 import { format, parseISO, getMonth, getYear } from "date-fns";
@@ -20,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface PagoRecord {
+  id?: string;
   mes: number;
   fecha_pago: string;
   monto: number;
@@ -34,7 +37,16 @@ interface PagoRecord {
 
 interface GestionItem {
   id: string;
-  cliente: any;
+  communityname: string | null;
+  adminname: string | null;
+  adminemail: string | null;
+  managementcompany: string | null;
+  buildingaddress: string | null;
+  comuna: string | null;
+  region: string | null;
+  buildingtype: string | null;
+  units: number | null;
+  additional_at: any;
   data_presupuesto: any;
   data_contrato: any;
   mesrenting: number;
@@ -42,7 +54,7 @@ interface GestionItem {
   fechapago: string;
   estadopago: string;
   metodo_cobro: string;
-  pagos_json: PagoRecord[] | null;
+  pagos: PagoRecord[] | null;
   created_at: string;
   updated_at: string;
   vendedor_id: string | null;
@@ -85,7 +97,9 @@ const getRelevantPago = (
   monthFilter: string,
   yearFilter: number
 ): { pago: PagoRecord | null; estadoDisplay: string } => {
-  const pagos: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
+  const pagos: PagoRecord[] = Array.isArray(item.pagos)
+    ? [...item.pagos].sort((a, b) => a.mes - b.mes)
+    : [];
 
   if (pagos.length === 0) {
     return { pago: null, estadoDisplay: item.estadopago };
@@ -127,6 +141,10 @@ const GestionEdificios = () => {
   const [yearFilter] = useState<number>(new Date().getFullYear());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<GestionItem | null>(null);
+  // Confirmación de pago con factura
+  const [confirmTarget, setConfirmTarget] = useState<{ item: GestionItem; mes: number } | null>(null);
+  const [facturaFile, setFacturaFile] = useState<File | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -136,7 +154,7 @@ const GestionEdificios = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("gestion")
-        .select("*")
+        .select("*, pagos(*)")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -144,21 +162,52 @@ const GestionEdificios = () => {
     },
   });
 
-  const handleConfirmPayment = async (item: GestionItem, mes: number) => {
-    try {
-      const pagos: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
-      const updatedPagos = pagos.map(p =>
-        p.mes === mes
-          ? { ...p, pagado: true, fecha_pago_real: format(new Date(), "yyyy-MM-dd"), ...(p.fecha_emision !== undefined ? { fecha_confirmacion: format(new Date(), "yyyy-MM-dd") } : {}) }
-          : p
-      );
+  // Abre el popup que pide la factura antes de confirmar el pago
+  const openConfirmDialog = (item: GestionItem, mes: number) => {
+    setConfirmTarget({ item, mes });
+    setFacturaFile(null);
+  };
 
-      const nextPending = updatedPagos.find(p => !p.pagado);
+  const handleConfirmPayment = async () => {
+    if (!confirmTarget || !facturaFile) return;
+    const { item, mes } = confirmTarget;
+    setIsConfirming(true);
+    try {
+      // 1. Subir la factura a Storage (misma ruta/campo que usa el Historial de Pagos)
+      const ext = facturaFile.name.split(".").pop();
+      const filePath = `facturas/${item.id}/mes-${mes}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("presupuestos-pdf")
+        .upload(filePath, facturaFile, { upsert: true, contentType: facturaFile.type });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
+      const facturaUrl = publicUrlData.publicUrl;
+
+      const hoy = format(new Date(), "yyyy-MM-dd");
+
+      // 2. Marcar el pago (fila individual en la tabla `pagos`)
+      const { error: pagoError } = await supabase
+        .from("pagos")
+        .update({
+          pagado: true,
+          factura_url: facturaUrl,
+          fecha_pago_real: hoy,
+          fecha_confirmacion: hoy,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("gestion_id", item.id)
+        .eq("mes", mes);
+      if (pagoError) throw pagoError;
+
+      // 3. Recalcular el resumen de la gestión (estado y próxima fecha de pago)
+      const pagos: PagoRecord[] = Array.isArray(item.pagos)
+        ? [...item.pagos].sort((a, b) => a.mes - b.mes)
+        : [];
+      const nextPending = pagos.find(p => p.mes !== mes && !p.pagado);
 
       const { error } = await supabase
         .from("gestion")
         .update({
-          pagos_json: updatedPagos as any,
           estadopago: nextPending ? "No en fecha" : "Mes pagado",
           fechapago: nextPending ? nextPending.fecha_pago : item.fechapago,
           updated_at: new Date().toISOString(),
@@ -175,7 +224,17 @@ const GestionEdificios = () => {
         mode: "no-cors",
         body: JSON.stringify({
           id: item.id,
-          cliente: item.cliente,
+          cliente: {
+            communityname: item.communityname,
+            adminname: item.adminname,
+            adminemail: item.adminemail,
+            buildingaddress: item.buildingaddress,
+            comuna: item.comuna,
+            region: item.region,
+            buildingtype: item.buildingtype,
+            units: item.units,
+            additional_at: item.additional_at,
+          },
           mes_pagado: mes,
           action: "payment_confirmed",
           timestamp: new Date().toISOString(),
@@ -184,10 +243,12 @@ const GestionEdificios = () => {
 
       toast({
         title: "Pago confirmado",
-        description: `Mes ${mes} marcado como pagado.`,
+        description: `Mes ${mes} marcado como pagado y factura cargada.`,
       });
 
       queryClient.invalidateQueries({ queryKey: ["gestion-all"] });
+      setConfirmTarget(null);
+      setFacturaFile(null);
     } catch (error) {
       console.error(error);
       toast({
@@ -195,25 +256,21 @@ const GestionEdificios = () => {
         description: "No se pudo confirmar el pago.",
         variant: "destructive",
       });
+    } finally {
+      setIsConfirming(false);
     }
   };
 
   const handleEmitInvoice = async (item: GestionItem, mes: number) => {
     try {
-      const pagos: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
-      const updatedPagos = pagos.map(p =>
-        p.mes === mes
-          ? { ...p, fecha_emision: format(new Date(), "yyyy-MM-dd") }
-          : p
-      );
-
       const { error } = await supabase
-        .from("gestion")
+        .from("pagos")
         .update({
-          pagos_json: updatedPagos as any,
+          fecha_emision: format(new Date(), "yyyy-MM-dd"),
           updated_at: new Date().toISOString(),
         })
-        .eq("id", item.id);
+        .eq("gestion_id", item.id)
+        .eq("mes", mes);
 
       if (error) throw error;
 
@@ -323,12 +380,11 @@ const GestionEdificios = () => {
           if (statusFilter === "Factura Emitida" && estadoDisplay !== "Factura Emitida") return false;
         }
 
-        const cliente = item.cliente || {};
         const searchLower = searchTerm.toLowerCase();
         return (
-          (cliente.communityname || "").toLowerCase().includes(searchLower) ||
-          (cliente.adminname || "").toLowerCase().includes(searchLower) ||
-          (cliente.buildingaddress || "").toLowerCase().includes(searchLower)
+          (item.communityname || "").toLowerCase().includes(searchLower) ||
+          (item.adminname || "").toLowerCase().includes(searchLower) ||
+          (item.buildingaddress || "").toLowerCase().includes(searchLower)
         );
       });
   }, [gestionItems, monthFilter, yearFilter, statusFilter, searchTerm]);
@@ -484,13 +540,13 @@ const GestionEdificios = () => {
                         className="group border-b border-[#F1F5F9] hover:bg-[#F8FAFC] transition-colors"
                       >
                         <TableCell className="py-4 pl-6">
-                          <p className="text-[13px] font-semibold text-[#1E293B]">{item.cliente?.communityname || "N/A"}</p>
+                          <p className="text-[13px] font-semibold text-[#1E293B]">{item.communityname || "N/A"}</p>
                         </TableCell>
                         <TableCell className="py-4">
-                          <p className="text-[12px] font-medium text-[#64748B]">{item.cliente?.adminname || "N/A"}</p>
+                          <p className="text-[12px] font-medium text-[#64748B]">{item.adminname || "N/A"}</p>
                         </TableCell>
                         <TableCell className="py-4 hidden md:table-cell">
-                          <p className="text-[12px] text-[#64748B] truncate max-w-[200px]">{item.cliente?.buildingaddress || "N/A"}</p>
+                          <p className="text-[12px] text-[#64748B] truncate max-w-[200px]">{item.buildingaddress || "N/A"}</p>
                         </TableCell>
                         <TableCell className="py-4 hidden lg:table-cell">
                           <p className="text-[12px] font-semibold text-[#1E293B]">
@@ -549,7 +605,7 @@ const GestionEdificios = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => pago && handleConfirmPayment(item, pago.mes)}
+                              onClick={() => pago && openConfirmDialog(item, pago.mes)}
                               disabled={!pago || (estadoDisplay !== "En fecha/No pagado" && estadoDisplay !== "Factura Emitida")}
                               className={cn(
                                 "h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
@@ -590,6 +646,43 @@ const GestionEdificios = () => {
           setEditingItem(null);
         }}
       />
+
+      {/* Confirmar pago: pide la factura para subir */}
+      <Dialog open={!!confirmTarget} onOpenChange={(open) => { if (!open && !isConfirming) { setConfirmTarget(null); setFacturaFile(null); } }}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar pago</DialogTitle>
+            <DialogDescription>
+              Adjunta la factura del {confirmTarget ? `mes ${confirmTarget.mes}` : "pago"} de{" "}
+              <strong>{confirmTarget?.item.communityname || "este edificio"}</strong>. Quedará disponible en el Historial de Pagos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-xs font-semibold text-[#64748B]">Factura *</Label>
+            <Input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              onChange={(e) => setFacturaFile(e.target.files?.[0] || null)}
+              className="text-xs"
+            />
+            <p className="text-[11px] text-[#94A3B8]">
+              Formatos: PDF, JPG, PNG, DOC. La factura es obligatoria para confirmar el pago.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setConfirmTarget(null); setFacturaFile(null); }} disabled={isConfirming}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmPayment}
+              disabled={!facturaFile || isConfirming}
+              className="bg-[#10B981] hover:bg-[#059669] text-white"
+            >
+              {isConfirming ? "Confirmando..." : "Confirmar pago"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

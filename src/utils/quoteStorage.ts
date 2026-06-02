@@ -67,6 +67,7 @@ export interface Quote {
   // Presupuesto fields (from join)
   presupuesto_id?: string;
   datos_presupuesto?: any;
+  doc_presupuesto?: string;
   monto?: number;
   por_unidad?: number;
   inversion?: number;

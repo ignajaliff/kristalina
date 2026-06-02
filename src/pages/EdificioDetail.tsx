@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Building2, ArrowLeft, MapPin, Users, DollarSign, Mail,
   FileText, Calendar, BarChart3, TrendingUp, CheckCircle, Download,
-  ChevronDown, ChevronUp, Upload, ClipboardList, Loader2, PlusIcon, Activity
+  ChevronDown, ChevronUp, Upload, ClipboardList, Loader2, PlusIcon, Activity, Pencil
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -114,7 +114,7 @@ const EdificioDetail = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('gestion')
-        .select('*')
+        .select('*, user_roles(nombre), pagos(*)')
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -149,11 +149,22 @@ const EdificioDetail = () => {
     );
   }
 
-  const cliente = item.cliente as any || {};
-  const dataPresupuesto = item.data_presupuesto as any || {};
-  const dataContrato = item.data_contrato as any || {};
-  const datosPresupuesto = dataPresupuesto.datos_presupuesto || {};
-  const datosContrato = dataContrato.datos_contrato || {};
+  // Cliente reconstruido desde las columnas individuales (el JSON cliente quedó como respaldo).
+  const cliente = {
+    communityname: item.communityname,
+    adminname: item.adminname,
+    adminemail: item.adminemail,
+    managementcompany: item.managementcompany,
+    buildingaddress: item.buildingaddress,
+    comuna: item.comuna,
+    region: item.region,
+    buildingtype: item.buildingtype,
+    units: item.units,
+    nombre_portero: item.nombre_portero,
+    notas: item.notas,
+    additional_at: item.additional_at,
+    vendedor: (item as any).user_roles?.nombre ?? null,
+  } as any;
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -217,133 +228,8 @@ const EdificioDetail = () => {
 
           {/* Info Tab */}
           <TabsContent value="informacion" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Cliente Info */}
-              <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
-                <CardHeader className="border-b border-[#F1F5F9] p-5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
-                      <Users className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
-                    </div>
-                    <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Datos del Cliente</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-5 space-y-3">
-                  <InfoRow label="Comunidad" value={cliente.communityname} />
-                  <InfoRow label="Administrador" value={cliente.adminname} />
-                  <InfoRow label="Email" value={cliente.adminemail} icon={Mail} />
-                  <InfoRow label="Empresa Gestora" value={cliente.managementcompany} />
-                  <InfoRow label="Tipo" value={cliente.buildingtype} />
-                  <InfoRow label="Unidades" value={cliente.units?.toString()} />
-                  <InfoRow label="Dirección" value={cliente.buildingaddress} />
-                  <InfoRow label="Comuna" value={cliente.comuna} />
-                  <InfoRow label="Región" value={cliente.region} />
-                  <InfoRow label="Portero" value={cliente.nombre_portero} />
-                  <InfoRow label="Vendedor" value={cliente.vendedor} />
-                </CardContent>
-              </Card>
-
-              {/* Presupuesto Info */}
-              <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
-                <CardHeader className="border-b border-[#F1F5F9] p-5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
-                      <FileText className="h-4 w-4 text-[#F59E0B]" strokeWidth={2.5} />
-                    </div>
-                    <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Presupuesto</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-5 space-y-3">
-                  <InfoRow label="Ascensores" value={datosPresupuesto.numAscensores?.toString()} />
-                  <InfoRow label="Pisos" value={datosPresupuesto.numPisos?.toString()} />
-                  <InfoRow label="Precio Mensual" value={datosPresupuesto.precioMensual ? `$${Number(datosPresupuesto.precioMensual).toLocaleString()}` : undefined} />
-                  <InfoRow label="Precio Total" value={datosPresupuesto.precioTotal ? `$${Number(datosPresupuesto.precioTotal).toLocaleString()}` : undefined} />
-                  <InfoRow label="Duración Contrato" value={datosPresupuesto.duracionContrato ? `${datosPresupuesto.duracionContrato} meses` : undefined} />
-                  {datosPresupuesto && Object.keys(datosPresupuesto).length > 0 && (
-                    <div className="pt-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[12px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1.5 h-auto p-0"
-                        onClick={() => {
-                          const blob = generatePresupuestoPDF(cliente, datosPresupuesto);
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `presupuesto_${cliente.communityname || 'edificio'}.pdf`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        Descargar PDF presupuesto
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Contrato Info */}
-              <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
-                <CardHeader className="border-b border-[#F1F5F9] p-5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
-                      <CheckCircle className="h-4 w-4 text-[#10B981]" strokeWidth={2.5} />
-                    </div>
-                    <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Contrato</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-5 space-y-3">
-                  {dataContrato.fecha_contrato_firmado && (
-                    <InfoRow label="Fecha Firma" value={formatDate(dataContrato.fecha_contrato_firmado)} />
-                  )}
-                  {dataContrato.fecha_instalacion_equipos && (
-                    <InfoRow label="Fecha Instalación" value={formatDate(dataContrato.fecha_instalacion_equipos)} />
-                  )}
-                  {dataContrato.doc_contrato && (
-                    <div className="pt-2">
-                      <a href={dataContrato.doc_contrato} target="_blank" rel="noopener noreferrer" className="text-[12px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1.5">
-                        <FileText className="h-3.5 w-3.5" />
-                        Ver contrato subido
-                      </a>
-                    </div>
-                  )}
-                  {datosContrato && Object.keys(datosContrato).length > 0 && (
-                    <div className="pt-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[12px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1.5 h-auto p-0"
-                        onClick={() => {
-                          const blob = generateContratoPDF(
-                            {
-                              adminname: cliente.adminname || '',
-                              adminemail: cliente.adminemail || '',
-                              communityname: cliente.communityname || '',
-                              buildingaddress: cliente.buildingaddress || null,
-                              buildingtype: cliente.buildingtype || '',
-                              units: cliente.units || 0,
-                              vendedor: cliente.vendedor || null,
-                              monto: null,
-                            },
-                            datosContrato
-                          );
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `contrato_${cliente.communityname || 'edificio'}.pdf`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        Descargar contrato plantillado
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <ClienteInfoCard item={item} />
+            <PresupuestoContratoCard item={item} cliente={cliente} formatDate={formatDate} />
           </TabsContent>
 
           {/* Historial de Pagos Tab */}
@@ -373,7 +259,9 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const pagosJson: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
+  const pagosJson: PagoRecord[] = Array.isArray(item.pagos)
+    ? [...item.pagos].sort((a: PagoRecord, b: PagoRecord) => a.mes - b.mes)
+    : [];
   const montoRenting = item.monto_renting || 0;
   const metodoCobro = item.metodo_cobro || "Inmediato";
   const pagadosList = pagosJson.filter(p => p.pagado);
@@ -389,8 +277,11 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
       const { error: uploadError } = await supabase.storage.from("presupuestos-pdf").upload(filePath, selectedFile, { upsert: true });
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
-      const updatedPagos = pagosJson.map(p => p.mes === mesNum ? { ...p, factura_url: publicUrlData.publicUrl } : p);
-      const { error: updateError } = await supabase.from("gestion").update({ pagos_json: updatedPagos as any }).eq("id", item.id);
+      const { error: updateError } = await supabase
+        .from("pagos")
+        .update({ factura_url: publicUrlData.publicUrl, updated_at: new Date().toISOString() })
+        .eq("gestion_id", item.id)
+        .eq("mes", mesNum);
       if (updateError) throw updateError;
       toast.success(`Factura del mes ${mesNum} cargada correctamente`);
       queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
@@ -663,7 +554,9 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     : EMPTY_ACTIVIDAD;
   const [torreEnfriamiento, setTorreEnfriamiento] = useState<ActividadRow[]>(savedTorre);
 
-  const pagosJson: PagoRecord[] = Array.isArray(item.pagos_json) ? item.pagos_json : [];
+  const pagosJson: PagoRecord[] = Array.isArray(item.pagos)
+    ? [...item.pagos].sort((a: PagoRecord, b: PagoRecord) => a.mes - b.mes)
+    : [];
   const montoRenting = item.monto_renting || 0;
 
   // Fetch reportes
@@ -781,6 +674,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         fecha_proxima_mantenimiento: fechaProximaMantenimiento,
         observaciones_generales: observacionesGenerales,
         conclusion,
+        imagenes: savedImagenes,
       };
       const { error } = await supabase.from("reportes").insert({
         gestion_id: item.id,
@@ -812,11 +706,24 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
   const handleDownloadReport = (reporte: any, index: number) => {
     try {
       const numero = (reportes?.length || 0) - index;
-      const cliente = item.cliente as any || {};
+      const cliente = {
+        communityname: item.communityname,
+        adminname: item.adminname,
+        adminemail: item.adminemail,
+        buildingaddress: item.buildingaddress,
+        buildingtype: item.buildingtype,
+        units: item.units,
+        vendedor: (item as any).user_roles?.nombre ?? null,
+      } as any;
       const dataContrato = item.data_contrato as any || {};
       const datosContrato = dataContrato.datos_contrato || {};
 
       const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
+      // Usar las imágenes guardadas en el propio reporte; si es un reporte viejo
+      // sin snapshot, caer a las imágenes actuales de gestión.
+      const imagenesDelReporte = Array.isArray((reporte.datos_reporte as any)?.imagenes)
+        ? (reporte.datos_reporte as any).imagenes
+        : savedImagenes;
       const blob = generateReportePDF({
         cliente,
         pagosJson,
@@ -827,7 +734,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
         actividadSolucion: actividad,
         torreEnfriamiento: hasTorreEnfriamiento ? torreEnfriamiento : undefined,
-        imagenesReporte: savedImagenes,
+        imagenesReporte: imagenesDelReporte,
         dataContrato: datosContrato,
       });
       const url = URL.createObjectURL(blob);
@@ -1186,6 +1093,238 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
 // ═══════════════════════════════════════════════════════════════════════
 // Shared components
 // ═══════════════════════════════════════════════════════════════════════
+// Campo grande y cómodo (label arriba, valor destacado)
+const BigField = ({ label, value }: { label: string; value?: string | null }) => (
+  <div className="min-w-0">
+    <p className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider mb-1">{label}</p>
+    <p className="text-[15px] font-semibold text-[#1E293B] break-words leading-snug">{value || '—'}</p>
+  </div>
+);
+
+// Campos editables de los datos del cliente (columnas de gestion)
+const CLIENTE_FIELDS: { key: string; label: string; type?: string }[] = [
+  { key: "communityname", label: "Comunidad" },
+  { key: "adminname", label: "Administrador" },
+  { key: "adminemail", label: "Email", type: "email" },
+  { key: "managementcompany", label: "Empresa Gestora" },
+  { key: "buildingtype", label: "Tipo" },
+  { key: "units", label: "Unidades", type: "number" },
+  { key: "buildingaddress", label: "Dirección" },
+  { key: "comuna", label: "Comuna" },
+  { key: "region", label: "Región" },
+  { key: "nombre_portero", label: "Portero" },
+];
+
+const ClienteInfoCard = ({ item }: { item: any }) => {
+  const queryClient = useQueryClient();
+  const [editMode, setEditMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const vendedorNombre = item.user_roles?.nombre ?? null;
+
+  const buildForm = () =>
+    Object.fromEntries(CLIENTE_FIELDS.map(f => [f.key, item[f.key] ?? ""])) as Record<string, any>;
+  const [form, setForm] = useState<Record<string, any>>(buildForm());
+
+  const startEdit = () => { setForm(buildForm()); setEditMode(true); };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("gestion").update({
+        communityname: form.communityname || null,
+        adminname: form.adminname || null,
+        adminemail: form.adminemail || null,
+        managementcompany: form.managementcompany || null,
+        buildingtype: form.buildingtype || null,
+        units: form.units === "" || form.units == null ? null : Number(form.units),
+        buildingaddress: form.buildingaddress || null,
+        comuna: form.comuna || null,
+        region: form.region || null,
+        nombre_portero: form.nombre_portero || null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", item.id);
+      if (error) throw error;
+      toast.success("Datos del cliente actualizados");
+      queryClient.invalidateQueries({ queryKey: ["edificio", item.id] });
+      setEditMode(false);
+    } catch (e) {
+      console.error(e);
+      toast.error("No se pudieron guardar los cambios");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
+      <CardHeader className="border-b border-[#F1F5F9] p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+              <Users className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
+            </div>
+            <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Datos del Cliente</CardTitle>
+          </div>
+          {editMode ? (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditMode(false)} disabled={saving} className="h-8 text-xs">Cancelar</Button>
+              <Button size="sm" onClick={save} disabled={saving} className="h-8 text-xs bg-[#1A367F] hover:bg-[#12285e]">
+                {saving ? "Guardando..." : "Guardar"}
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={startEdit} className="h-8 text-xs gap-1.5 border-[#E2E8F0] text-[#1A367F] hover:bg-[#EFF6FF]">
+              <Pencil className="h-3.5 w-3.5" /> Editar
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="p-6">
+        {editMode ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {CLIENTE_FIELDS.map(f => (
+              <div className="space-y-1.5" key={f.key}>
+                <Label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider">{f.label}</Label>
+                <Input
+                  type={f.type || "text"}
+                  value={form[f.key] ?? ""}
+                  onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+            ))}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider">Vendedor</Label>
+              <Input value={vendedorNombre || "—"} disabled className="h-9 text-sm bg-[#F8FAFC]" />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
+            <BigField label="Comunidad" value={item.communityname} />
+            <BigField label="Administrador" value={item.adminname} />
+            <BigField label="Email" value={item.adminemail} />
+            <BigField label="Empresa Gestora" value={item.managementcompany} />
+            <BigField label="Tipo" value={item.buildingtype} />
+            <BigField label="Unidades" value={item.units?.toString()} />
+            <BigField label="Dirección" value={item.buildingaddress} />
+            <BigField label="Comuna" value={item.comuna} />
+            <BigField label="Región" value={item.region} />
+            <BigField label="Portero" value={item.nombre_portero} />
+            <BigField label="Vendedor" value={vendedorNombre} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+const PresupuestoContratoCard = ({ item, cliente, formatDate }: { item: any; cliente: any; formatDate: (d: string) => string }) => {
+  const datosPresupuesto = (item.data_presupuesto?.datos_presupuesto) || {};
+  const dataContrato = item.data_contrato || {};
+  const datosContrato = dataContrato.datos_contrato || {};
+  const moneda = datosPresupuesto.moneda;
+  const hasPresupuesto = Object.keys(datosPresupuesto).length > 0;
+  const hasContrato = Object.keys(datosContrato).length > 0;
+
+  const fmtMonto = (v: any) =>
+    v == null || v === "" ? "—" : moneda === "UF"
+      ? `${Number(v).toLocaleString("es-CL")} UF`
+      : `$${Number(v).toLocaleString("es-CL")}`;
+
+  const downloadPresupuesto = () => {
+    const blob = generatePresupuestoPDF(cliente, datosPresupuesto);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `presupuesto_${cliente.communityname || 'edificio'}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadContrato = () => {
+    const blob = generateContratoPDF(
+      {
+        adminname: cliente.adminname || '',
+        adminemail: cliente.adminemail || '',
+        communityname: cliente.communityname || '',
+        buildingaddress: cliente.buildingaddress || null,
+        buildingtype: cliente.buildingtype || '',
+        units: cliente.units || 0,
+        vendedor: cliente.vendedor || null,
+        monto: null,
+      },
+      datosContrato
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `contrato_${cliente.communityname || 'edificio'}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
+      <CardHeader className="border-b border-[#F1F5F9] p-5">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+            <FileText className="h-4 w-4 text-[#F59E0B]" strokeWidth={2.5} />
+          </div>
+          <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Presupuesto y Contrato</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="p-6 space-y-6">
+        {/* Presupuesto */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[11px] font-bold text-[#1A367F] uppercase tracking-wider bg-[#EFF6FF] px-3 py-1.5 rounded-md border border-blue-100">Presupuesto</h4>
+            {hasPresupuesto && (
+              <Button variant="ghost" size="sm" onClick={downloadPresupuesto} className="h-auto p-0 text-[12px] text-[#1A367F] font-semibold hover:underline gap-1.5">
+                <Download className="h-3.5 w-3.5" /> Descargar PDF
+              </Button>
+            )}
+          </div>
+          {hasPresupuesto ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
+              <BigField label="Moneda" value={moneda} />
+              <BigField label="Presup. total deptos" value={fmtMonto(datosPresupuesto.presupuesto_total_deptos)} />
+              <BigField label="Descuento" value={datosPresupuesto.descuento_porcentaje != null ? `${datosPresupuesto.descuento_porcentaje}%` : "—"} />
+              <BigField label="Precio instalación" value={fmtMonto(datosPresupuesto.precio_instalacion)} />
+              <BigField label="Años contrato" value={datosPresupuesto.anos_contrato ? `${datosPresupuesto.anos_contrato} años` : "—"} />
+              <BigField label="Renting mensual" value={fmtMonto(item.monto_renting)} />
+              <BigField label="Matriz principal" value={datosPresupuesto.matriz_principal?.toString()} />
+              <BigField label="Recirculación" value={datosPresupuesto.recirculacion?.toString()} />
+              <BigField label="Torre enfriamiento" value={datosPresupuesto.torre_enfriamiento ? "Sí" : "No"} />
+            </div>
+          ) : (
+            <p className="text-[13px] text-[#94A3B8]">Sin datos de presupuesto.</p>
+          )}
+        </div>
+
+        <div className="border-t border-[#F1F5F9]" />
+
+        {/* Contrato */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[11px] font-bold text-[#10B981] uppercase tracking-wider bg-[#F0FDF4] px-3 py-1.5 rounded-md border border-emerald-100">Contrato</h4>
+            {hasContrato && (
+              <Button variant="ghost" size="sm" onClick={downloadContrato} className="h-auto p-0 text-[12px] text-[#1A367F] font-semibold hover:underline gap-1.5">
+                <Download className="h-3.5 w-3.5" /> Descargar PDF
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
+            <BigField label="Método de cobro" value={item.metodo_cobro} />
+            <BigField label="Fecha firma" value={dataContrato.fecha_contrato_firmado ? formatDate(dataContrato.fecha_contrato_firmado) : "—"} />
+            <BigField label="Fecha instalación" value={dataContrato.fecha_instalacion_equipos ? formatDate(dataContrato.fecha_instalacion_equipos) : "—"} />
+          </div>
+          {dataContrato.doc_contrato && (
+            <a href={dataContrato.doc_contrato} target="_blank" rel="noopener noreferrer" className="text-[12px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1.5 w-fit">
+              <FileText className="h-3.5 w-3.5" /> Ver contrato subido
+            </a>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const InfoRow = ({ label, value, icon: Icon }: { label: string; value?: string; icon?: any }) => {
   if (!value) return null;
   return (

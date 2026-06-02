@@ -40,7 +40,7 @@ const AdminDashboard = () => {
       // Get recent gestion updates
       const { data: gestion, error: gestionError } = await supabase
         .from('gestion')
-        .select('id, cliente, estadopago, created_at, updated_at')
+        .select('id, communityname, estadopago, created_at, updated_at')
         .order('updated_at', { ascending: false })
         .limit(5);
 
@@ -67,7 +67,7 @@ const AdminDashboard = () => {
           id: g.id,
           type: 'gestion' as const,
           title: g.estadopago === 'Mes pagado' ? 'Pago confirmado' : 'Registro actualizado',
-          detail: (g.cliente as any)?.communityname || 'Sin nombre',
+          detail: (g as any).communityname || 'Sin nombre',
           timestamp: g.updated_at || g.created_at,
           color: g.estadopago === 'Mes pagado' ? 'green' : 'purple'
         }))
@@ -88,7 +88,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden bg-[#DBEAFE]">
       <div className="max-w-[1440px] mx-auto p-4 md:p-8 space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
             <div className="flex items-center gap-4">

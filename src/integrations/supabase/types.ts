@@ -58,10 +58,64 @@ export type Database = {
           },
         ]
       }
+      emails: {
+        Row: {
+          attachment_filename: string | null
+          attachment_url: string | null
+          body_html: string | null
+          created_at: string
+          error: string | null
+          id: string
+          related_id: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          tipo: string
+          to_email: string
+          to_name: string | null
+        }
+        Insert: {
+          attachment_filename?: string | null
+          attachment_url?: string | null
+          body_html?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          related_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          tipo: string
+          to_email: string
+          to_name?: string | null
+        }
+        Update: {
+          attachment_filename?: string | null
+          attachment_url?: string | null
+          body_html?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          related_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          tipo?: string
+          to_email?: string
+          to_name?: string | null
+        }
+        Relationships: []
+      }
       gestion: {
         Row: {
           actividad_solucion: Json | null
-          cliente: Json | null
+          additional_at: Json
+          adminemail: string | null
+          adminname: string | null
+          buildingaddress: string | null
+          buildingtype: string | null
+          communityname: string | null
+          comuna: string | null
           created_at: string
           data_contrato: Json | null
           data_presupuesto: Json | null
@@ -69,17 +123,27 @@ export type Database = {
           fechapago: string
           id: string
           imagenes_reporte: Json | null
+          managementcompany: string | null
           mesrenting: number
           metodo_cobro: string
           monto_renting: number | null
-          pagos_json: Json | null
+          nombre_portero: string | null
+          notas: string | null
+          region: string | null
           torre_enfriamiento: Json | null
+          units: number | null
           updated_at: string
           vendedor_id: string | null
         }
         Insert: {
           actividad_solucion?: Json | null
-          cliente?: Json | null
+          additional_at?: Json
+          adminemail?: string | null
+          adminname?: string | null
+          buildingaddress?: string | null
+          buildingtype?: string | null
+          communityname?: string | null
+          comuna?: string | null
           created_at?: string
           data_contrato?: Json | null
           data_presupuesto?: Json | null
@@ -87,17 +151,27 @@ export type Database = {
           fechapago: string
           id?: string
           imagenes_reporte?: Json | null
+          managementcompany?: string | null
           mesrenting?: number
           metodo_cobro?: string
           monto_renting?: number | null
-          pagos_json?: Json | null
+          nombre_portero?: string | null
+          notas?: string | null
+          region?: string | null
           torre_enfriamiento?: Json | null
+          units?: number | null
           updated_at?: string
           vendedor_id?: string | null
         }
         Update: {
           actividad_solucion?: Json | null
-          cliente?: Json | null
+          additional_at?: Json
+          adminemail?: string | null
+          adminname?: string | null
+          buildingaddress?: string | null
+          buildingtype?: string | null
+          communityname?: string | null
+          comuna?: string | null
           created_at?: string
           data_contrato?: Json | null
           data_presupuesto?: Json | null
@@ -105,11 +179,15 @@ export type Database = {
           fechapago?: string
           id?: string
           imagenes_reporte?: Json | null
+          managementcompany?: string | null
           mesrenting?: number
           metodo_cobro?: string
           monto_renting?: number | null
-          pagos_json?: Json | null
+          nombre_portero?: string | null
+          notas?: string | null
+          region?: string | null
           torre_enfriamiento?: Json | null
+          units?: number | null
           updated_at?: string
           vendedor_id?: string | null
         }
@@ -123,10 +201,67 @@ export type Database = {
           },
         ]
       }
+      pagos: {
+        Row: {
+          created_at: string
+          es_inmediato: boolean
+          factura_url: string | null
+          fecha_confirmacion: string | null
+          fecha_emision: string | null
+          fecha_pago: string
+          fecha_pago_real: string | null
+          gestion_id: string
+          id: string
+          mes: number
+          monto: number
+          pagado: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          es_inmediato?: boolean
+          factura_url?: string | null
+          fecha_confirmacion?: string | null
+          fecha_emision?: string | null
+          fecha_pago: string
+          fecha_pago_real?: string | null
+          gestion_id: string
+          id?: string
+          mes: number
+          monto?: number
+          pagado?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          es_inmediato?: boolean
+          factura_url?: string | null
+          fecha_confirmacion?: string | null
+          fecha_emision?: string | null
+          fecha_pago?: string
+          fecha_pago_real?: string | null
+          gestion_id?: string
+          id?: string
+          mes?: number
+          monto?: number
+          pagado?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_gestion_id_fkey"
+            columns: ["gestion_id"]
+            isOneToOne: false
+            referencedRelation: "gestion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presupuestos: {
         Row: {
           created_at: string
           datos_presupuesto: Json | null
+          doc_presupuesto: string | null
           estado: string
           fecha_aprobacion: string | null
           id: string
@@ -135,6 +270,7 @@ export type Database = {
         Insert: {
           created_at?: string
           datos_presupuesto?: Json | null
+          doc_presupuesto?: string | null
           estado?: string
           fecha_aprobacion?: string | null
           id?: string
@@ -143,6 +279,7 @@ export type Database = {
         Update: {
           created_at?: string
           datos_presupuesto?: Json | null
+          doc_presupuesto?: string | null
           estado?: string
           fecha_aprobacion?: string | null
           id?: string
