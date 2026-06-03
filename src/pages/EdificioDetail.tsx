@@ -18,6 +18,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Building2, ArrowLeft, MapPin, Users, DollarSign, Mail,
   FileText, Calendar, BarChart3, TrendingUp, CheckCircle, Download,
@@ -1219,12 +1220,75 @@ const ClienteInfoCard = ({ item }: { item: any }) => {
 };
 
 const PresupuestoContratoCard = ({ item, cliente, formatDate }: { item: any; cliente: any; formatDate: (d: string) => string }) => {
+  const queryClient = useQueryClient();
   const datosPresupuesto = (item.data_presupuesto?.datos_presupuesto) || {};
   const dataContrato = item.data_contrato || {};
   const datosContrato = dataContrato.datos_contrato || {};
   const moneda = datosPresupuesto.moneda;
   const hasPresupuesto = Object.keys(datosPresupuesto).length > 0;
   const hasContrato = Object.keys(datosContrato).length > 0;
+
+  const [editMode, setEditMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const buildForm = () => ({
+    moneda: datosPresupuesto.moneda ?? "Pesos",
+    presupuesto_total_deptos: datosPresupuesto.presupuesto_total_deptos ?? "",
+    descuento_porcentaje: datosPresupuesto.descuento_porcentaje ?? "",
+    precio_instalacion: datosPresupuesto.precio_instalacion ?? "",
+    anos_contrato: datosPresupuesto.anos_contrato ?? "",
+    matriz_principal: datosPresupuesto.matriz_principal ?? "",
+    recirculacion: datosPresupuesto.recirculacion ?? "",
+    torre_enfriamiento: !!datosPresupuesto.torre_enfriamiento,
+    monto_renting: item.monto_renting ?? "",
+    metodo_cobro: item.metodo_cobro ?? "Inmediato",
+    fecha_contrato_firmado: (dataContrato.fecha_contrato_firmado ?? "").slice(0, 10),
+    fecha_instalacion_equipos: (dataContrato.fecha_instalacion_equipos ?? "").slice(0, 10),
+  });
+  const [form, setForm] = useState(buildForm());
+  const setF = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
+  const num = (v: any) => (v === "" || v == null ? null : Number(v));
+
+  const startEdit = () => { setForm(buildForm()); setEditMode(true); };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const newDatosPresupuesto = {
+        ...datosPresupuesto,
+        moneda: form.moneda,
+        presupuesto_total_deptos: num(form.presupuesto_total_deptos),
+        descuento_porcentaje: num(form.descuento_porcentaje),
+        precio_instalacion: num(form.precio_instalacion),
+        anos_contrato: num(form.anos_contrato),
+        matriz_principal: num(form.matriz_principal),
+        recirculacion: num(form.recirculacion),
+        torre_enfriamiento: form.torre_enfriamiento,
+      };
+      const newDataPresupuesto = { ...(item.data_presupuesto || {}), datos_presupuesto: newDatosPresupuesto };
+      const newDataContrato = {
+        ...(item.data_contrato || {}),
+        fecha_contrato_firmado: form.fecha_contrato_firmado || null,
+        fecha_instalacion_equipos: form.fecha_instalacion_equipos || null,
+      };
+      const { error } = await supabase.from("gestion").update({
+        data_presupuesto: newDataPresupuesto as any,
+        data_contrato: newDataContrato as any,
+        monto_renting: num(form.monto_renting),
+        metodo_cobro: form.metodo_cobro,
+        updated_at: new Date().toISOString(),
+      }).eq("id", item.id);
+      if (error) throw error;
+      toast.success("Presupuesto y contrato actualizados");
+      queryClient.invalidateQueries({ queryKey: ["edificio", item.id] });
+      setEditMode(false);
+    } catch (e) {
+      console.error(e);
+      toast.error("No se pudieron guardar los cambios");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fmtMonto = (v: any) =>
     v == null || v === "" ? "—" : moneda === "UF"
@@ -1259,14 +1323,36 @@ const PresupuestoContratoCard = ({ item, cliente, formatDate }: { item: any; cli
     URL.revokeObjectURL(url);
   };
 
+  // Campo editable (label + input numérico/texto)
+  const EditField = ({ label, k, type = "number", suffix }: { label: string; k: string; type?: string; suffix?: string }) => (
+    <div className="space-y-1.5">
+      <Label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider">{label}{suffix ? ` (${suffix})` : ""}</Label>
+      <Input type={type} value={(form as any)[k] ?? ""} onChange={e => setF(k, e.target.value)} className="h-9 text-sm" />
+    </div>
+  );
+
   return (
     <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
       <CardHeader className="border-b border-[#F1F5F9] p-5">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
-            <FileText className="h-4 w-4 text-[#F59E0B]" strokeWidth={2.5} />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+              <FileText className="h-4 w-4 text-[#F59E0B]" strokeWidth={2.5} />
+            </div>
+            <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Presupuesto y Contrato</CardTitle>
           </div>
-          <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Presupuesto y Contrato</CardTitle>
+          {editMode ? (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditMode(false)} disabled={saving} className="h-8 text-xs">Cancelar</Button>
+              <Button size="sm" onClick={save} disabled={saving} className="h-8 text-xs bg-[#1A367F] hover:bg-[#12285e]">
+                {saving ? "Guardando..." : "Guardar"}
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={startEdit} className="h-8 text-xs gap-1.5 border-[#E2E8F0] text-[#1A367F] hover:bg-[#EFF6FF]">
+              <Pencil className="h-3.5 w-3.5" /> Editar
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-6 space-y-6">
@@ -1274,13 +1360,37 @@ const PresupuestoContratoCard = ({ item, cliente, formatDate }: { item: any; cli
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-[11px] font-bold text-[#1A367F] uppercase tracking-wider bg-[#EFF6FF] px-3 py-1.5 rounded-md border border-blue-100">Presupuesto</h4>
-            {hasPresupuesto && (
+            {!editMode && hasPresupuesto && (
               <Button variant="ghost" size="sm" onClick={downloadPresupuesto} className="h-auto p-0 text-[12px] text-[#1A367F] font-semibold hover:underline gap-1.5">
                 <Download className="h-3.5 w-3.5" /> Descargar PDF
               </Button>
             )}
           </div>
-          {hasPresupuesto ? (
+          {editMode ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider">Moneda</Label>
+                <Select value={form.moneda} onValueChange={v => setF("moneda", v)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pesos">Pesos (CLP)</SelectItem>
+                    <SelectItem value="UF">UF</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <EditField label="Presup. total deptos" k="presupuesto_total_deptos" />
+              <EditField label="Descuento" k="descuento_porcentaje" suffix="%" />
+              <EditField label="Precio instalación" k="precio_instalacion" />
+              <EditField label="Años contrato" k="anos_contrato" />
+              <EditField label="Renting mensual" k="monto_renting" />
+              <EditField label="Matriz principal" k="matriz_principal" />
+              <EditField label="Recirculación" k="recirculacion" />
+              <div className="flex items-center justify-between p-3 border border-[#E2E8F0] rounded-lg bg-[#F8FAFC] col-span-2 sm:col-span-1">
+                <Label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider">Torre enfriamiento</Label>
+                <Switch checked={form.torre_enfriamiento} onCheckedChange={v => setF("torre_enfriamiento", v)} />
+              </div>
+            </div>
+          ) : hasPresupuesto ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
               <BigField label="Moneda" value={moneda} />
               <BigField label="Presup. total deptos" value={fmtMonto(datosPresupuesto.presupuesto_total_deptos)} />
@@ -1303,18 +1413,35 @@ const PresupuestoContratoCard = ({ item, cliente, formatDate }: { item: any; cli
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-[11px] font-bold text-[#10B981] uppercase tracking-wider bg-[#F0FDF4] px-3 py-1.5 rounded-md border border-emerald-100">Contrato</h4>
-            {hasContrato && (
+            {!editMode && hasContrato && (
               <Button variant="ghost" size="sm" onClick={downloadContrato} className="h-auto p-0 text-[12px] text-[#1A367F] font-semibold hover:underline gap-1.5">
                 <Download className="h-3.5 w-3.5" /> Descargar PDF
               </Button>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
-            <BigField label="Método de cobro" value={item.metodo_cobro} />
-            <BigField label="Fecha firma" value={dataContrato.fecha_contrato_firmado ? formatDate(dataContrato.fecha_contrato_firmado) : "—"} />
-            <BigField label="Fecha instalación" value={dataContrato.fecha_instalacion_equipos ? formatDate(dataContrato.fecha_instalacion_equipos) : "—"} />
-          </div>
-          {dataContrato.doc_contrato && (
+          {editMode ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-[#94A3B8] uppercase tracking-wider">Método de cobro</Label>
+                <Select value={form.metodo_cobro} onValueChange={v => setF("metodo_cobro", v)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Inmediato">Inmediato</SelectItem>
+                    <SelectItem value="Emisión de Factura">Emisión de Factura</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <EditField label="Fecha firma" k="fecha_contrato_firmado" type="date" />
+              <EditField label="Fecha instalación" k="fecha_instalacion_equipos" type="date" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-4">
+              <BigField label="Método de cobro" value={item.metodo_cobro} />
+              <BigField label="Fecha firma" value={dataContrato.fecha_contrato_firmado ? formatDate(dataContrato.fecha_contrato_firmado) : "—"} />
+              <BigField label="Fecha instalación" value={dataContrato.fecha_instalacion_equipos ? formatDate(dataContrato.fecha_instalacion_equipos) : "—"} />
+            </div>
+          )}
+          {!editMode && dataContrato.doc_contrato && (
             <a href={dataContrato.doc_contrato} target="_blank" rel="noopener noreferrer" className="text-[12px] text-[#1A367F] font-semibold hover:underline flex items-center gap-1.5 w-fit">
               <FileText className="h-3.5 w-3.5" /> Ver contrato subido
             </a>
