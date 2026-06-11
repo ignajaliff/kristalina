@@ -5,6 +5,8 @@ export type EmailTipo = "presupuesto" | "contrato" | "reporte" | "aviso_pago";
 export interface QueueEmailParams {
   toEmail: string;
   toName?: string;
+  /** Destinatarios en copia (CC). */
+  cc?: string[];
   subject: string;
   bodyHtml: string;
   attachmentUrl?: string;
@@ -39,6 +41,7 @@ export async function queueAndSendEmail(params: QueueEmailParams): Promise<Queue
     .insert({
       to_email: params.toEmail,
       to_name: params.toName ?? null,
+      cc: params.cc && params.cc.length > 0 ? params.cc.join(",") : null,
       subject: params.subject,
       body_html: params.bodyHtml,
       attachment_url: params.attachmentUrl ?? null,

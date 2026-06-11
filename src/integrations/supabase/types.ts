@@ -63,6 +63,7 @@ export type Database = {
           attachment_filename: string | null
           attachment_url: string | null
           body_html: string | null
+          cc: string | null
           created_at: string
           error: string | null
           id: string
@@ -78,6 +79,7 @@ export type Database = {
           attachment_filename?: string | null
           attachment_url?: string | null
           body_html?: string | null
+          cc?: string | null
           created_at?: string
           error?: string | null
           id?: string
@@ -93,6 +95,7 @@ export type Database = {
           attachment_filename?: string | null
           attachment_url?: string | null
           body_html?: string | null
+          cc?: string | null
           created_at?: string
           error?: string | null
           id?: string

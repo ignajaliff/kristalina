@@ -78,6 +78,16 @@ const drawCheckbox = (doc: jsPDF, x: number, y: number, label: string, checked: 
   doc.text(label, x + size + 2, y);
 };
 
+// Lee el ancho/alto natural de una imagen remota. Solo lee naturalWidth/Height
+// (no usa canvas), así que no requiere CORS ni "ensucia" la imagen.
+const getImageDims = (url: string): Promise<{ w: number; h: number } | null> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+
 const drawFooter = (doc: jsPDF, pw: number, ph: number) => {
   doc.setDrawColor(0, 51, 102);
   doc.setLineWidth(0.3);
@@ -91,7 +101,7 @@ const drawFooter = (doc: jsPDF, pw: number, ph: number) => {
 
 // ── función principal ─────────────────────────────────────────────────────────
 
-export const generateReportePDF = (data: ReportData): Blob => {
+export const generateReportePDF = async (data: ReportData): Promise<Blob> => {
   const doc = new jsPDF("p", "mm", "letter");
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -503,7 +513,9 @@ export const generateReportePDF = (data: ReportData): Blob => {
     doc.rect(margin, torreTableStartY, cw, torreRows.length * rowH, "S");
   }
 
-  // Images below table
+  // Imágenes debajo de la tabla — respetando la proporción real (sin estirar).
+  // Cada imagen tiene un "slot" fijo y se encaja dentro (contain) y se centra,
+  // así una foto vertical u horizontal nunca se deforma.
   y += 8;
   const imagenes = data.imagenesReporte || [];
   if (imagenes.length > 0) {
@@ -513,16 +525,37 @@ export const generateReportePDF = (data: ReportData): Blob => {
     doc.text("Registro fotográfico", margin, y);
     y += 5;
 
-    const imgW = imagenes.length === 1 ? cw : (cw - 6) / 2;
-    const maxAvailableHeight = Math.max(28, pageHeight - y - 22);
-    const imgH = Math.min(45, maxAvailableHeight);
+    const slotW = imagenes.length === 1 ? cw : (cw - 6) / 2;
+    const slotH = Math.min(55, Math.max(30, pageHeight - y - 22));
+
+    const dimsList = await Promise.all(imagenes.slice(0, 2).map((u) => getImageDims(u)));
 
     imagenes.slice(0, 2).forEach((url, i) => {
       try {
-        const xPos = margin + (i === 1 ? imgW + 6 : 0);
-        doc.addImage(url, "JPEG", xPos, y, imgW, imgH);
+        const xSlot = margin + (i === 1 ? slotW + 6 : 0);
+        const dims = dimsList[i];
+
+        // Por defecto llena el slot; si conocemos la proporción real, encajamos.
+        let drawW = slotW;
+        let drawH = slotH;
+        if (dims && dims.w > 0 && dims.h > 0) {
+          const ratio = dims.w / dims.h;
+          drawW = slotW;
+          drawH = slotW / ratio;
+          if (drawH > slotH) {
+            drawH = slotH;
+            drawW = slotH * ratio;
+          }
+        }
+
+        // Centrar la imagen dentro de su slot.
+        const xPos = xSlot + (slotW - drawW) / 2;
+        const yPos = y + (slotH - drawH) / 2;
+        doc.addImage(url, "JPEG", xPos, yPos, drawW, drawH);
       } catch (_) {}
     });
+
+    y += slotH;
   }
 
   drawFooter(doc, pageWidth, pageHeight);

@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { generatePresupuestoPDF } from "@/utils/pdfGenerator";
 import { generateContratoPDF } from "@/utils/contractPdfGenerator";
 import { generateReportePDF } from "@/utils/reportPdfGenerator";
+import { queueAndSendEmail } from "@/utils/email";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -595,6 +596,99 @@ const ImageSlot = ({ index, file, onChange }: { index: number; file: File | null
 };
 
 // ═══════════════════════════════════════════════════════════════════════
+// Genera el PDF del reporte recién creado, lo sube a storage y lo envía por
+// email al cliente (adminemail) con copia a los correos internos de Kristalina.
+// PRUEBA: subject fijo "EMAIL DE PRUEBA", el cuerpo es solo el reporte adjunto.
+// ═══════════════════════════════════════════════════════════════════════
+const enviarReportePorEmail = async (
+  item: any,
+  datosReporte: any,
+  imagenesUrls: string[],
+  inserted: { id: string; created_at: string } | null,
+) => {
+  // Número de reporte = total de reportes de este edificio (incluye el recién creado).
+  const { count } = await supabase
+    .from("reportes")
+    .select("id", { count: "exact", head: true })
+    .eq("gestion_id", item.id);
+  const numero = count || 1;
+
+  const clientePdf = {
+    communityname: item.communityname,
+    adminname: item.adminname,
+    adminemail: item.adminemail,
+    buildingaddress: item.buildingaddress,
+    buildingtype: item.buildingtype,
+    units: item.units,
+    vendedor: (item as any).user_roles?.nombre ?? null,
+  } as any;
+
+  const pagosJson: PagoRecord[] = Array.isArray(item.pagos)
+    ? [...item.pagos].sort((a: PagoRecord, b: PagoRecord) => a.mes - b.mes)
+    : [];
+  const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
+  const hasTorre = (item.data_presupuesto as any)?.datos_presupuesto?.torre_enfriamiento === true;
+  const actividad: ActividadRow[] = Array.isArray(item.actividad_solucion) && item.actividad_solucion.length > 0
+    ? item.actividad_solucion
+    : EMPTY_ACTIVIDAD;
+  const torre: ActividadRow[] = Array.isArray(item.torre_enfriamiento) && (item.torre_enfriamiento as any[]).length > 0
+    ? (item.torre_enfriamiento as ActividadRow[])
+    : EMPTY_ACTIVIDAD;
+
+  const fechaPdf = inserted?.created_at
+    ? format(parseISO(inserted.created_at), "dd/MM/yyyy")
+    : format(new Date(), "dd/MM/yyyy");
+
+  const blob = await generateReportePDF({
+    cliente: clientePdf,
+    pagosJson,
+    montoRenting: item.monto_renting || 0,
+    moneda,
+    datosReporte,
+    numero,
+    fecha: fechaPdf,
+    actividadSolucion: actividad,
+    torreEnfriamiento: hasTorre ? torre : undefined,
+    imagenesReporte: imagenesUrls,
+    dataContrato: (item.data_contrato as any)?.datos_contrato || {},
+  });
+
+  // Subir el PDF a storage para que el Edge Function lo adjunte por URL.
+  const fileName = `reporte_${numero}_${(item.communityname || "edificio").replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
+  const filePath = `reportes-pdf/${item.id}/${Date.now()}-${fileName}`;
+  const { error: upErr } = await supabase.storage
+    .from("presupuestos-pdf")
+    .upload(filePath, blob, { upsert: true, contentType: "application/pdf" });
+  if (upErr) throw upErr;
+  const { data: pub } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
+
+  // Destinatarios: cliente (To) + correos internos en copia (CC).
+  // Si el cliente no tiene email, el primer interno pasa a ser el destinatario principal.
+  const internos = ["aramirez@kristalina.cl", "eporro@kristalina.cl"];
+  const clientEmail = (item.adminemail || "").trim();
+  const toEmail = clientEmail || internos[0];
+  const ccList = clientEmail ? internos : internos.slice(1);
+
+  const result = await queueAndSendEmail({
+    toEmail,
+    toName: item.adminname || undefined,
+    cc: ccList,
+    subject: "EMAIL DE PRUEBA",
+    bodyHtml: "<p>Reporte adjunto.</p>",
+    attachmentUrl: pub.publicUrl,
+    attachmentFilename: fileName,
+    tipo: "reporte",
+    relatedId: inserted?.id,
+  });
+
+  if (result.sent) {
+    toast.success("Reporte enviado por email correctamente");
+  } else {
+    toast.warning(result.message || "El reporte quedó pendiente de envío por email.");
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
 // Popup "Nuevo Reporte" — componente aislado para que escribir no re-renderice
 // las tablas pesadas (Sala de Bombas / Torre) del tab de reportes.
 // ═══════════════════════════════════════════════════════════════════════
@@ -617,6 +711,9 @@ const NuevoReporteDialog = ({ item, open, onOpenChange }: { item: any; open: boo
   const [imageSlot1, setImageSlot1] = useState<File | null>(null);
   const [imageSlot2, setImageSlot2] = useState<File | null>(null);
 
+  // Enviar el reporte por email al cliente (toggle Sí/No).
+  const [enviarEmail, setEnviarEmail] = useState(false);
+
   const resetForm = () => {
     setEfectividad("");
     setEfectividadComentario("");
@@ -631,6 +728,7 @@ const NuevoReporteDialog = ({ item, open, onOpenChange }: { item: any; open: boo
     setConclusion("");
     setImageSlot1(null);
     setImageSlot2(null);
+    setEnviarEmail(false);
   };
 
   const handleCreateReport = async () => {
@@ -668,13 +766,24 @@ const NuevoReporteDialog = ({ item, open, onOpenChange }: { item: any; open: boo
         conclusion,
         imagenes: imagenesUrls,
       };
-      const { error } = await supabase.from("reportes").insert({
+      const { data: inserted, error } = await supabase.from("reportes").insert({
         gestion_id: item.id,
         datos_reporte: datosReporte as any,
-      });
+      }).select("id, created_at").single();
       if (error) throw error;
       toast.success("Reporte creado exitosamente");
       queryClient.invalidateQueries({ queryKey: ['reportes', item.id] });
+
+      // Envío por email (opcional). No bloquea la creación del reporte.
+      if (enviarEmail) {
+        try {
+          await enviarReportePorEmail(item, datosReporte, imagenesUrls, inserted);
+        } catch (mailErr) {
+          console.error("Error enviando el reporte por email:", mailErr);
+          toast.error("El reporte se creó, pero falló el envío por email.");
+        }
+      }
+
       resetForm();
       onOpenChange(false);
     } catch (err) {
@@ -781,6 +890,23 @@ const NuevoReporteDialog = ({ item, open, onOpenChange }: { item: any; open: boo
               <ImageSlot index={1} file={imageSlot2} onChange={setImageSlot2} />
             </div>
           </div>
+
+          {/* Enviar por email al cliente (Sí/No) */}
+          <div className="space-y-2 border-t pt-4">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-bold text-[#1E293B]">Enviar reporte por email al cliente</Label>
+                <p className="text-[11px] text-[#64748B]">
+                  Se envía a <span className="font-semibold">{(item.adminemail || "—")}</span> con copia a aramirez@kristalina.cl y eporro@kristalina.cl
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={cn("text-xs font-bold", !enviarEmail ? "text-[#1E293B]" : "text-[#94A3B8]")}>No</span>
+                <Switch checked={enviarEmail} onCheckedChange={setEnviarEmail} />
+                <span className={cn("text-xs font-bold", enviarEmail ? "text-[#1A367F]" : "text-[#94A3B8]")}>Sí</span>
+              </div>
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
@@ -883,7 +1009,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     }, 1000);
   };
 
-  const handleDownloadReport = (reporte: any, index: number) => {
+  const handleDownloadReport = async (reporte: any, index: number) => {
     try {
       const numero = (reportes?.length || 0) - index;
       const cliente = {
@@ -903,7 +1029,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
       const imagenesDelReporte = Array.isArray((reporte.datos_reporte as any)?.imagenes)
         ? (reporte.datos_reporte as any).imagenes
         : [];
-      const blob = generateReportePDF({
+      const blob = await generateReportePDF({
         cliente,
         pagosJson,
         montoRenting,
