@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { generatePresupuestoPDF } from "@/utils/pdfGenerator";
 import { generateContratoPDF } from "@/utils/contractPdfGenerator";
 import { generateReportePDF } from "@/utils/reportPdfGenerator";
@@ -515,13 +515,91 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
 };
 
 // ═══════════════════════════════════════════════════════════════════════
-// Reportes Tab
+// Compresión de imágenes en el navegador
+// Redimensiona a un máximo de lado y re-encoda como JPEG para que el reporte
+// no pese de más (de ~10MB a típicamente <500KB por imagen).
 // ═══════════════════════════════════════════════════════════════════════
-const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) => string }) => {
-  const queryClient = useQueryClient();
+const compressImage = (file: File, maxDim = 1280, quality = 0.72): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("No se pudo procesar la imagen")); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("No se pudo comprimir la imagen"))),
+        "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la imagen")); };
+    img.src = url;
+  });
 
-  // Report dialog state
-  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+// ═══════════════════════════════════════════════════════════════════════
+// Slot individual para una imagen (vista previa + quitar)
+// ═══════════════════════════════════════════════════════════════════════
+const ImageSlot = ({ index, file, onChange }: { index: number; file: File | null; onChange: (f: File | null) => void }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+
+  return (
+    <div className="space-y-1.5">
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp"
+        className="hidden"
+        onChange={e => onChange(e.target.files?.[0] || null)}
+      />
+      {file && previewUrl ? (
+        <div className="relative group border border-[#E2E8F0] rounded-lg overflow-hidden">
+          <img src={previewUrl} alt={`Imagen ${index + 1}`} className="w-full h-36 object-cover" />
+          <button
+            type="button"
+            onClick={() => { onChange(null); if (inputRef.current) inputRef.current.value = ""; }}
+            className="absolute top-1.5 right-1.5 h-6 w-6 flex items-center justify-center rounded-md bg-black/60 text-white text-xs font-bold hover:bg-black/80 transition-colors"
+            aria-label="Quitar imagen"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full h-36 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-[#E2E8F0] rounded-lg text-[#94A3B8] hover:border-[#1A367F] hover:text-[#1A367F] hover:bg-[#F8FAFC] transition-colors"
+        >
+          <Upload className="h-5 w-5" />
+          <span className="text-[11px] font-semibold">Imagen {index + 1}</span>
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// Popup "Nuevo Reporte" — componente aislado para que escribir no re-renderice
+// las tablas pesadas (Sala de Bombas / Torre) del tab de reportes.
+// ═══════════════════════════════════════════════════════════════════════
+const NuevoReporteDialog = ({ item, open, onOpenChange }: { item: any; open: boolean; onOpenChange: (v: boolean) => void }) => {
+  const queryClient = useQueryClient();
   const [isCreatingReport, setIsCreatingReport] = useState(false);
   const [efectividad, setEfectividad] = useState("");
   const [efectividadComentario, setEfectividadComentario] = useState("");
@@ -535,11 +613,199 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
   const [observacionesGenerales, setObservacionesGenerales] = useState("");
   const [conclusion, setConclusion] = useState("");
 
-  // Imagenes state
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const savedImagenes: string[] = Array.isArray(item.imagenes_reporte) ? item.imagenes_reporte as string[] : [];
+  // Dos espacios independientes, una imagen en cada uno.
+  const [imageSlot1, setImageSlot1] = useState<File | null>(null);
+  const [imageSlot2, setImageSlot2] = useState<File | null>(null);
+
+  const resetForm = () => {
+    setEfectividad("");
+    setEfectividadComentario("");
+    setCondicionGeneral("");
+    setFuncionamiento("");
+    setFechaRevision("");
+    setRevisadoPor("");
+    setRequiereMantenimiento(false);
+    setDetalleMantenimiento("");
+    setFechaProximaMantenimiento("");
+    setObservacionesGenerales("");
+    setConclusion("");
+    setImageSlot1(null);
+    setImageSlot2(null);
+  };
+
+  const handleCreateReport = async () => {
+    if (!efectividad || !condicionGeneral) {
+      toast.error("Completa los campos obligatorios");
+      return;
+    }
+    setIsCreatingReport(true);
+    try {
+      // Comprimir y subir las imágenes (en orden de slot). Quedan como snapshot del reporte.
+      const slots = [imageSlot1, imageSlot2].filter((f): f is File => f !== null);
+      const imagenesUrls: string[] = [];
+      for (const file of slots) {
+        const compressed = await compressImage(file);
+        const filePath = `imagenes-reporte/${item.id}/${Date.now()}-${file.name.replace(/\.[^.]+$/, "")}.jpg`;
+        const { error: uploadError } = await supabase.storage
+          .from("presupuestos-pdf")
+          .upload(filePath, compressed, { upsert: true, contentType: "image/jpeg" });
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
+        imagenesUrls.push(publicUrlData.publicUrl);
+      }
+
+      const datosReporte = {
+        efectividad,
+        efectividad_comentario: efectividadComentario,
+        condicion_general: condicionGeneral,
+        funcionamiento,
+        fecha_revision: fechaRevision,
+        revisado_por: revisadoPor,
+        requiere_mantenimiento: requiereMantenimiento,
+        detalle_mantenimiento: detalleMantenimiento,
+        fecha_proxima_mantenimiento: fechaProximaMantenimiento,
+        observaciones_generales: observacionesGenerales,
+        conclusion,
+        imagenes: imagenesUrls,
+      };
+      const { error } = await supabase.from("reportes").insert({
+        gestion_id: item.id,
+        datos_reporte: datosReporte as any,
+      });
+      if (error) throw error;
+      toast.success("Reporte creado exitosamente");
+      queryClient.invalidateQueries({ queryKey: ['reportes', item.id] });
+      resetForm();
+      onOpenChange(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al crear el reporte");
+    } finally {
+      setIsCreatingReport(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v && !isCreatingReport) resetForm(); onOpenChange(v); }}>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nuevo Reporte</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-6 py-2">
+          <div className="space-y-3">
+            <Label className="text-sm font-bold text-[#1E293B]">Evaluación de efectividad de la solución</Label>
+            <Select value={efectividad} onValueChange={setEfectividad}>
+              <SelectTrigger><SelectValue placeholder="Selecciona una opción" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Efectiva">Efectiva</SelectItem>
+                <SelectItem value="En observación">En observación</SelectItem>
+                <SelectItem value="Requiere Ajustes">Requiere Ajustes</SelectItem>
+              </SelectContent>
+            </Select>
+            <Textarea
+              placeholder="Comentario sobre la efectividad..."
+              value={efectividadComentario}
+              onChange={e => setEfectividadComentario(e.target.value)}
+              className="min-h-[60px]"
+            />
+          </div>
+          <div className="space-y-3">
+            <Label className="text-sm font-bold text-[#1E293B]">Condición general</Label>
+            <Select value={condicionGeneral} onValueChange={setCondicionGeneral}>
+              <SelectTrigger><SelectValue placeholder="Selecciona una opción" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Óptima">Óptima</SelectItem>
+                <SelectItem value="Buena">Buena</SelectItem>
+                <SelectItem value="Regular">Regular</SelectItem>
+                <SelectItem value="Deficiente">Deficiente</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#64748B]">Funcionamiento</Label>
+              <Textarea placeholder="Describe el funcionamiento..." value={funcionamiento} onChange={e => setFuncionamiento(e.target.value)} className="min-h-[50px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#64748B]">Fecha de Revisión</Label>
+              <Input type="date" value={fechaRevision} onChange={e => setFechaRevision(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#64748B]">Revisado por</Label>
+              <Input placeholder="Nombre del revisor" value={revisadoPor} onChange={e => setRevisadoPor(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-3 border-t pt-4">
+            <Label className="text-sm font-bold text-[#1E293B]">Mantenimiento</Label>
+            <div className="flex items-center gap-3">
+              <Label className="text-xs font-semibold text-[#64748B]">¿Requiere mantenimiento la Solución?</Label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="radio" name="mantenimiento" checked={requiereMantenimiento} onChange={() => setRequiereMantenimiento(true)} className="accent-[#1A367F]" />
+                  <span className="text-xs font-semibold">Sí</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="radio" name="mantenimiento" checked={!requiereMantenimiento} onChange={() => setRequiereMantenimiento(false)} className="accent-[#1A367F]" />
+                  <span className="text-xs font-semibold">No</span>
+                </label>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#64748B]">Detalle de mantenimiento</Label>
+              <Textarea placeholder="Detalle del mantenimiento requerido..." value={detalleMantenimiento} onChange={e => setDetalleMantenimiento(e.target.value)} className="min-h-[50px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-[#64748B]">Fecha próxima de mantenimiento</Label>
+              <Input type="date" value={fechaProximaMantenimiento} onChange={e => setFechaProximaMantenimiento(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-3 border-t pt-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-bold text-[#1E293B]">Observaciones generales</Label>
+              <Textarea placeholder="Observaciones generales del reporte..." value={observacionesGenerales} onChange={e => setObservacionesGenerales(e.target.value)} className="min-h-[80px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-bold text-[#1E293B]">Conclusión</Label>
+              <Textarea placeholder="Conclusión del reporte..." value={conclusion} onChange={e => setConclusion(e.target.value)} className="min-h-[80px]" />
+            </div>
+          </div>
+
+          {/* Imágenes del reporte: 2 espacios, una imagen en cada uno */}
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-bold text-[#1E293B]">Imágenes del reporte</Label>
+              <span className="text-[10px] text-[#94A3B8]">(opcional · se comprimen automáticamente)</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <ImageSlot index={0} file={imageSlot1} onChange={setImageSlot1} />
+              <ImageSlot index={1} file={imageSlot2} onChange={setImageSlot2} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button
+            onClick={handleCreateReport}
+            disabled={!efectividad || !condicionGeneral || isCreatingReport}
+            className="bg-[#1A367F] hover:bg-[#142a5f]"
+          >
+            {isCreatingReport ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Creando...</> : "Crear Reporte"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// Reportes Tab
+// ═══════════════════════════════════════════════════════════════════════
+const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) => string }) => {
+  const queryClient = useQueryClient();
+
+  // Solo el estado de apertura del popup vive acá (ligero). El formulario y sus
+  // imágenes viven dentro de <NuevoReporteDialog/> para evitar re-renders.
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
   // Actividad de solución state
   const savedActividad: ActividadRow[] = Array.isArray(item.actividad_solucion) && item.actividad_solucion.length > 0
@@ -617,93 +883,6 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     }, 1000);
   };
 
-  const handleUploadImages = async () => {
-    if (imageFiles.length === 0) return;
-    setIsUploadingImages(true);
-    try {
-      const urls: string[] = [...savedImagenes];
-      for (const file of imageFiles) {
-        const filePath = `imagenes-reporte/${item.id}/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage.from("presupuestos-pdf").upload(filePath, file, { upsert: true });
-        if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
-        urls.push(publicUrlData.publicUrl);
-      }
-      const finalUrls = urls.slice(0, 2); // max 2
-      const { error } = await supabase.from("gestion").update({ imagenes_reporte: finalUrls as any }).eq("id", item.id);
-      if (error) throw error;
-      toast.success("Imágenes guardadas");
-      queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
-      setImageFiles([]);
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al subir imágenes");
-    } finally {
-      setIsUploadingImages(false);
-    }
-  };
-
-  const handleDeleteImage = async (index: number) => {
-    try {
-      const updated = savedImagenes.filter((_, i) => i !== index);
-      const { error } = await supabase.from("gestion").update({ imagenes_reporte: updated as any }).eq("id", item.id);
-      if (error) throw error;
-      toast.success("Imagen eliminada");
-      queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al eliminar imagen");
-    }
-  };
-
-  const handleCreateReport = async () => {
-    if (!efectividad || !condicionGeneral) {
-      toast.error("Completa los campos obligatorios");
-      return;
-    }
-    setIsCreatingReport(true);
-    try {
-      const datosReporte = {
-        efectividad,
-        efectividad_comentario: efectividadComentario,
-        condicion_general: condicionGeneral,
-        funcionamiento,
-        fecha_revision: fechaRevision,
-        revisado_por: revisadoPor,
-        requiere_mantenimiento: requiereMantenimiento,
-        detalle_mantenimiento: detalleMantenimiento,
-        fecha_proxima_mantenimiento: fechaProximaMantenimiento,
-        observaciones_generales: observacionesGenerales,
-        conclusion,
-        imagenes: savedImagenes,
-      };
-      const { error } = await supabase.from("reportes").insert({
-        gestion_id: item.id,
-        datos_reporte: datosReporte as any,
-      });
-      if (error) throw error;
-      toast.success("Reporte creado exitosamente");
-      queryClient.invalidateQueries({ queryKey: ['reportes', item.id] });
-      setReportDialogOpen(false);
-      setEfectividad("");
-      setEfectividadComentario("");
-      setCondicionGeneral("");
-      setFuncionamiento("");
-      setFechaRevision("");
-      setRevisadoPor("");
-      setRequiereMantenimiento(false);
-      setDetalleMantenimiento("");
-      setFechaProximaMantenimiento("");
-      setObservacionesGenerales("");
-      setConclusion("");
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al crear el reporte");
-    } finally {
-      setIsCreatingReport(false);
-    }
-  };
-
   const handleDownloadReport = (reporte: any, index: number) => {
     try {
       const numero = (reportes?.length || 0) - index;
@@ -720,11 +899,10 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
       const datosContrato = dataContrato.datos_contrato || {};
 
       const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
-      // Usar las imágenes guardadas en el propio reporte; si es un reporte viejo
-      // sin snapshot, caer a las imágenes actuales de gestión.
+      // Las imágenes quedan guardadas como snapshot dentro del propio reporte.
       const imagenesDelReporte = Array.isArray((reporte.datos_reporte as any)?.imagenes)
         ? (reporte.datos_reporte as any).imagenes
-        : savedImagenes;
+        : [];
       const blob = generateReportePDF({
         cliente,
         pagosJson,
@@ -826,65 +1004,6 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
-
-      {/* Imágenes del Reporte */}
-      <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
-        <CardHeader className="border-b border-[#F1F5F9] p-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
-                <Upload className="h-4 w-4 text-[#10B981]" strokeWidth={2.5} />
-              </div>
-              <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Imágenes del Reporte</CardTitle>
-              <span className="text-[10px] text-[#94A3B8]">(máx. 2)</span>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-5 space-y-4">
-          {savedImagenes.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {savedImagenes.map((url, i) => (
-                <div key={i} className="relative group border border-[#E2E8F0] rounded-lg overflow-hidden">
-                  <img src={url} alt={`Imagen ${i + 1}`} className="w-full h-48 object-cover" />
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2 h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"
-                    onClick={() => handleDeleteImage(i)}
-                  >
-                    Eliminar
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-          {savedImagenes.length < 2 && (
-            <div className="flex items-center gap-3">
-              <input
-                ref={imageInputRef}
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp"
-                multiple
-                className="block w-full text-sm text-[#64748B] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#EFF6FF] file:text-[#1A367F] hover:file:bg-[#DBEAFE] cursor-pointer"
-                onChange={e => {
-                  const files = Array.from(e.target.files || []);
-                  const maxAllowed = 2 - savedImagenes.length;
-                  setImageFiles(files.slice(0, maxAllowed));
-                }}
-              />
-              <Button
-                size="sm"
-                onClick={handleUploadImages}
-                disabled={imageFiles.length === 0 || isUploadingImages}
-                className="h-8 px-4 bg-[#1A367F] hover:bg-[#152D6B] text-white text-[11px] font-bold rounded-lg gap-1.5 shrink-0"
-              >
-                {isUploadingImages ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                Subir
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -990,103 +1109,8 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
         </Card>
       )}
 
-      {/* Create Report Dialog */}
-      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Nuevo Reporte</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 py-2">
-            <div className="space-y-3">
-              <Label className="text-sm font-bold text-[#1E293B]">Evaluación de efectividad de la solución</Label>
-              <Select value={efectividad} onValueChange={setEfectividad}>
-                <SelectTrigger><SelectValue placeholder="Selecciona una opción" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Efectiva">Efectiva</SelectItem>
-                  <SelectItem value="En observación">En observación</SelectItem>
-                  <SelectItem value="Requiere Ajustes">Requiere Ajustes</SelectItem>
-                </SelectContent>
-              </Select>
-              <Textarea
-                placeholder="Comentario sobre la efectividad..."
-                value={efectividadComentario}
-                onChange={e => setEfectividadComentario(e.target.value)}
-                className="min-h-[60px]"
-              />
-            </div>
-            <div className="space-y-3">
-              <Label className="text-sm font-bold text-[#1E293B]">Condición general</Label>
-              <Select value={condicionGeneral} onValueChange={setCondicionGeneral}>
-                <SelectTrigger><SelectValue placeholder="Selecciona una opción" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Óptima">Óptima</SelectItem>
-                  <SelectItem value="Buena">Buena</SelectItem>
-                  <SelectItem value="Regular">Regular</SelectItem>
-                  <SelectItem value="Deficiente">Deficiente</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-[#64748B]">Funcionamiento</Label>
-                <Textarea placeholder="Describe el funcionamiento..." value={funcionamiento} onChange={e => setFuncionamiento(e.target.value)} className="min-h-[50px]" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-[#64748B]">Fecha de Revisión</Label>
-                <Input type="date" value={fechaRevision} onChange={e => setFechaRevision(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-[#64748B]">Revisado por</Label>
-                <Input placeholder="Nombre del revisor" value={revisadoPor} onChange={e => setRevisadoPor(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="space-y-3 border-t pt-4">
-              <Label className="text-sm font-bold text-[#1E293B]">Mantenimiento</Label>
-              <div className="flex items-center gap-3">
-                <Label className="text-xs font-semibold text-[#64748B]">¿Requiere mantenimiento la Solución?</Label>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="mantenimiento" checked={requiereMantenimiento} onChange={() => setRequiereMantenimiento(true)} className="accent-[#1A367F]" />
-                    <span className="text-xs font-semibold">Sí</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="mantenimiento" checked={!requiereMantenimiento} onChange={() => setRequiereMantenimiento(false)} className="accent-[#1A367F]" />
-                    <span className="text-xs font-semibold">No</span>
-                  </label>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-[#64748B]">Detalle de mantenimiento</Label>
-                <Textarea placeholder="Detalle del mantenimiento requerido..." value={detalleMantenimiento} onChange={e => setDetalleMantenimiento(e.target.value)} className="min-h-[50px]" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-[#64748B]">Fecha próxima de mantenimiento</Label>
-                <Input type="date" value={fechaProximaMantenimiento} onChange={e => setFechaProximaMantenimiento(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="space-y-3 border-t pt-4">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-bold text-[#1E293B]">Observaciones generales</Label>
-                <Textarea placeholder="Observaciones generales del reporte..." value={observacionesGenerales} onChange={e => setObservacionesGenerales(e.target.value)} className="min-h-[80px]" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-bold text-[#1E293B]">Conclusión</Label>
-                <Textarea placeholder="Conclusión del reporte..." value={conclusion} onChange={e => setConclusion(e.target.value)} className="min-h-[80px]" />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReportDialogOpen(false)}>Cancelar</Button>
-            <Button
-              onClick={handleCreateReport}
-              disabled={!efectividad || !condicionGeneral || isCreatingReport}
-              className="bg-[#1A367F] hover:bg-[#142a5f]"
-            >
-              {isCreatingReport ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Creando...</> : "Crear Reporte"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Create Report Dialog (componente aislado para evitar lag al escribir) */}
+      <NuevoReporteDialog item={item} open={reportDialogOpen} onOpenChange={setReportDialogOpen} />
     </div>
   );
 };

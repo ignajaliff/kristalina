@@ -120,7 +120,8 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.text(data.fecha || "", margin, y + 14);
 
   try {
-    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y, 48, 17);
+    // Logo 1443x436 (~3.31:1): alto = ancho / 3.31 para no deformarlo.
+    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y, 48, 14.5);
   } catch (_) {}
 
   y += 26;
@@ -225,7 +226,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   doc.addPage();
   y = 18;
   try {
-    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
+    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 14.5);
   } catch (_) {}
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
@@ -323,7 +324,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   y = 18;
 
   try {
-    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
+    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 14.5);
   } catch (_) {}
 
   doc.setFont("helvetica", "bold");
@@ -533,7 +534,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
   y = 18;
 
   try {
-    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 17);
+    doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 14.5);
   } catch (_) {}
 
   doc.setFont("helvetica", "bold");
@@ -654,7 +655,7 @@ export const generateReportePDF = (data: ReportData): Blob => {
 
   y += 6;
   try {
-    doc.addImage("/kristalina-logo.png", "PNG", margin, y, 36, 13);
+    doc.addImage("/kristalina-logo.png", "PNG", margin, y, 36, 10.9);
   } catch (_) {}
   y += 18;
   const today = new Date();
