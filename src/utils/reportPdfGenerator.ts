@@ -78,6 +78,14 @@ const drawCheckbox = (doc: jsPDF, x: number, y: number, label: string, checked: 
   doc.text(label, x + size + 2, y);
 };
 
+// Convierte una fecha ISO "YYYY-MM-DD" al formato "DD/MM/YYYY" (día/mes/año).
+// Si el valor no es una fecha ISO, lo devuelve tal cual.
+const formatFechaDDMMYYYY = (value?: string | null): string => {
+  if (!value) return "N/A";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : value;
+};
+
 // Lee el ancho/alto natural de una imagen remota. Solo lee naturalWidth/Height
 // (no usa canvas), así que no requiere CORS ni "ensucia" la imagen.
 const getImageDims = (url: string): Promise<{ w: number; h: number } | null> =>
@@ -180,12 +188,11 @@ export const generateReportePDF = async (data: ReportData): Promise<Blob> => {
   drawSectionTitle(doc, y, "Datos del contrato", margin, cw);
   y += 11;
 
-  const feeVal =
-    Number(contrato.datos_presupuesto?.presupuesto_total_deptos || 0) *
-    (1 - Number(contrato.datos_presupuesto?.descuento_porcentaje || 0) / 100);
+  // Fee Mensual = el renting real (monto_renting), SIN ningún cálculo.
+  const feeVal = Number(data.montoRenting || 0);
   const montoFee =
     data.moneda === "UF"
-      ? `UF ${Number.isInteger(feeVal) ? feeVal : feeVal}`
+      ? `UF ${feeVal.toLocaleString("es-CL")}`
       : `$ ${Math.round(feeVal).toLocaleString("es-CL")}`;
 
   const contratoRows: [string, any][] = [
@@ -317,7 +324,7 @@ export const generateReportePDF = async (data: ReportData): Promise<Blob> => {
   doc.text("Fecha de revisión e inspección:", margin + 4, y);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0, 0, 0);
-  doc.text(data.datosReporte?.fecha_revision || "N/A", margin + 70, y);
+  doc.text(formatFechaDDMMYYYY(data.datosReporte?.fecha_revision), margin + 70, y);
   y += 9;
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...BLUE_DARK);
@@ -612,7 +619,7 @@ export const generateReportePDF = async (data: ReportData): Promise<Blob> => {
   doc.text("Fecha próxima de mantenimiento:", margin + 2, y);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0, 0, 0);
-  doc.text(data.datosReporte?.fecha_proxima_mantenimiento || "N/A", margin + 72, y);
+  doc.text(formatFechaDDMMYYYY(data.datosReporte?.fecha_proxima_mantenimiento), margin + 72, y);
   y += 14;
 
   // Separator

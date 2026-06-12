@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect, memo } from "react";
 import { generatePresupuestoPDF } from "@/utils/pdfGenerator";
 import { generateContratoPDF } from "@/utils/contractPdfGenerator";
 import { generateReportePDF } from "@/utils/reportPdfGenerator";
@@ -75,7 +75,12 @@ const parseTimeRange = (value: string): [string, string] => {
   return ["", ""];
 };
 
-const TimeRangeCell = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
+// Usa <select> NATIVOS (no Radix) a propósito: la tabla tiene decenas de estos
+// y los Select de Radix son muy pesados de montar (causaban lag al entrar).
+const TIME_SELECT_CLASS =
+  "h-8 flex-1 min-w-0 rounded-md border border-[#E2E8F0] bg-white px-2 text-[11px] text-[#1E293B] focus:outline-none focus:ring-1 focus:ring-[#1A367F]";
+
+const TimeRangeCell = memo(({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
   const [from, to] = parseTimeRange(value);
   const handleChange = (side: "from" | "to", val: string) => {
     const newFrom = side === "from" ? val : from;
@@ -85,26 +90,19 @@ const TimeRangeCell = ({ value, onChange }: { value: string; onChange: (val: str
   };
   return (
     <div className="flex items-center gap-1">
-      <Select value={from || undefined} onValueChange={v => handleChange("from", v)}>
-        <SelectTrigger className="h-8 text-[11px] border-[#E2E8F0] px-2 min-w-0">
-          <SelectValue placeholder="Inicio" />
-        </SelectTrigger>
-        <SelectContent>
-          {TIME_OPTIONS.map(t => <SelectItem key={t} value={t} className="text-[11px]">{t}</SelectItem>)}
-        </SelectContent>
-      </Select>
+      <select value={from || ""} onChange={e => handleChange("from", e.target.value)} className={TIME_SELECT_CLASS}>
+        <option value="" disabled>Inicio</option>
+        {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
       <span className="text-[10px] text-[#94A3B8] shrink-0">-</span>
-      <Select value={to || undefined} onValueChange={v => handleChange("to", v)}>
-        <SelectTrigger className="h-8 text-[11px] border-[#E2E8F0] px-2 min-w-0">
-          <SelectValue placeholder="Fin" />
-        </SelectTrigger>
-        <SelectContent>
-          {TIME_OPTIONS.map(t => <SelectItem key={t} value={t} className="text-[11px]">{t}</SelectItem>)}
-        </SelectContent>
-      </Select>
+      <select value={to || ""} onChange={e => handleChange("to", e.target.value)} className={TIME_SELECT_CLASS}>
+        <option value="" disabled>Fin</option>
+        {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
     </div>
   );
-};
+});
+TimeRangeCell.displayName = "TimeRangeCell";
 
 const EdificioDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -595,24 +593,28 @@ const ImageSlot = ({ index, file, onChange }: { index: number; file: File | null
   );
 };
 
+// Convierte un Blob a data URL (base64), para embeber imágenes en el PDF sin
+// tener que subirlas a storage por separado.
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+
 // ═══════════════════════════════════════════════════════════════════════
-// Genera el PDF del reporte recién creado, lo sube a storage y lo envía por
-// email al cliente (adminemail) con copia a los correos internos de Kristalina.
-// PRUEBA: subject fijo "EMAIL DE PRUEBA", el cuerpo es solo el reporte adjunto.
+// Genera el PDF del reporte a partir de los datos del edificio + el reporte.
+// `imagenesParaPdf` pueden ser data URLs (al crear) o URLs remotas (reportes
+// viejos que aún tienen imágenes en storage).
 // ═══════════════════════════════════════════════════════════════════════
-const enviarReportePorEmail = async (
+const buildReportePDFBlob = async (
   item: any,
   datosReporte: any,
-  imagenesUrls: string[],
-  inserted: { id: string; created_at: string } | null,
-) => {
-  // Número de reporte = total de reportes de este edificio (incluye el recién creado).
-  const { count } = await supabase
-    .from("reportes")
-    .select("id", { count: "exact", head: true })
-    .eq("gestion_id", item.id);
-  const numero = count || 1;
-
+  imagenesParaPdf: string[],
+  numero: number,
+  fecha: string,
+): Promise<Blob> => {
   const clientePdf = {
     communityname: item.communityname,
     adminname: item.adminname,
@@ -635,25 +637,23 @@ const enviarReportePorEmail = async (
     ? (item.torre_enfriamiento as ActividadRow[])
     : EMPTY_ACTIVIDAD;
 
-  const fechaPdf = inserted?.created_at
-    ? format(parseISO(inserted.created_at), "dd/MM/yyyy")
-    : format(new Date(), "dd/MM/yyyy");
-
-  const blob = await generateReportePDF({
+  return generateReportePDF({
     cliente: clientePdf,
     pagosJson,
     montoRenting: item.monto_renting || 0,
     moneda,
     datosReporte,
     numero,
-    fecha: fechaPdf,
+    fecha,
     actividadSolucion: actividad,
     torreEnfriamiento: hasTorre ? torre : undefined,
-    imagenesReporte: imagenesUrls,
+    imagenesReporte: imagenesParaPdf,
     dataContrato: (item.data_contrato as any)?.datos_contrato || {},
   });
+};
 
-  // Subir el PDF a storage para que el Edge Function lo adjunte por URL.
+// Sube el PDF del reporte a storage y devuelve su URL pública + nombre de archivo.
+const subirReportePDF = async (item: any, blob: Blob, numero: number) => {
   const fileName = `reporte_${numero}_${(item.communityname || "edificio").replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`;
   const filePath = `reportes-pdf/${item.id}/${Date.now()}-${fileName}`;
   const { error: upErr } = await supabase.storage
@@ -661,39 +661,47 @@ const enviarReportePorEmail = async (
     .upload(filePath, blob, { upsert: true, contentType: "application/pdf" });
   if (upErr) throw upErr;
   const { data: pub } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
+  return { pdfUrl: pub.publicUrl, fileName };
+};
 
-  // Destinatarios: cliente (To) + correos internos en copia (CC).
-  // Si el cliente no tiene email, el primer interno pasa a ser el destinatario principal.
+// Envía por email el PDF ya generado (no lo regenera). Cliente (To) + internos (CC).
+// PRUEBA: subject fijo "EMAIL DE PRUEBA", el cuerpo es solo el reporte adjunto.
+const enviarReporteEmail = async (item: any, pdfUrl: string, fileName: string, reportId: string) => {
   const internos = ["aramirez@kristalina.cl", "eporro@kristalina.cl"];
   const clientEmail = (item.adminemail || "").trim();
   const toEmail = clientEmail || internos[0];
   const ccList = clientEmail ? internos : internos.slice(1);
 
-  const result = await queueAndSendEmail({
+  return queueAndSendEmail({
     toEmail,
     toName: item.adminname || undefined,
     cc: ccList,
     subject: "EMAIL DE PRUEBA",
     bodyHtml: "<p>Reporte adjunto.</p>",
-    attachmentUrl: pub.publicUrl,
+    attachmentUrl: pdfUrl,
     attachmentFilename: fileName,
     tipo: "reporte",
-    relatedId: inserted?.id,
+    relatedId: reportId,
   });
-
-  if (result.sent) {
-    toast.success("Reporte enviado por email correctamente");
-  } else {
-    toast.warning(result.message || "El reporte quedó pendiente de envío por email.");
-  }
 };
 
 // ═══════════════════════════════════════════════════════════════════════
 // Popup "Nuevo Reporte" — componente aislado para que escribir no re-renderice
 // las tablas pesadas (Sala de Bombas / Torre) del tab de reportes.
 // ═══════════════════════════════════════════════════════════════════════
-const NuevoReporteDialog = ({ item, open, onOpenChange }: { item: any; open: boolean; onOpenChange: (v: boolean) => void }) => {
-  const queryClient = useQueryClient();
+interface ReportCreatedPayload {
+  reportId: string;
+  pdfUrl: string;
+  fileName: string;
+  enviarEmail: boolean;
+}
+
+const NuevoReporteDialog = ({ item, open, onOpenChange, onCreated }: {
+  item: any;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreated: (payload: ReportCreatedPayload) => void;
+}) => {
   const [isCreatingReport, setIsCreatingReport] = useState(false);
   const [efectividad, setEfectividad] = useState("");
   const [efectividadComentario, setEfectividadComentario] = useState("");
@@ -738,21 +746,16 @@ const NuevoReporteDialog = ({ item, open, onOpenChange }: { item: any; open: boo
     }
     setIsCreatingReport(true);
     try {
-      // Comprimir y subir las imágenes (en orden de slot). Quedan como snapshot del reporte.
+      // 1. Comprimir las imágenes y convertirlas a data URL (NO se suben sueltas:
+      //    quedan embebidas dentro del PDF).
       const slots = [imageSlot1, imageSlot2].filter((f): f is File => f !== null);
-      const imagenesUrls: string[] = [];
+      const imagenesDataUrls: string[] = [];
       for (const file of slots) {
         const compressed = await compressImage(file);
-        const filePath = `imagenes-reporte/${item.id}/${Date.now()}-${file.name.replace(/\.[^.]+$/, "")}.jpg`;
-        const { error: uploadError } = await supabase.storage
-          .from("presupuestos-pdf")
-          .upload(filePath, compressed, { upsert: true, contentType: "image/jpeg" });
-        if (uploadError) throw uploadError;
-        const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
-        imagenesUrls.push(publicUrlData.publicUrl);
+        imagenesDataUrls.push(await blobToDataUrl(compressed));
       }
 
-      const datosReporte = {
+      const datosReporte: any = {
         efectividad,
         efectividad_comentario: efectividadComentario,
         condicion_general: condicionGeneral,
@@ -764,26 +767,42 @@ const NuevoReporteDialog = ({ item, open, onOpenChange }: { item: any; open: boo
         fecha_proxima_mantenimiento: fechaProximaMantenimiento,
         observaciones_generales: observacionesGenerales,
         conclusion,
-        imagenes: imagenesUrls,
       };
+
+      // 2. Número de reporte = cantidad actual + 1.
+      const { count } = await supabase
+        .from("reportes")
+        .select("id", { count: "exact", head: true })
+        .eq("gestion_id", item.id);
+      const numero = (count || 0) + 1;
+
+      // 3. Generar el PDF UNA vez (con las imágenes embebidas) y subirlo a storage.
+      const blob = await buildReportePDFBlob(
+        item,
+        datosReporte,
+        imagenesDataUrls,
+        numero,
+        format(new Date(), "dd/MM/yyyy"),
+      );
+      const { pdfUrl, fileName } = await subirReportePDF(item, blob, numero);
+      datosReporte.pdf_url = pdfUrl;
+
+      // 4. Guardar el reporte con la URL del PDF (ya no se guardan imágenes sueltas).
       const { data: inserted, error } = await supabase.from("reportes").insert({
         gestion_id: item.id,
         datos_reporte: datosReporte as any,
-      }).select("id, created_at").single();
+      }).select("id").single();
       if (error) throw error;
       toast.success("Reporte creado exitosamente");
-      queryClient.invalidateQueries({ queryKey: ['reportes', item.id] });
 
-      // Envío por email (opcional). No bloquea la creación del reporte.
-      if (enviarEmail) {
-        try {
-          await enviarReportePorEmail(item, datosReporte, imagenesUrls, inserted);
-        } catch (mailErr) {
-          console.error("Error enviando el reporte por email:", mailErr);
-          toast.error("El reporte se creó, pero falló el envío por email.");
-        }
-      }
-
+      // 5. Cerrar el popup al instante y delegar el envío del email al padre, que
+      //    muestra el progreso (ruedita → enviado) en la fila del reporte.
+      onCreated({
+        reportId: inserted.id,
+        pdfUrl,
+        fileName,
+        enviarEmail,
+      });
       resetForm();
       onOpenChange(false);
     } catch (err) {
@@ -947,11 +966,6 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
     : EMPTY_ACTIVIDAD;
   const [torreEnfriamiento, setTorreEnfriamiento] = useState<ActividadRow[]>(savedTorre);
 
-  const pagosJson: PagoRecord[] = Array.isArray(item.pagos)
-    ? [...item.pagos].sort((a: PagoRecord, b: PagoRecord) => a.mes - b.mes)
-    : [];
-  const montoRenting = item.monto_renting || 0;
-
   // Fetch reportes
   const { data: reportes, isLoading: loadingReportes } = useQuery({
     queryKey: ['reportes', item.id],
@@ -965,6 +979,29 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
       return data;
     },
   });
+
+  // Estado del envío de email por reporte (solo para los creados en esta sesión).
+  const [emailStatusById, setEmailStatusById] = useState<Record<string, "sending" | "sent" | "error">>({});
+
+  // Al crear un reporte: refresca la lista (aparece el nuevo) y, si corresponde,
+  // envía el email en segundo plano mostrando el progreso en su fila.
+  const handleReportCreated = async (payload: ReportCreatedPayload) => {
+    await queryClient.invalidateQueries({ queryKey: ['reportes', item.id] });
+    if (!payload.enviarEmail) return;
+
+    setEmailStatusById(prev => ({ ...prev, [payload.reportId]: "sending" }));
+    try {
+      const result = await enviarReporteEmail(item, payload.pdfUrl, payload.fileName, payload.reportId);
+      setEmailStatusById(prev => ({ ...prev, [payload.reportId]: result.sent ? "sent" : "error" }));
+      if (!result.sent) {
+        toast.warning(result.message || "El reporte quedó pendiente de envío por email.");
+      }
+    } catch (err) {
+      console.error("Error enviando el reporte por email:", err);
+      setEmailStatusById(prev => ({ ...prev, [payload.reportId]: "error" }));
+      toast.error("El reporte se creó, pero falló el envío por email.");
+    }
+  };
 
   const handleUpdateActividad = (index: number, field: keyof ActividadRow, value: string) => {
     const updated = [...actividad];
@@ -1012,40 +1049,34 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
   const handleDownloadReport = async (reporte: any, index: number) => {
     try {
       const numero = (reportes?.length || 0) - index;
-      const cliente = {
-        communityname: item.communityname,
-        adminname: item.adminname,
-        adminemail: item.adminemail,
-        buildingaddress: item.buildingaddress,
-        buildingtype: item.buildingtype,
-        units: item.units,
-        vendedor: (item as any).user_roles?.nombre ?? null,
-      } as any;
-      const dataContrato = item.data_contrato as any || {};
-      const datosContrato = dataContrato.datos_contrato || {};
+      const datos = (reporte.datos_reporte as any) || {};
 
-      const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
-      // Las imágenes quedan guardadas como snapshot dentro del propio reporte.
-      const imagenesDelReporte = Array.isArray((reporte.datos_reporte as any)?.imagenes)
-        ? (reporte.datos_reporte as any).imagenes
-        : [];
-      const blob = await generateReportePDF({
-        cliente,
-        pagosJson,
-        montoRenting,
-        moneda,
-        datosReporte: reporte.datos_reporte,
+      // Reportes nuevos: se descarga el PDF guardado (el mismo que se envió por email).
+      if (datos.pdf_url) {
+        const resp = await fetch(datos.pdf_url);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `reporte_${numero}_${item.communityname || 'edificio'}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      // Reportes viejos (sin pdf_url): se regenera a partir de sus imágenes guardadas.
+      const imagenesDelReporte = Array.isArray(datos.imagenes) ? datos.imagenes : [];
+      const blob = await buildReportePDFBlob(
+        item,
+        reporte.datos_reporte,
+        imagenesDelReporte,
         numero,
-        fecha: format(parseISO(reporte.created_at), "dd/MM/yyyy"),
-        actividadSolucion: actividad,
-        torreEnfriamiento: hasTorreEnfriamiento ? torreEnfriamiento : undefined,
-        imagenesReporte: imagenesDelReporte,
-        dataContrato: datosContrato,
-      });
+        format(parseISO(reporte.created_at), "dd/MM/yyyy"),
+      );
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `reporte_${numero}_${cliente.communityname || 'edificio'}.pdf`;
+      a.download = `reporte_${numero}_${item.communityname || 'edificio'}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -1084,13 +1115,14 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                 <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Fecha</TableHead>
                 <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Efectividad</TableHead>
                 <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Condición</TableHead>
+                <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider">Correo</TableHead>
                 <TableHead className="text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider text-right">Archivo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loadingReportes ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin text-[#64748B]" />
                       <span className="text-[12px] text-[#94A3B8]">Cargando...</span>
@@ -1099,7 +1131,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                 </TableRow>
               ) : !reportes || reportes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-[12px] text-[#94A3B8]">
+                  <TableCell colSpan={6} className="text-center py-8 text-[12px] text-[#94A3B8]">
                     No hay reportes generados
                   </TableCell>
                 </TableRow>
@@ -1107,12 +1139,29 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
                 reportes.map((reporte, index) => {
                   const numero = reportes.length - index;
                   const datos = reporte.datos_reporte as any || {};
+                  const emailStatus = emailStatusById[reporte.id];
                   return (
                     <TableRow key={reporte.id} className="hover:bg-[#F8FAFC]">
                       <TableCell className="text-[12px] font-semibold text-[#1E293B]">#{numero}</TableCell>
                       <TableCell className="text-[12px] text-[#64748B]">{format(parseISO(reporte.created_at), "dd/MM/yyyy")}</TableCell>
                       <TableCell className="text-[12px] text-[#64748B]">{datos.efectividad || "N/A"}</TableCell>
                       <TableCell className="text-[12px] text-[#64748B]">{datos.condicion_general || "N/A"}</TableCell>
+                      <TableCell>
+                        {emailStatus === "sending" && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#1A367F]">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Enviando...
+                          </span>
+                        )}
+                        {emailStatus === "sent" && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#10B981]">
+                            <CheckCircle className="h-3.5 w-3.5" /> Enviado
+                          </span>
+                        )}
+                        {emailStatus === "error" && (
+                          <span className="text-[11px] font-semibold text-[#EF4444]">Falló el envío</span>
+                        )}
+                        {!emailStatus && <span className="text-[11px] text-[#CBD5E1]">—</span>}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
@@ -1236,7 +1285,7 @@ const ReportesTab = ({ item, formatDate }: { item: any; formatDate: (d: string) 
       )}
 
       {/* Create Report Dialog (componente aislado para evitar lag al escribir) */}
-      <NuevoReporteDialog item={item} open={reportDialogOpen} onOpenChange={setReportDialogOpen} />
+      <NuevoReporteDialog item={item} open={reportDialogOpen} onOpenChange={setReportDialogOpen} onCreated={handleReportCreated} />
     </div>
   );
 };
