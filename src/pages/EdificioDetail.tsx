@@ -813,14 +813,15 @@ const buildReporteEmailHtml = (edificio: string, saludo: string): string => `
   /* Base = mobile (idéntico a como estaba). Los estilos inline son el fallback
      para clientes que ignoran <style> (ej. Outlook desktop). */
   body { margin:0; padding:0; }
-  /* Desktop / pantallas grandes: la tarjeta se ensancha y respira, con más
-     aire alrededor, para que no se vea angosta ni "flotando" en el gris. */
+  /* Desktop / pantallas grandes: el email ocupa TODO el ancho (full-bleed),
+     sin tarjeta flotando en el medio. Se quitan márgenes, esquinas y sombra;
+     el padding lateral en % mantiene el texto legible y con aire. */
   @media only screen and (min-width:600px) {
-    .ek-outer  { padding:48px 24px !important; }
-    .ek-card   { max-width:660px !important; }
-    .ek-header { padding:34px 44px !important; }
-    .ek-body   { padding:40px 44px !important; }
-    .ek-footer { padding:28px 44px !important; }
+    .ek-outer  { padding:0 !important; background:#ffffff !important; }
+    .ek-card   { max-width:100% !important; width:100% !important; border-radius:0 !important; border-left:0 !important; border-right:0 !important; box-shadow:none !important; }
+    .ek-header { padding:44px 10% !important; }
+    .ek-body   { padding:52px 10% !important; }
+    .ek-footer { padding:36px 10% !important; }
   }
 </style>
 </head>
@@ -844,7 +845,7 @@ const buildReporteEmailHtml = (edificio: string, saludo: string): string => `
             <p style="margin:0;font-size:12px;color:#1A367F;">📎 Reporte adjunto en PDF.</p>
           </div>
         </td></tr>
-        <tr><td class="ek-footer" style="padding:24px 32px;border-top:1px solid #F1F5F9;text-align:center;background:#F8FAFC;">
+        <tr><td class="ek-footer" style="padding:24px 32px;border-top:1px solid #E2E8F0;text-align:center;background:#ffffff;">
           ${KRISTALINA_LOGO_URL ? `<img src="${KRISTALINA_LOGO_URL}" alt="Kristalina" width="170" style="display:block;margin:0 auto 10px;max-width:170px;height:auto;" />` : ""}
           <p style="margin:0;font-size:11px;color:#94A3B8;">Kristalina · Tratamiento de agua · www.kristalina.cl</p>
         </td></tr>
@@ -874,7 +875,9 @@ const enviarReporteEmail = async (item: any, pdfUrl: string, fileName: string, r
 
   const edificio = item.communityname || "—";
   const saludoNombres = joinNombres(nombres);
-  const saludo = saludoNombres ? `Estimados ${saludoNombres}` : "Estimados";
+  // "Estimado" si hay un solo contacto; "Estimados" si son dos o más.
+  const prefijoSaludo = nombres.length === 1 ? "Estimado" : "Estimados";
+  const saludo = saludoNombres ? `${prefijoSaludo} ${saludoNombres}` : prefijoSaludo;
 
   return queueAndSendEmail({
     toEmail: destinatarios[0],
