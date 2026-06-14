@@ -119,6 +119,7 @@ export type Database = {
           buildingtype: string | null
           communityname: string | null
           comuna: string | null
+          contacto_automatizaciones: Json
           created_at: string
           data_contrato: Json | null
           data_presupuesto: Json | null
@@ -147,6 +148,7 @@ export type Database = {
           buildingtype?: string | null
           communityname?: string | null
           comuna?: string | null
+          contacto_automatizaciones?: Json
           created_at?: string
           data_contrato?: Json | null
           data_presupuesto?: Json | null
@@ -175,6 +177,7 @@ export type Database = {
           buildingtype?: string | null
           communityname?: string | null
           comuna?: string | null
+          contacto_automatizaciones?: Json
           created_at?: string
           data_contrato?: Json | null
           data_presupuesto?: Json | null

@@ -628,29 +628,48 @@ export const generateReportePDF = async (data: ReportData): Promise<Blob> => {
   doc.line(margin, y, pageWidth - margin, y);
   y += 10;
 
-  // Observaciones generales
-  drawSectionTitle(doc, y, "Observaciones generales", margin, cw);
-  y += 11;
+  // ── Paginación automática para los textos largos ──────────────────────────
+  // Si el contenido no entra en la página, crea una nueva y sigue ahí.
+  const BOTTOM_LIMIT = pageHeight - 22;
+  const LINE_H = 5.2;
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  doc.setTextColor(50, 50, 50);
-  const obsText = data.datosReporte?.observaciones_generales || "Sin observaciones.";
-  const obsLines = doc.splitTextToSize(obsText, cw - 4);
-  doc.text(obsLines, margin + 2, y, { lineHeightFactor: 1.4 });
-  y += obsLines.length * 5.2 + 10;
+  const newPageForText = () => {
+    drawFooter(doc, pageWidth, pageHeight);
+    doc.addPage();
+    y = 18;
+    try {
+      doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 14.5);
+    } catch (_) {}
+    y += 16;
+  };
+  const ensureSpace = (needed: number) => {
+    if (y + needed > BOTTOM_LIMIT) newPageForText();
+  };
+  // Dibuja "título de sección + párrafo", saltando de página cuando hace falta.
+  const drawParrafo = (titulo: string, texto: string, gapAfter: number) => {
+    ensureSpace(18); // que el título no quede huérfano al final de la hoja
+    drawSectionTitle(doc, y, titulo, margin, cw);
+    y += 11;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(50, 50, 50);
+    const lines = doc.splitTextToSize(texto, cw - 4);
+    for (const line of lines) {
+      if (y + LINE_H > BOTTOM_LIMIT) newPageForText();
+      doc.text(line, margin + 2, y, { lineHeightFactor: 1.4 });
+      y += LINE_H;
+    }
+    y += gapAfter;
+  };
+
+  // Observaciones generales
+  drawParrafo("Observaciones generales", data.datosReporte?.observaciones_generales || "Sin observaciones.", 10);
 
   // Conclusión
-  drawSectionTitle(doc, y, "Conclusión", margin, cw);
-  y += 11;
+  drawParrafo("Conclusión", data.datosReporte?.conclusion || "Sin conclusión.", 20);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  doc.setTextColor(50, 50, 50);
-  const concText = data.datosReporte?.conclusion || "Sin conclusión.";
-  const concLines = doc.splitTextToSize(concText, cw - 4);
-  doc.text(concLines, margin + 2, y, { lineHeightFactor: 1.4 });
-  y += concLines.length * 5.2 + 20;
+  // El bloque de firma debe quedar entero: si no entra, va a una página nueva.
+  ensureSpace(85);
 
   // Separator
   doc.setDrawColor(200, 210, 230);

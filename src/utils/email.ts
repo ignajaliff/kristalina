@@ -57,6 +57,20 @@ export async function queueAndSendEmail(params: QueueEmailParams): Promise<Queue
     return { queued: false, sent: false, message: "No se pudo registrar el email." };
   }
 
+  // El envío SMTP puede tardar ~10s y el `invoke` cortarse por timeout aunque el
+  // correo se haya enviado. Ante un error de invocación, re-consultamos el estado
+  // real del registro en la base unas veces antes de declararlo fallido.
+  const pollSent = async (): Promise<boolean> => {
+    for (let i = 0; i < 4; i++) {
+      await new Promise((r) => setTimeout(r, 4000));
+      const { data } = await supabase.from("emails").select("status").eq("id", inserted.id).single();
+      const status = (data as any)?.status;
+      if (status === "sent") return true;
+      if (status === "error") return false;
+    }
+    return false;
+  };
+
   // 2. Disparar el envío (best-effort)
   try {
     const { data, error } = await supabase.functions.invoke("send-email", {
@@ -64,7 +78,8 @@ export async function queueAndSendEmail(params: QueueEmailParams): Promise<Queue
     });
     if (error) {
       console.error("Error invocando send-email:", error);
-      return { queued: true, sent: false, emailId: inserted.id, message: "El email quedó pendiente de envío." };
+      const sent = await pollSent();
+      return { queued: true, sent, emailId: inserted.id, message: sent ? undefined : "El email quedó pendiente de envío." };
     }
     const ok = (data as any)?.ok === true;
     return {
@@ -75,6 +90,7 @@ export async function queueAndSendEmail(params: QueueEmailParams): Promise<Queue
     };
   } catch (e) {
     console.error("Error invocando send-email:", e);
-    return { queued: true, sent: false, emailId: inserted.id, message: "El email quedó pendiente de envío." };
+    const sent = await pollSent();
+    return { queued: true, sent, emailId: inserted.id, message: sent ? undefined : "El email quedó pendiente de envío." };
   }
 }

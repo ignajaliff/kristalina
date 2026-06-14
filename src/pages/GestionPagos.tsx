@@ -142,9 +142,13 @@ const GestionEdificios = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<GestionItem | null>(null);
   // Confirmación de pago con factura
-  const [confirmTarget, setConfirmTarget] = useState<{ item: GestionItem; mes: number } | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<{ item: GestionItem; mes: number; pago: PagoRecord | null; estadoDisplay: string } | null>(null);
   const [facturaFile, setFacturaFile] = useState<File | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  // Emitir factura: ahora requiere adjuntar el archivo de la factura
+  const [emitTarget, setEmitTarget] = useState<{ item: GestionItem; mes: number } | null>(null);
+  const [emitFile, setEmitFile] = useState<File | null>(null);
+  const [isEmitting, setIsEmitting] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -162,39 +166,47 @@ const GestionEdificios = () => {
     },
   });
 
-  // Abre el popup que pide la factura antes de confirmar el pago
-  const openConfirmDialog = (item: GestionItem, mes: number) => {
-    setConfirmTarget({ item, mes });
+  // Abre el popup de confirmación de pago.
+  const openConfirmDialog = (item: GestionItem, pago: PagoRecord, estadoDisplay: string) => {
+    setConfirmTarget({ item, mes: pago.mes, pago, estadoDisplay });
     setFacturaFile(null);
   };
 
   const handleConfirmPayment = async () => {
-    if (!confirmTarget || !facturaFile) return;
-    const { item, mes } = confirmTarget;
+    if (!confirmTarget) return;
+    const { item, mes, pago, estadoDisplay } = confirmTarget;
+    // Si la factura ya fue emitida/cargada (estado "Factura Emitida" o el pago ya
+    // tiene factura_url), NO se pide archivo: solo se reconfirma el pago.
+    const yaExisteFactura = estadoDisplay === "Factura Emitida" || !!pago?.factura_url;
+    if (!yaExisteFactura && !facturaFile) return;
     setIsConfirming(true);
     try {
-      // 1. Subir la factura a Storage (misma ruta/campo que usa el Historial de Pagos)
-      const ext = facturaFile.name.split(".").pop();
-      const filePath = `facturas/${item.id}/mes-${mes}-${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("presupuestos-pdf")
-        .upload(filePath, facturaFile, { upsert: true, contentType: facturaFile.type });
-      if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
-      const facturaUrl = publicUrlData.publicUrl;
+      // 1. Si hay que subir una factura nueva (caso sin factura previa), se sube.
+      let facturaUrl = pago?.factura_url ?? null;
+      if (!yaExisteFactura && facturaFile) {
+        const ext = facturaFile.name.split(".").pop();
+        const filePath = `facturas/${item.id}/mes-${mes}-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("presupuestos-pdf")
+          .upload(filePath, facturaFile, { upsert: true, contentType: facturaFile.type });
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
+        facturaUrl = publicUrlData.publicUrl;
+      }
 
       const hoy = format(new Date(), "yyyy-MM-dd");
 
       // 2. Marcar el pago (fila individual en la tabla `pagos`)
+      const pagoUpdate: any = {
+        pagado: true,
+        fecha_pago_real: hoy,
+        fecha_confirmacion: hoy,
+        updated_at: new Date().toISOString(),
+      };
+      if (facturaUrl) pagoUpdate.factura_url = facturaUrl;
       const { error: pagoError } = await supabase
         .from("pagos")
-        .update({
-          pagado: true,
-          factura_url: facturaUrl,
-          fecha_pago_real: hoy,
-          fecha_confirmacion: hoy,
-          updated_at: new Date().toISOString(),
-        })
+        .update(pagoUpdate)
         .eq("gestion_id", item.id)
         .eq("mes", mes);
       if (pagoError) throw pagoError;
@@ -261,25 +273,50 @@ const GestionEdificios = () => {
     }
   };
 
-  const handleEmitInvoice = async (item: GestionItem, mes: number) => {
+  // Abre el popup para emitir factura (ahora requiere adjuntar el archivo).
+  const openEmitDialog = (item: GestionItem, mes: number) => {
+    setEmitTarget({ item, mes });
+    setEmitFile(null);
+  };
+
+  const handleEmitInvoice = async () => {
+    if (!emitTarget || !emitFile) return; // la factura es obligatoria para emitir
+    const { item, mes } = emitTarget;
+    setIsEmitting(true);
     try {
+      // 1. Subir la factura a Storage.
+      const ext = emitFile.name.split(".").pop();
+      const filePath = `facturas/${item.id}/mes-${mes}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("presupuestos-pdf")
+        .upload(filePath, emitFile, { upsert: true, contentType: emitFile.type });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from("presupuestos-pdf").getPublicUrl(filePath);
+      const facturaUrl = publicUrlData.publicUrl;
+
+      // 2. Marcar la factura como emitida y guardar el archivo en el pago.
       const { error } = await supabase
         .from("pagos")
         .update({
           fecha_emision: format(new Date(), "yyyy-MM-dd"),
+          factura_url: facturaUrl,
           updated_at: new Date().toISOString(),
         })
         .eq("gestion_id", item.id)
         .eq("mes", mes);
-
       if (error) throw error;
+
+      // TODO (pendiente): acá irá la automatización para enviar un email
+      // informativo al cliente avisando que se emitió la factura del mes.
 
       toast({
         title: "Factura emitida",
-        description: `Factura del mes ${mes} marcada como emitida.`,
+        description: `Factura del mes ${mes} cargada y marcada como emitida.`,
       });
 
       queryClient.invalidateQueries({ queryKey: ["gestion-all"] });
+      setEmitTarget(null);
+      setEmitFile(null);
     } catch (error) {
       console.error(error);
       toast({
@@ -287,6 +324,8 @@ const GestionEdificios = () => {
         description: "No se pudo emitir la factura.",
         variant: "destructive",
       });
+    } finally {
+      setIsEmitting(false);
     }
   };
 
@@ -593,7 +632,7 @@ const GestionEdificios = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleEmitInvoice(item, pago.mes)}
+                                onClick={() => openEmitDialog(item, pago.mes)}
                                 className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md border-[#F59E0B] text-[#F59E0B] hover:bg-[#FFFBEB] transition-all"
                               >
                                 <FileText className="h-3.5 w-3.5 mr-1" />
@@ -605,7 +644,7 @@ const GestionEdificios = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => pago && openConfirmDialog(item, pago.mes)}
+                              onClick={() => pago && openConfirmDialog(item, pago, estadoDisplay)}
                               disabled={!pago || (estadoDisplay !== "En fecha/No pagado" && estadoDisplay !== "Factura Emitida")}
                               className={cn(
                                 "h-8 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all",
@@ -647,14 +686,86 @@ const GestionEdificios = () => {
         }}
       />
 
-      {/* Confirmar pago: pide la factura para subir */}
-      <Dialog open={!!confirmTarget} onOpenChange={(open) => { if (!open && !isConfirming) { setConfirmTarget(null); setFacturaFile(null); } }}>
+      {/* Confirmar pago */}
+      {(() => {
+        const yaExisteFactura = !!confirmTarget && (confirmTarget.estadoDisplay === "Factura Emitida" || !!confirmTarget.pago?.factura_url);
+        return (
+          <Dialog open={!!confirmTarget} onOpenChange={(open) => { if (!open && !isConfirming) { setConfirmTarget(null); setFacturaFile(null); } }}>
+            <DialogContent className="sm:max-w-[440px]">
+              <DialogHeader>
+                <DialogTitle>Confirmar pago</DialogTitle>
+                <DialogDescription>
+                  {yaExisteFactura ? (
+                    <>
+                      La factura del {confirmTarget ? `mes ${confirmTarget.mes}` : "pago"} de{" "}
+                      <strong>{confirmTarget?.item.communityname || "este edificio"}</strong> ya fue emitida y cargada.
+                      ¿Confirmás que el cliente ya pagó este mes?
+                    </>
+                  ) : (
+                    <>
+                      Adjunta la factura del {confirmTarget ? `mes ${confirmTarget.mes}` : "pago"} de{" "}
+                      <strong>{confirmTarget?.item.communityname || "este edificio"}</strong>. Quedará disponible en el Historial de Pagos.
+                    </>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+
+              {yaExisteFactura ? (
+                <div className="space-y-2 py-2">
+                  {confirmTarget?.pago?.factura_url && (
+                    <a
+                      href={confirmTarget.pago.factura_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#1A367F] hover:underline"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Ver factura cargada
+                    </a>
+                  )}
+                  <p className="text-[11px] text-[#94A3B8]">
+                    No hace falta volver a adjuntar la factura. Solo confirmá que el pago fue recibido.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 py-2">
+                  <Label className="text-xs font-semibold text-[#64748B]">Factura *</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    onChange={(e) => setFacturaFile(e.target.files?.[0] || null)}
+                    className="text-xs"
+                  />
+                  <p className="text-[11px] text-[#94A3B8]">
+                    Formatos: PDF, JPG, PNG, DOC. La factura es obligatoria para confirmar el pago.
+                  </p>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setConfirmTarget(null); setFacturaFile(null); }} disabled={isConfirming}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleConfirmPayment}
+                  disabled={isConfirming || (!yaExisteFactura && !facturaFile)}
+                  className="bg-[#10B981] hover:bg-[#059669] text-white"
+                >
+                  {isConfirming ? "Confirmando..." : "Confirmar pago"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+
+      {/* Emitir factura: requiere adjuntar la factura para pasar a "Factura Emitida" */}
+      <Dialog open={!!emitTarget} onOpenChange={(open) => { if (!open && !isEmitting) { setEmitTarget(null); setEmitFile(null); } }}>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle>Confirmar pago</DialogTitle>
+            <DialogTitle>Emitir factura</DialogTitle>
             <DialogDescription>
-              Adjunta la factura del {confirmTarget ? `mes ${confirmTarget.mes}` : "pago"} de{" "}
-              <strong>{confirmTarget?.item.communityname || "este edificio"}</strong>. Quedará disponible en el Historial de Pagos.
+              Adjunta la factura del {emitTarget ? `mes ${emitTarget.mes}` : "pago"} de{" "}
+              <strong>{emitTarget?.item.communityname || "este edificio"}</strong> para marcarla como emitida.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
@@ -662,23 +773,23 @@ const GestionEdificios = () => {
             <Input
               type="file"
               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-              onChange={(e) => setFacturaFile(e.target.files?.[0] || null)}
+              onChange={(e) => setEmitFile(e.target.files?.[0] || null)}
               className="text-xs"
             />
             <p className="text-[11px] text-[#94A3B8]">
-              Formatos: PDF, JPG, PNG, DOC. La factura es obligatoria para confirmar el pago.
+              La factura es obligatoria para emitir. Sin ella, no pasa al estado "Factura Emitida".
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setConfirmTarget(null); setFacturaFile(null); }} disabled={isConfirming}>
+            <Button variant="outline" onClick={() => { setEmitTarget(null); setEmitFile(null); }} disabled={isEmitting}>
               Cancelar
             </Button>
             <Button
-              onClick={handleConfirmPayment}
-              disabled={!facturaFile || isConfirming}
-              className="bg-[#10B981] hover:bg-[#059669] text-white"
+              onClick={handleEmitInvoice}
+              disabled={!emitFile || isEmitting}
+              className="bg-[#F59E0B] hover:bg-[#D97706] text-white"
             >
-              {isConfirming ? "Confirmando..." : "Confirmar pago"}
+              {isEmitting ? "Emitiendo..." : "Emitir factura"}
             </Button>
           </DialogFooter>
         </DialogContent>

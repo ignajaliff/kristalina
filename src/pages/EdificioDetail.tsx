@@ -229,6 +229,7 @@ const EdificioDetail = () => {
           {/* Info Tab */}
           <TabsContent value="informacion" className="space-y-6">
             <ClienteInfoCard item={item} />
+            <ContactoAutomatizacionesCard item={item} />
             <PresupuestoContratoCard item={item} cliente={cliente} formatDate={formatDate} />
           </TabsContent>
 
@@ -247,6 +248,19 @@ const EdificioDetail = () => {
   );
 };
 
+// Estado resumido para la columna gestion.estadopago, que SOLO admite estos 3
+// valores (los estados detallados como "Factura no Emitida" se calculan dinámicamente
+// en la interfaz a partir de los pagos, no se guardan acá).
+const computeEstadoColumna = (pagos: PagoRecord[]): "No en fecha" | "En fecha/No pagado" | "Mes pagado" => {
+  const nextPending = [...pagos].sort((a, b) => a.mes - b.mes).find(p => !p.pagado);
+  if (!nextPending) return "Mes pagado";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [year, month, day] = nextPending.fecha_pago.split("-").map(Number);
+  const fechaPago = new Date(year, month - 1, day);
+  return today >= fechaPago ? "En fecha/No pagado" : "No en fecha";
+};
+
 // ═══════════════════════════════════════════════════════════════════════
 // Historial de Pagos Tab
 // ═══════════════════════════════════════════════════════════════════════
@@ -258,6 +272,59 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Editar estado (Pagado / No pagado) de un registro de pago.
+  const [editEstadoOpen, setEditEstadoOpen] = useState(false);
+  const [editMes, setEditMes] = useState<number | null>(null);
+  const [editPagado, setEditPagado] = useState(false);
+  const [isSavingEstado, setIsSavingEstado] = useState(false);
+
+  const openEditEstado = (p: PagoRecord) => {
+    setEditMes(p.mes);
+    setEditPagado(p.pagado);
+    setEditEstadoOpen(true);
+  };
+
+  const handleSaveEstado = async () => {
+    if (editMes == null) return;
+    setIsSavingEstado(true);
+    try {
+      const hoy = new Date();
+      const updates: any = { pagado: editPagado, updated_at: hoy.toISOString() };
+      if (editPagado) {
+        updates.fecha_pago_real = hoy.toISOString().slice(0, 10);
+        updates.fecha_confirmacion = hoy.toISOString();
+      } else {
+        updates.fecha_pago_real = null;
+        updates.fecha_confirmacion = null;
+      }
+      const { error } = await supabase
+        .from("pagos")
+        .update(updates)
+        .eq("gestion_id", item.id)
+        .eq("mes", editMes);
+      if (error) throw error;
+
+      // Recalcular el estado resumido del edificio para que quede consistente
+      // (solo los 3 valores que admite la columna; lo detallado se calcula en la UI).
+      const updatedPagos = pagosJson.map(p => p.mes === editMes ? { ...p, pagado: editPagado } : p);
+      const nuevoEstado = computeEstadoColumna(updatedPagos);
+      await supabase
+        .from("gestion")
+        .update({ estadopago: nuevoEstado, updated_at: hoy.toISOString() })
+        .eq("id", item.id);
+
+      toast.success(`Estado del mes ${editMes} actualizado`);
+      queryClient.invalidateQueries({ queryKey: ['edificio', item.id] });
+      setEditEstadoOpen(false);
+      setEditMes(null);
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al actualizar el estado");
+    } finally {
+      setIsSavingEstado(false);
+    }
+  };
 
   const pagosJson: PagoRecord[] = Array.isArray(item.pagos)
     ? [...item.pagos].sort((a: PagoRecord, b: PagoRecord) => a.mes - b.mes)
@@ -380,13 +447,18 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {p.factura_url && (
-                          <a href={p.factura_url} target="_blank" rel="noopener noreferrer">
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-[#1A367F] hover:bg-[#EFF6FF]">
-                              <Download className="h-3.5 w-3.5" />
-                            </Button>
-                          </a>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {p.factura_url && (
+                            <a href={p.factura_url} target="_blank" rel="noopener noreferrer">
+                              <Button variant="ghost" size="sm" className="h-7 px-2 text-[#1A367F] hover:bg-[#EFF6FF]">
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            </a>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => openEditEstado(p)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F]">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -413,7 +485,10 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-[10px] text-[#94A3B8] italic">Marcar en Gestión de Pagos</span>
+                        <Button variant="ghost" size="sm" onClick={() => openEditEstado(proximoPago)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F] gap-1">
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span className="text-[11px]">Editar</span>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   )}
@@ -438,9 +513,9 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                         ) : <span className="text-[11px] text-[#94A3B8]">Sin factura</span>}
                       </TableCell>
                       <TableCell className="text-right">
-                        {p.mes === proximoPago?.mes && (
-                          <span className="text-[10px] text-[#94A3B8] italic">Marcar en Gestión de Pagos</span>
-                        )}
+                        <Button variant="ghost" size="sm" onClick={() => openEditEstado(p)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F]">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -505,6 +580,44 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
               className="bg-[#1A367F] hover:bg-[#142a5f]"
             >
               {isUploading ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Subiendo...</> : "Cargar Factura"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Editar estado de un pago */}
+      <Dialog open={editEstadoOpen} onOpenChange={setEditEstadoOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Editar estado{editMes != null ? ` — Mes ${editMes}` : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#64748B]">Estado del pago</label>
+              <Select value={editPagado ? "pagado" : "no_pagado"} onValueChange={(v) => setEditPagado(v === "pagado")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pagado">Pagado</SelectItem>
+                  <SelectItem value="no_pagado">No pagado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-[11px] text-[#94A3B8]">
+              {editPagado
+                ? "Se marcará como pagado con la fecha de hoy."
+                : "Se marcará como pendiente y se quitará la fecha de pago."}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditEstadoOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={handleSaveEstado}
+              disabled={isSavingEstado}
+              className="bg-[#1A367F] hover:bg-[#142a5f]"
+            >
+              {isSavingEstado ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Guardando...</> : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -664,20 +777,111 @@ const subirReportePDF = async (item: any, blob: Blob, numero: number) => {
   return { pdfUrl: pub.publicUrl, fileName };
 };
 
-// Envía por email el PDF ya generado (no lo regenera). Cliente (To) + internos (CC).
-// PRUEBA: subject fijo "EMAIL DE PRUEBA", el cuerpo es solo el reporte adjunto.
+// Normaliza los contactos de automatizaciones. Soporta el formato nuevo
+// ({nombre,email}) y el viejo (string suelto = solo email).
+interface ContactoAuto { nombre: string; email: string; }
+const parseContactos = (raw: any): ContactoAuto[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((c: any) => (typeof c === "string" ? { nombre: "", email: c } : { nombre: c?.nombre || "", email: c?.email || "" }))
+    .filter((c: ContactoAuto) => c.email && c.email.trim());
+};
+
+// Une nombres en lenguaje natural: "Juan", "Juan y María", "Juan, María y Pedro".
+const joinNombres = (nombres: string[]): string => {
+  if (nombres.length === 0) return "";
+  if (nombres.length === 1) return nombres[0];
+  return `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
+};
+
+// URL pública del logo de Kristalina para mostrarlo en el email (los clientes de
+// correo bloquean imágenes locales/base64, necesita una URL accesible).
+// Pegar acá la URL del logo desplegado (ej: https://<dominio-de-la-app>/kristalina-logo.png).
+// Si queda vacío, el email se envía igual pero sin el logo.
+const KRISTALINA_LOGO_URL = "https://kristalina.provves.com/kristalina-logo.png?v=2";
+
+// Arma el HTML moderno del email del reporte, con el estilo del sistema.
+const buildReporteEmailHtml = (edificio: string, saludo: string): string => `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="x-apple-disable-message-reformatting" />
+<title>Reporte Trimestral</title>
+<style>
+  /* Base = mobile (idéntico a como estaba). Los estilos inline son el fallback
+     para clientes que ignoran <style> (ej. Outlook desktop). */
+  body { margin:0; padding:0; }
+  /* Desktop / pantallas grandes: la tarjeta se ensancha y respira, con más
+     aire alrededor, para que no se vea angosta ni "flotando" en el gris. */
+  @media only screen and (min-width:600px) {
+    .ek-outer  { padding:48px 24px !important; }
+    .ek-card   { max-width:660px !important; }
+    .ek-header { padding:34px 44px !important; }
+    .ek-body   { padding:40px 44px !important; }
+    .ek-footer { padding:28px 44px !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#F1F5F9;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;font-family:Arial,Helvetica,sans-serif;">
+    <tr><td class="ek-outer" align="center" style="padding:24px 0;">
+      <table role="presentation" class="ek-card" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #E2E8F0;box-shadow:0 8px 28px rgba(15,23,42,0.10);font-family:Arial,Helvetica,sans-serif;">
+        <tr><td class="ek-header" style="background:#1A367F;padding:28px 32px;">
+          <p style="margin:0;color:#BFDBFE;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Reporte Trimestral</p>
+          <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:bold;">Edificio ${edificio}</h1>
+        </td></tr>
+        <tr><td class="ek-body" style="padding:32px;color:#334155;font-size:14px;line-height:1.7;">
+          <p style="margin:0 0 16px;font-weight:bold;color:#1E293B;">${saludo},</p>
+          <p style="margin:0 0 16px;">Junto con saludar, les adjunto el reporte trimestral correspondiente al <strong>Edificio ${edificio}</strong> para su revisión.</p>
+          <p style="margin:0 0 16px;">Agradecemos la confianza depositada en nuestro trabajo y esperamos que la información adjunta sea de utilidad para el seguimiento y control del proceso realizado. Quedamos atentos a sus comentarios, observaciones o cualquier consulta adicional que pueda surgir al respecto.</p>
+          <p style="margin:0 0 18px;">Sin otro particular, les saluda atentamente,</p>
+          <p style="margin:0;font-size:15px;font-weight:bold;color:#1A367F;">Eduardo Porro</p>
+          <p style="margin:2px 0 0;font-size:13px;color:#64748B;">+569 9129 42 95</p>
+          <p style="margin:2px 0 0;font-size:13px;"><a href="https://www.kristalina.cl" style="color:#3B82F6;text-decoration:none;">www.kristalina.cl</a></p>
+          <div style="margin-top:22px;padding:12px 16px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;">
+            <p style="margin:0;font-size:12px;color:#1A367F;">📎 Reporte adjunto en PDF.</p>
+          </div>
+        </td></tr>
+        <tr><td class="ek-footer" style="padding:24px 32px;border-top:1px solid #F1F5F9;text-align:center;background:#F8FAFC;">
+          ${KRISTALINA_LOGO_URL ? `<img src="${KRISTALINA_LOGO_URL}" alt="Kristalina" width="170" style="display:block;margin:0 auto 10px;max-width:170px;height:auto;" />` : ""}
+          <p style="margin:0;font-size:11px;color:#94A3B8;">Kristalina · Tratamiento de agua · www.kristalina.cl</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+// Envía por email el PDF ya generado (no lo regenera).
+// Destinatarios = los contactos de "Contacto Automatizaciones" del edificio.
+// Si no hay ninguno configurado, cae al email del administrador (adminemail).
 const enviarReporteEmail = async (item: any, pdfUrl: string, fileName: string, reportId: string) => {
-  const internos = ["aramirez@kristalina.cl", "eporro@kristalina.cl"];
-  const clientEmail = (item.adminemail || "").trim();
-  const toEmail = clientEmail || internos[0];
-  const ccList = clientEmail ? internos : internos.slice(1);
+  const contactos = parseContactos(item.contacto_automatizaciones);
+  let destinatarios = contactos.map(c => c.email.trim());
+  let nombres = contactos.map(c => c.nombre.trim()).filter(Boolean);
+
+  // Respaldo: si no hay contactos configurados, usar el email del administrador.
+  if (destinatarios.length === 0) {
+    const fallback = (item.adminemail || "").trim();
+    if (!fallback) {
+      return { queued: false, sent: false, message: "No hay emails de contacto configurados para este edificio." };
+    }
+    destinatarios = [fallback];
+    if (item.adminname) nombres = [item.adminname];
+  }
+
+  const edificio = item.communityname || "—";
+  const saludoNombres = joinNombres(nombres);
+  const saludo = saludoNombres ? `Estimados ${saludoNombres}` : "Estimados";
 
   return queueAndSendEmail({
-    toEmail,
-    toName: item.adminname || undefined,
-    cc: ccList,
-    subject: "EMAIL DE PRUEBA",
-    bodyHtml: "<p>Reporte adjunto.</p>",
+    toEmail: destinatarios[0],
+    toName: nombres[0] || item.adminname || undefined,
+    cc: destinatarios.slice(1),
+    subject: `Reporte Trimestral – Edificio ${edificio} (ESTO ES UNA PRUEBA)`,
+    bodyHtml: buildReporteEmailHtml(edificio, saludo),
     attachmentUrl: pdfUrl,
     attachmentFilename: fileName,
     tipo: "reporte",
@@ -910,20 +1114,48 @@ const NuevoReporteDialog = ({ item, open, onOpenChange, onCreated }: {
             </div>
           </div>
 
-          {/* Enviar por email al cliente (Sí/No) */}
+          {/* Enviar por email (Sí/No) — se envía a los contactos agendados */}
           <div className="space-y-2 border-t pt-4">
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3">
-              <div className="space-y-0.5">
-                <Label className="text-sm font-bold text-[#1E293B]">Enviar reporte por email al cliente</Label>
-                <p className="text-[11px] text-[#64748B]">
-                  Se envía a <span className="font-semibold">{(item.adminemail || "—")}</span> con copia a aramirez@kristalina.cl y eporro@kristalina.cl
-                </p>
+            <div className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-3 space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <Label className="text-sm font-bold text-[#1E293B]">Enviar reporte por email</Label>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={cn("text-xs font-bold", !enviarEmail ? "text-[#1E293B]" : "text-[#94A3B8]")}>No</span>
+                  <Switch checked={enviarEmail} onCheckedChange={setEnviarEmail} />
+                  <span className={cn("text-xs font-bold", enviarEmail ? "text-[#1A367F]" : "text-[#94A3B8]")}>Sí</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={cn("text-xs font-bold", !enviarEmail ? "text-[#1E293B]" : "text-[#94A3B8]")}>No</span>
-                <Switch checked={enviarEmail} onCheckedChange={setEnviarEmail} />
-                <span className={cn("text-xs font-bold", enviarEmail ? "text-[#1A367F]" : "text-[#94A3B8]")}>Sí</span>
-              </div>
+              {(() => {
+                const contactos = parseContactos(item.contacto_automatizaciones);
+                if (contactos.length > 0) {
+                  return (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] text-[#64748B]">
+                        Se enviará a los contactos agendados en <span className="font-semibold">Contacto Automatizaciones</span>:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {contactos.map((c, i) => (
+                          <span key={`${c.email}-${i}`} className="inline-flex items-center gap-1.5 rounded-md bg-white border border-[#E2E8F0] px-2 py-1 text-[11px]">
+                            <Mail className="h-3 w-3 text-[#94A3B8] shrink-0" />
+                            <span className="font-semibold text-[#1E293B]">{c.nombre || "—"}</span>
+                            <span className="text-[#64748B]">{c.email}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                const admin = (item.adminemail || "").trim();
+                return admin ? (
+                  <p className="text-[11px] text-[#64748B]">
+                    No hay contactos agendados en <span className="font-semibold">Contacto Automatizaciones</span>. Se enviará al email del administrador (<span className="font-semibold">{admin}</span>).
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-[#EF4444]">
+                    No hay contactos agendados ni email del administrador. Agregá contactos en "Contacto Automatizaciones" para poder enviar.
+                  </p>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -1411,6 +1643,125 @@ const ClienteInfoCard = ({ item }: { item: any }) => {
             <BigField label="Región" value={item.region} />
             <BigField label="Portero" value={item.nombre_portero} />
             <BigField label="Vendedor" value={vendedorNombre} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Tarjeta de contactos (nombre + email) que reciben las automatizaciones (ej: el
+// reporte). Se guardan como JSON [{nombre,email}] en gestion.contacto_automatizaciones.
+// El nombre se usa para personalizar el saludo del email ("Estimados Juan y María").
+const ContactoAutomatizacionesCard = ({ item }: { item: any }) => {
+  const queryClient = useQueryClient();
+  const initial: ContactoAuto[] = parseContactos(item.contacto_automatizaciones);
+  const [contactos, setContactos] = useState<ContactoAuto[]>(initial);
+  const [nuevoNombre, setNuevoNombre] = useState("");
+  const [nuevoEmail, setNuevoEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+
+  const persist = async (lista: ContactoAuto[]) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("gestion")
+        .update({ contacto_automatizaciones: lista as any, updated_at: new Date().toISOString() })
+        .eq("id", item.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["edificio", item.id] });
+    } catch (e) {
+      console.error(e);
+      toast.error("No se pudo guardar el contacto");
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addContacto = async () => {
+    const nombre = nuevoNombre.trim();
+    const email = nuevoEmail.trim().toLowerCase();
+    if (!nombre) { toast.error("Ingresá el nombre"); return; }
+    if (!isValidEmail(email)) { toast.error("Email inválido"); return; }
+    if (contactos.some(c => c.email.toLowerCase() === email)) { toast.error("Ese email ya está en la lista"); return; }
+    const lista = [...contactos, { nombre, email }];
+    setContactos(lista);
+    setNuevoNombre("");
+    setNuevoEmail("");
+    try { await persist(lista); toast.success("Contacto agregado"); } catch { setContactos(contactos); }
+  };
+
+  const removeContacto = async (idx: number) => {
+    const prev = contactos;
+    const lista = contactos.filter((_, i) => i !== idx);
+    setContactos(lista);
+    try { await persist(lista); toast.success("Contacto eliminado"); } catch { setContactos(prev); }
+  };
+
+  return (
+    <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
+      <CardHeader className="border-b border-[#F1F5F9] p-5">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+            <Mail className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
+          </div>
+          <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Contacto Automatizaciones</CardTitle>
+        </div>
+        <p className="text-[11px] text-[#94A3B8] mt-2">
+          Contactos que reciben las automatizaciones del sistema (ej: el envío del reporte). El nombre se usa en el saludo del email.
+        </p>
+      </CardHeader>
+      <CardContent className="p-6 space-y-4">
+        {/* Agregar contacto */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <Input
+            placeholder="Nombre"
+            value={nuevoNombre}
+            onChange={e => setNuevoNombre(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addContacto(); } }}
+            className="h-9 text-sm sm:w-[35%]"
+          />
+          <Input
+            type="email"
+            placeholder="correo@ejemplo.com"
+            value={nuevoEmail}
+            onChange={e => setNuevoEmail(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addContacto(); } }}
+            className="h-9 text-sm flex-1"
+          />
+          <Button size="sm" onClick={addContacto} disabled={saving || !nuevoNombre.trim() || !nuevoEmail.trim()} className="h-9 text-xs gap-1.5 bg-[#1A367F] hover:bg-[#12285e] shrink-0">
+            <PlusIcon className="h-3.5 w-3.5" /> Agregar
+          </Button>
+        </div>
+
+        {/* Lista de contactos */}
+        {contactos.length === 0 ? (
+          <p className="text-[12px] text-[#94A3B8] italic">No hay contactos configurados. Si no agregás ninguno, las automatizaciones usan el email del administrador.</p>
+        ) : (
+          <div className="space-y-2">
+            {contactos.map((c, idx) => (
+              <div key={`${c.email}-${idx}`} className="flex items-center justify-between gap-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Mail className="h-3.5 w-3.5 text-[#94A3B8] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-[#1E293B] truncate">{c.nombre || "—"}</p>
+                    <p className="text-[11px] text-[#64748B] truncate">{c.email}</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeContacto(idx)}
+                  disabled={saving}
+                  className="h-7 px-2 text-[#EF4444] hover:bg-[#FEF2F2] shrink-0"
+                >
+                  Quitar
+                </Button>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
