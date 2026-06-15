@@ -829,7 +829,7 @@ const buildReporteEmailHtml = (edificio: string, saludo: string): string => `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;font-family:Arial,Helvetica,sans-serif;">
     <tr><td class="ek-outer" align="center" style="padding:24px 0;">
       <table role="presentation" class="ek-card" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #E2E8F0;box-shadow:0 8px 28px rgba(15,23,42,0.10);font-family:Arial,Helvetica,sans-serif;">
-        <tr><td class="ek-header" style="background:#1A367F;padding:28px 32px;">
+        <tr><td class="ek-header" style="background:#0F2A52;padding:28px 32px;border-bottom:4px solid #1A367F;">
           <p style="margin:0;color:#BFDBFE;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Reporte Trimestral</p>
           <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:bold;">Edificio ${edificio}</h1>
         </td></tr>
@@ -838,9 +838,7 @@ const buildReporteEmailHtml = (edificio: string, saludo: string): string => `
           <p style="margin:0 0 16px;">Junto con saludar, les adjunto el reporte trimestral correspondiente al <strong>Edificio ${edificio}</strong> para su revisión.</p>
           <p style="margin:0 0 16px;">Agradecemos la confianza depositada en nuestro trabajo y esperamos que la información adjunta sea de utilidad para el seguimiento y control del proceso realizado. Quedamos atentos a sus comentarios, observaciones o cualquier consulta adicional que pueda surgir al respecto.</p>
           <p style="margin:0 0 18px;">Sin otro particular, les saluda atentamente,</p>
-          <p style="margin:0;font-size:15px;font-weight:bold;color:#1A367F;">Eduardo Porro</p>
-          <p style="margin:2px 0 0;font-size:13px;color:#64748B;">+569 9129 42 95</p>
-          <p style="margin:2px 0 0;font-size:13px;"><a href="https://www.kristalina.cl" style="color:#3B82F6;text-decoration:none;">www.kristalina.cl</a></p>
+          <p style="margin:0;font-size:15px;font-weight:bold;color:#1A367F;">Gerencia Técnica</p>
           <div style="margin-top:22px;padding:12px 16px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;">
             <p style="margin:0;font-size:12px;color:#1A367F;">📎 Reporte adjunto en PDF.</p>
           </div>
@@ -1653,13 +1651,24 @@ const ClienteInfoCard = ({ item }: { item: any }) => {
   );
 };
 
-// Tarjeta de contactos (nombre + email) que reciben las automatizaciones (ej: el
-// reporte). Se guardan como JSON [{nombre,email}] en gestion.contacto_automatizaciones.
-// El nombre se usa para personalizar el saludo del email ("Estimados Juan y María").
-const ContactoAutomatizacionesCard = ({ item }: { item: any }) => {
+// Una columna de contactos (Reportes o Administración). Cada una guarda en su
+// propia columna de la tabla `gestion`: `contacto_automatizaciones` (reportes) o
+// `contacto_administracion` (facturas). El nombre se usa en el saludo del email.
+const ContactoColumna = ({
+  item,
+  columna,
+  titulo,
+  descripcion,
+  dotClass,
+}: {
+  item: any;
+  columna: "contacto_automatizaciones" | "contacto_administracion";
+  titulo: string;
+  descripcion: string;
+  dotClass: string;
+}) => {
   const queryClient = useQueryClient();
-  const initial: ContactoAuto[] = parseContactos(item.contacto_automatizaciones);
-  const [contactos, setContactos] = useState<ContactoAuto[]>(initial);
+  const [contactos, setContactos] = useState<ContactoAuto[]>(parseContactos(item[columna]));
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoEmail, setNuevoEmail] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1671,7 +1680,7 @@ const ContactoAutomatizacionesCard = ({ item }: { item: any }) => {
     try {
       const { error } = await supabase
         .from("gestion")
-        .update({ contacto_automatizaciones: lista as any, updated_at: new Date().toISOString() })
+        .update({ [columna]: lista as any, updated_at: new Date().toISOString() })
         .eq("id", item.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["edificio", item.id] });
@@ -1705,28 +1714,25 @@ const ContactoAutomatizacionesCard = ({ item }: { item: any }) => {
   };
 
   return (
-    <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
-      <CardHeader className="border-b border-[#F1F5F9] p-5">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
-            <Mail className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
-          </div>
-          <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Contacto Automatizaciones</CardTitle>
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center gap-2">
+          <span className={cn("inline-block w-2 h-2 rounded-full", dotClass)}></span>
+          <h4 className="text-[12px] font-bold text-[#1E293B] uppercase tracking-wider">{titulo}</h4>
         </div>
-        <p className="text-[11px] text-[#94A3B8] mt-2">
-          Contactos que reciben las automatizaciones del sistema (ej: el envío del reporte). El nombre se usa en el saludo del email.
-        </p>
-      </CardHeader>
-      <CardContent className="p-6 space-y-4">
-        {/* Agregar contacto */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <Input
-            placeholder="Nombre"
-            value={nuevoNombre}
-            onChange={e => setNuevoNombre(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addContacto(); } }}
-            className="h-9 text-sm sm:w-[35%]"
-          />
+        <p className="text-[11px] text-[#94A3B8] mt-1">{descripcion}</p>
+      </div>
+
+      {/* Agregar contacto */}
+      <div className="flex flex-col gap-2">
+        <Input
+          placeholder="Nombre"
+          value={nuevoNombre}
+          onChange={e => setNuevoNombre(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addContacto(); } }}
+          className="h-9 text-sm"
+        />
+        <div className="flex items-center gap-2">
           <Input
             type="email"
             placeholder="correo@ejemplo.com"
@@ -1739,34 +1745,77 @@ const ContactoAutomatizacionesCard = ({ item }: { item: any }) => {
             <PlusIcon className="h-3.5 w-3.5" /> Agregar
           </Button>
         </div>
+      </div>
 
-        {/* Lista de contactos */}
-        {contactos.length === 0 ? (
-          <p className="text-[12px] text-[#94A3B8] italic">No hay contactos configurados. Si no agregás ninguno, las automatizaciones usan el email del administrador.</p>
-        ) : (
-          <div className="space-y-2">
-            {contactos.map((c, idx) => (
-              <div key={`${c.email}-${idx}`} className="flex items-center justify-between gap-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Mail className="h-3.5 w-3.5 text-[#94A3B8] shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-[#1E293B] truncate">{c.nombre || "—"}</p>
-                    <p className="text-[11px] text-[#64748B] truncate">{c.email}</p>
-                  </div>
+      {/* Lista de contactos */}
+      {contactos.length === 0 ? (
+        <p className="text-[12px] text-[#94A3B8] italic">No hay contactos. Si no agregás ninguno, se usa el email del administrador.</p>
+      ) : (
+        <div className="space-y-2">
+          {contactos.map((c, idx) => (
+            <div key={`${c.email}-${idx}`} className="flex items-center justify-between gap-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Mail className="h-3.5 w-3.5 text-[#94A3B8] shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-[#1E293B] truncate">{c.nombre || "—"}</p>
+                  <p className="text-[11px] text-[#64748B] truncate">{c.email}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeContacto(idx)}
-                  disabled={saving}
-                  className="h-7 px-2 text-[#EF4444] hover:bg-[#FEF2F2] shrink-0"
-                >
-                  Quitar
-                </Button>
               </div>
-            ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeContacto(idx)}
+                disabled={saving}
+                className="h-7 px-2 text-[#EF4444] hover:bg-[#FEF2F2] shrink-0"
+              >
+                Quitar
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Tarjeta de contactos dividida en dos columnas: "Reportes" (reciben el reporte
+// trimestral, columna `contacto_automatizaciones`) y "Administración" (reciben
+// las facturas emitidas, columna `contacto_administracion`).
+const ContactoAutomatizacionesCard = ({ item }: { item: any }) => {
+  return (
+    <Card className="border border-[#E2E8F0] shadow-sm rounded-xl bg-white">
+      <CardHeader className="border-b border-[#F1F5F9] p-5">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 bg-[#F8FAFC] rounded-md border border-[#E2E8F0]">
+            <Mail className="h-4 w-4 text-[#1A367F]" strokeWidth={2.5} />
           </div>
-        )}
+          <CardTitle className="text-sm font-bold text-[#1E293B] uppercase tracking-wider">Contacto Automatizaciones</CardTitle>
+        </div>
+        <p className="text-[11px] text-[#94A3B8] mt-2">
+          Separá quién recibe los emails de <strong>Reportes</strong> y los de <strong>Administración</strong> (facturas). El nombre se usa en el saludo del email.
+        </p>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          <div className="p-6">
+            <ContactoColumna
+              item={item}
+              columna="contacto_automatizaciones"
+              titulo="Reportes"
+              descripcion="Reciben el reporte trimestral por email."
+              dotClass="bg-[#1A367F]"
+            />
+          </div>
+          <div className="p-6 border-t md:border-t-0 md:border-l border-[#F1F5F9]">
+            <ContactoColumna
+              item={item}
+              columna="contacto_administracion"
+              titulo="Administración"
+              descripcion="Reciben las facturas emitidas por email."
+              dotClass="bg-[#10B981]"
+            />
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

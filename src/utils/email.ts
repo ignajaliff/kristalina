@@ -57,40 +57,44 @@ export async function queueAndSendEmail(params: QueueEmailParams): Promise<Queue
     return { queued: false, sent: false, message: "No se pudo registrar el email." };
   }
 
-  // El envío SMTP puede tardar ~10s y el `invoke` cortarse por timeout aunque el
-  // correo se haya enviado. Ante un error de invocación, re-consultamos el estado
-  // real del registro en la base unas veces antes de declararlo fallido.
-  const pollSent = async (): Promise<boolean> => {
-    for (let i = 0; i < 4; i++) {
-      await new Promise((r) => setTimeout(r, 4000));
-      const { data } = await supabase.from("emails").select("status").eq("id", inserted.id).single();
-      const status = (data as any)?.status;
-      if (status === "sent") return true;
-      if (status === "error") return false;
-    }
-    return false;
+  // La Edge Function a veces devuelve 503 por cold-start (el worker no alcanza a
+  // levantar) aunque al reintentar el envío funcione. Por eso reintentamos la
+  // invocación varias veces; antes de cada reintento chequeamos si el correo ya
+  // quedó `sent` (un intento previo pudo salir pese al error de red).
+  const isSent = async (): Promise<boolean> => {
+    const { data } = await supabase.from("emails").select("status").eq("id", inserted.id).single();
+    return (data as any)?.status === "sent";
   };
 
-  // 2. Disparar el envío (best-effort)
-  try {
-    const { data, error } = await supabase.functions.invoke("send-email", {
-      body: { email_id: inserted.id },
-    });
-    if (error) {
-      console.error("Error invocando send-email:", error);
-      const sent = await pollSent();
-      return { queued: true, sent, emailId: inserted.id, message: sent ? undefined : "El email quedó pendiente de envío." };
+  // 2. Disparar el envío con reintentos (best-effort)
+  const MAX_INTENTOS = 4;
+  let lastReason: string | undefined;
+  for (let intento = 0; intento < MAX_INTENTOS; intento++) {
+    if (intento > 0) {
+      // Esperar a que el worker se "caliente" antes de reintentar.
+      await new Promise((r) => setTimeout(r, 3500));
+      if (await isSent()) return { queued: true, sent: true, emailId: inserted.id };
     }
-    const ok = (data as any)?.ok === true;
-    return {
-      queued: true,
-      sent: ok,
-      emailId: inserted.id,
-      message: ok ? undefined : (data as any)?.reason || "El email quedó pendiente de envío.",
-    };
-  } catch (e) {
-    console.error("Error invocando send-email:", e);
-    const sent = await pollSent();
-    return { queued: true, sent, emailId: inserted.id, message: sent ? undefined : "El email quedó pendiente de envío." };
+    try {
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: { email_id: inserted.id },
+      });
+      if (!error && (data as any)?.ok === true) {
+        return { queued: true, sent: true, emailId: inserted.id };
+      }
+      lastReason = (data as any)?.reason || (error ? String((error as any).message || error) : undefined);
+      if (error) console.error(`Error invocando send-email (intento ${intento + 1}):`, error);
+    } catch (e) {
+      console.error(`Error invocando send-email (intento ${intento + 1}):`, e);
+    }
   }
+
+  // Último chequeo: pudo haber salido en el último intento aunque la red cortó.
+  const sent = await isSent();
+  return {
+    queued: true,
+    sent,
+    emailId: inserted.id,
+    message: sent ? undefined : lastReason || "El email quedó pendiente de envío.",
+  };
 }

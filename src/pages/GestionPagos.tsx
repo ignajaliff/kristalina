@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle, Building2, TrendingUp, Users, DollarSign, Edit, FileText, Send } from "lucide-react";
+import { CalendarIcon, FilterIcon, PlusIcon, SearchIcon, CheckCircle, Building2, TrendingUp, Users, DollarSign, Edit, FileText, Send, Loader2, XCircle } from "lucide-react";
 import { format, parseISO, getMonth, getYear } from "date-fns";
 import { es } from "date-fns/locale";
 import AddGestionDialog from "@/components/AddGestionDialog";
@@ -20,6 +20,109 @@ import { useToast } from "@/components/ui/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
+import { queueAndSendEmail } from "@/utils/email";
+
+// ─── Email de factura (cuenta administracion@kristalina.cl) ──────────────────
+// Al emitir una factura se envía un correo informativo al cliente con la factura
+// adjunta. Reutiliza los "Contactos Automatizaciones" del edificio.
+const KRISTALINA_LOGO_URL = "https://kristalina.provves.com/kristalina-logo.png?v=2";
+
+interface ContactoAuto { nombre: string; email: string; }
+const parseContactos = (raw: any): ContactoAuto[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((c: any) => (typeof c === "string" ? { nombre: "", email: c } : { nombre: c?.nombre || "", email: c?.email || "" }))
+    .filter((c: ContactoAuto) => c.email && c.email.trim());
+};
+const joinNombres = (nombres: string[]): string => {
+  if (nombres.length === 0) return "";
+  if (nombres.length === 1) return nombres[0];
+  return `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
+};
+
+// HTML del email de factura. Mismo "esqueleto" que el de reportes (responsive,
+// full-width en PC, pie con logo) pero con acento VERDE para diferenciarlo.
+const buildFacturaEmailHtml = (edificio: string, saludo: string): string => `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="x-apple-disable-message-reformatting" />
+<title>Factura Mensual</title>
+<style>
+  body { margin:0; padding:0; }
+  @media only screen and (min-width:600px) {
+    .ek-outer  { padding:0 !important; background:#ffffff !important; }
+    .ek-card   { max-width:100% !important; width:100% !important; border-radius:0 !important; border-left:0 !important; border-right:0 !important; box-shadow:none !important; }
+    .ek-header { padding:44px 10% !important; }
+    .ek-body   { padding:52px 10% !important; }
+    .ek-footer { padding:36px 10% !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#F1F5F9;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;font-family:Arial,Helvetica,sans-serif;">
+    <tr><td class="ek-outer" align="center" style="padding:24px 0;">
+      <table role="presentation" class="ek-card" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #E2E8F0;box-shadow:0 8px 28px rgba(15,23,42,0.10);font-family:Arial,Helvetica,sans-serif;">
+        <tr><td class="ek-header" style="background:#0F2A52;padding:28px 32px;border-bottom:4px solid #10B981;">
+          <p style="margin:0;color:#A7F3D0;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Facturación del mes</p>
+          <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:bold;">Edificio ${edificio}</h1>
+        </td></tr>
+        <tr><td class="ek-body" style="padding:32px;color:#334155;font-size:14px;line-height:1.7;">
+          <p style="margin:0 0 16px;font-weight:bold;color:#1E293B;">${saludo},</p>
+          <p style="margin:0 0 16px;">Junto con saludar, les adjunto la factura correspondiente al <strong>servicio mensual de Kristalina</strong> para su revisión y gestión administrativa.</p>
+          <p style="margin:0 0 16px;">Agradecemos la confianza depositada en nuestro trabajo y la oportunidad de continuar acompañándolos en la operación y mantención del sistema. Quedamos atentos a sus comentarios, consultas o cualquier antecedente adicional que requieran respecto del presente envío.</p>
+          <p style="margin:0 0 18px;">Sin otro particular, les saluda atentamente,</p>
+          <p style="margin:0;font-size:15px;font-weight:bold;color:#1A367F;">Administración</p>
+          <div style="margin-top:22px;padding:12px 16px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;">
+            <p style="margin:0;font-size:12px;color:#047857;">📎 Factura adjunta.</p>
+          </div>
+        </td></tr>
+        <tr><td class="ek-footer" style="padding:24px 32px;border-top:1px solid #E2E8F0;text-align:center;background:#ffffff;">
+          ${KRISTALINA_LOGO_URL ? `<img src="${KRISTALINA_LOGO_URL}" alt="Kristalina" width="170" style="display:block;margin:0 auto 10px;max-width:170px;height:auto;" />` : ""}
+          <p style="margin:0;font-size:11px;color:#94A3B8;">Kristalina · Tratamiento de agua · www.kristalina.cl</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+// Envía el email de factura al cliente (cuenta administración). Destinatarios:
+// los Contactos Automatizaciones del edificio; si no hay, cae al adminemail.
+const enviarFacturaEmail = async (item: any, facturaUrl: string, fileName: string) => {
+  // Los emails de factura van a los contactos de "Administración".
+  const contactos = parseContactos(item.contacto_administracion);
+  let destinatarios = contactos.map((c) => c.email.trim());
+  let nombres = contactos.map((c) => c.nombre.trim()).filter(Boolean);
+
+  if (destinatarios.length === 0) {
+    const fallback = (item.adminemail || "").trim();
+    if (!fallback) {
+      return { queued: false, sent: false, message: "No hay emails de contacto configurados para este edificio." };
+    }
+    destinatarios = [fallback];
+    if (item.adminname) nombres = [item.adminname];
+  }
+
+  const saludoNombres = joinNombres(nombres);
+  const prefijoSaludo = nombres.length === 1 ? "Estimado" : "Estimados";
+  const saludo = saludoNombres ? `${prefijoSaludo} ${saludoNombres}` : prefijoSaludo;
+  const edificio = item.communityname || "—";
+
+  return queueAndSendEmail({
+    toEmail: destinatarios[0],
+    toName: nombres[0] || item.adminname || undefined,
+    cc: destinatarios.slice(1),
+    subject: `Factura Mensual – Edificio ${edificio}`,
+    bodyHtml: buildFacturaEmailHtml(edificio, saludo),
+    attachmentUrl: facturaUrl,
+    attachmentFilename: fileName,
+    tipo: "aviso_pago",
+    relatedId: item.id,
+  });
+};
 
 interface PagoRecord {
   id?: string;
@@ -149,6 +252,8 @@ const GestionEdificios = () => {
   const [emitTarget, setEmitTarget] = useState<{ item: GestionItem; mes: number } | null>(null);
   const [emitFile, setEmitFile] = useState<File | null>(null);
   const [isEmitting, setIsEmitting] = useState(false);
+  // Estado del envío del email de factura por edificio (se muestra en la fila).
+  const [emailStatusById, setEmailStatusById] = useState<Record<string, "sending" | "sent" | "error">>({});
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
@@ -306,17 +411,39 @@ const GestionEdificios = () => {
         .eq("mes", mes);
       if (error) throw error;
 
-      // TODO (pendiente): acá irá la automatización para enviar un email
-      // informativo al cliente avisando que se emitió la factura del mes.
-
+      // Cerrar el popup y refrescar la tabla de inmediato.
+      const fileName = emitFile.name;
       toast({
         title: "Factura emitida",
         description: `Factura del mes ${mes} cargada y marcada como emitida.`,
       });
-
       queryClient.invalidateQueries({ queryKey: ["gestion-all"] });
       setEmitTarget(null);
       setEmitFile(null);
+
+      // 3. Enviar el email al cliente EN SEGUNDO PLANO, mostrando el progreso
+      //    (enviando → enviado / error) directamente en la fila del edificio.
+      setEmailStatusById((prev) => ({ ...prev, [item.id]: "sending" }));
+      enviarFacturaEmail(item, facturaUrl, fileName)
+        .then((res) => {
+          setEmailStatusById((prev) => ({ ...prev, [item.id]: res.sent ? "sent" : "error" }));
+          if (!res.sent) {
+            toast({
+              title: "Email pendiente",
+              description: res.message || "La factura se emitió, pero el email quedó pendiente de envío.",
+              variant: "destructive",
+            });
+          }
+        })
+        .catch((e) => {
+          console.error("Error enviando email de factura:", e);
+          setEmailStatusById((prev) => ({ ...prev, [item.id]: "error" }));
+          toast({
+            title: "Error de email",
+            description: "La factura se emitió, pero falló el envío del email al cliente.",
+            variant: "destructive",
+          });
+        });
     } catch (error) {
       console.error(error);
       toast({
@@ -615,6 +742,25 @@ const GestionEdificios = () => {
                         </TableCell>
                         <TableCell className="py-4 text-center">
                           {getStatusBadge(estadoDisplay)}
+                          {emailStatusById[item.id] && (
+                            <div className="mt-1.5 flex items-center justify-center">
+                              {emailStatusById[item.id] === "sending" && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
+                                  <Loader2 className="h-3 w-3 animate-spin" /> Enviando email…
+                                </span>
+                              )}
+                              {emailStatusById[item.id] === "sent" && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#10B981] uppercase tracking-wider">
+                                  <CheckCircle className="h-3 w-3" /> Email enviado
+                                </span>
+                              )}
+                              {emailStatusById[item.id] === "error" && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#EF4444] uppercase tracking-wider">
+                                  <XCircle className="h-3 w-3" /> Email no enviado
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="py-4 text-right pr-6">
                           <div className="flex items-center justify-end gap-2">
@@ -778,6 +924,7 @@ const GestionEdificios = () => {
             />
             <p className="text-[11px] text-[#94A3B8]">
               La factura es obligatoria para emitir. Sin ella, no pasa al estado "Factura Emitida".
+              Al emitir, se enviará un email con la factura adjunta a los Contactos Automatizaciones del edificio.
             </p>
           </div>
           <DialogFooter>
