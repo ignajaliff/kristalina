@@ -184,8 +184,11 @@ const computeEstado = (pago: PagoRecord, metodoCobro: string): string => {
       }
       return "Factura Emitida";
     }
-    // Not yet emitted - check if we've reached the payment date (1st of month)
-    if (today >= fechaPago) {
+    // Ventana de emisión: se abre el día 28 del mes ANTERIOR a la fecha de pago.
+    // Ahí el equipo ya puede emitir la factura del mes siguiente (y se dispara el
+    // recordatorio por email). Antes era el 1° del propio mes (fecha_pago).
+    const ventanaEmision = new Date(fechaPago.getFullYear(), fechaPago.getMonth() - 1, 28);
+    if (today >= ventanaEmision) {
       return "Factura no Emitida";
     }
     return "No en fecha";

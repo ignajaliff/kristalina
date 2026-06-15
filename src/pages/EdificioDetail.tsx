@@ -23,7 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Building2, ArrowLeft, MapPin, Users, DollarSign, Mail,
   FileText, Calendar, BarChart3, TrendingUp, CheckCircle, Download,
-  ChevronDown, ChevronUp, Upload, ClipboardList, Loader2, PlusIcon, Activity, Pencil
+  ChevronDown, ChevronUp, Upload, ClipboardList, Loader2, PlusIcon, Activity, Pencil, Eye
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -42,6 +42,8 @@ interface PagoRecord {
   fecha_emision?: string | null;
   fecha_confirmacion?: string | null;
   es_inmediato?: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 interface ActividadRow {
@@ -279,6 +281,14 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
   const [editPagado, setEditPagado] = useState(false);
   const [isSavingEstado, setIsSavingEstado] = useState(false);
 
+  // Ver detalles de un registro de pago (popup con toda la info guardada).
+  const [detalleOpen, setDetalleOpen] = useState(false);
+  const [detallePago, setDetallePago] = useState<PagoRecord | null>(null);
+  const openDetalle = (p: PagoRecord) => {
+    setDetallePago(p);
+    setDetalleOpen(true);
+  };
+
   const openEditEstado = (p: PagoRecord) => {
     setEditMes(p.mes);
     setEditPagado(p.pagado);
@@ -448,6 +458,9 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openDetalle(p)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F]" title="Ver detalles">
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
                           {p.factura_url && (
                             <a href={p.factura_url} target="_blank" rel="noopener noreferrer">
                               <Button variant="ghost" size="sm" className="h-7 px-2 text-[#1A367F] hover:bg-[#EFF6FF]">
@@ -455,7 +468,7 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                               </Button>
                             </a>
                           )}
-                          <Button variant="ghost" size="sm" onClick={() => openEditEstado(p)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F]">
+                          <Button variant="ghost" size="sm" onClick={() => openEditEstado(p)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F]" title="Editar estado">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -485,10 +498,15 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => openEditEstado(proximoPago)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F] gap-1">
-                          <Pencil className="h-3.5 w-3.5" />
-                          <span className="text-[11px]">Editar</span>
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openDetalle(proximoPago)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F]" title="Ver detalles">
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => openEditEstado(proximoPago)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F] gap-1">
+                            <Pencil className="h-3.5 w-3.5" />
+                            <span className="text-[11px]">Editar</span>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}
@@ -513,9 +531,14 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
                         ) : <span className="text-[11px] text-[#94A3B8]">Sin factura</span>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => openEditEstado(p)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F]">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openDetalle(p)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F]" title="Ver detalles">
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => openEditEstado(p)} className="h-7 px-2 text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#1A367F]" title="Editar estado">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -619,6 +642,68 @@ const HistorialPagosTab = ({ item, formatDate }: { item: any; formatDate: (d: st
             >
               {isSavingEstado ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Guardando...</> : "Guardar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detalles del pago */}
+      <Dialog open={detalleOpen} onOpenChange={setDetalleOpen}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Detalles del pago{detallePago ? ` — Mes ${detallePago.mes}` : ""}</DialogTitle>
+          </DialogHeader>
+          {detallePago && (() => {
+            const fmtFecha = (v?: string | null) => (v ? formatDate(String(v).slice(0, 10)) : "—");
+            const fmtFechaHora = (v?: string | null) => {
+              if (!v) return "—";
+              const d = new Date(v);
+              return isNaN(d.getTime())
+                ? String(v)
+                : d.toLocaleString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+            };
+            const moneda = (item.data_presupuesto as any)?.datos_presupuesto?.moneda;
+            const montoFmt = moneda === "UF" ? `${Number(detallePago.monto).toFixed(2)} UF` : `$${Number(detallePago.monto).toLocaleString()}`;
+            const facturaEmitida = !!detallePago.fecha_emision;
+            const rows: { label: string; value: string }[] = [
+              { label: "Estado", value: detallePago.pagado ? "Pagado" : "Pendiente" },
+              { label: "Factura", value: facturaEmitida ? `Emitida el ${fmtFecha(detallePago.fecha_emision)}` : "No emitida" },
+              { label: "Monto", value: montoFmt },
+              { label: "Fecha de vencimiento", value: fmtFecha(detallePago.fecha_pago) },
+              { label: "Fecha de emisión de factura", value: fmtFecha(detallePago.fecha_emision) },
+              { label: "Fecha de pago (real)", value: fmtFecha(detallePago.fecha_pago_real) },
+              { label: "Fecha de confirmación", value: fmtFechaHora(detallePago.fecha_confirmacion) },
+              { label: "Registrado", value: fmtFechaHora(detallePago.created_at) },
+              { label: "Última modificación", value: fmtFechaHora(detallePago.updated_at) },
+            ];
+            return (
+              <div className="py-1">
+                <div className="divide-y divide-[#F1F5F9]">
+                  {rows.map((r) => (
+                    <div key={r.label} className="flex items-start justify-between gap-4 py-2.5">
+                      <span className="text-[12px] font-medium text-[#64748B] shrink-0">{r.label}</span>
+                      <span className="text-[12px] font-semibold text-[#1E293B] text-right">{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  {detallePago.factura_url ? (
+                    <a
+                      href={detallePago.factura_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#1A367F] hover:underline"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Ver factura cargada
+                    </a>
+                  ) : (
+                    <span className="text-[12px] text-[#94A3B8]">Sin factura cargada</span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetalleOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

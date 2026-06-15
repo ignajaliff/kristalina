@@ -59,7 +59,9 @@ const computeEstado = (pago: PagoRecord, metodoCobro: string): string => {
       if (today >= nextMonth1st) return "En fecha/No pagado";
       return "Factura Emitida";
     }
-    if (today >= fechaPago) return "Factura no Emitida";
+    // Ventana de emisión: día 28 del mes ANTERIOR a la fecha de pago (no el 1°).
+    const ventanaEmision = new Date(fechaPago.getFullYear(), fechaPago.getMonth() - 1, 28);
+    if (today >= ventanaEmision) return "Factura no Emitida";
     return "No en fecha";
   }
   return today >= fechaPago ? "En fecha/No pagado" : "No en fecha";
