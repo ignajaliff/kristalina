@@ -966,7 +966,7 @@ const enviarReporteEmail = async (item: any, pdfUrl: string, fileName: string, r
     toEmail: destinatarios[0],
     toName: nombres[0] || item.adminname || undefined,
     cc: destinatarios.slice(1),
-    subject: `Reporte Trimestral – Edificio ${edificio} (ESTO ES UNA PRUEBA)`,
+    subject: `Reporte Trimestral – Edificio ${edificio}`,
     bodyHtml: buildReporteEmailHtml(edificio, saludo),
     attachmentUrl: pdfUrl,
     attachmentFilename: fileName,
