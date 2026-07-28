@@ -2,6 +2,31 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type EmailTipo = "presupuesto" | "contrato" | "reporte" | "aviso_pago";
 
+/**
+ * Correos internos de Kristalina que deben recibir copia (CC) de TODOS los
+ * emails que envía el sistema (presupuestos, facturas, reportes, etc.).
+ */
+const CC_INTERNOS = ["eporro@kristalina.cl", "aramirez@kristalina.cl"];
+
+/**
+ * Arma la lista final de CC: agrega los internos de Kristalina, deduplica y
+ * excluye cualquiera que ya sea el destinatario principal (evita to + cc
+ * repetido). Comparación sin distinción de mayúsculas/espacios.
+ */
+function buildCcList(cc: string[] | undefined, toEmail: string): string[] {
+  const to = toEmail.trim().toLowerCase();
+  const vistos = new Set<string>();
+  const resultado: string[] = [];
+  for (const raw of [...(cc ?? []), ...CC_INTERNOS]) {
+    const email = (raw ?? "").trim();
+    const key = email.toLowerCase();
+    if (!email || key === to || vistos.has(key)) continue;
+    vistos.add(key);
+    resultado.push(email);
+  }
+  return resultado;
+}
+
 export interface QueueEmailParams {
   toEmail: string;
   toName?: string;
@@ -36,12 +61,13 @@ export interface QueueEmailResult {
  */
 export async function queueAndSendEmail(params: QueueEmailParams): Promise<QueueEmailResult> {
   // 1. Registrar en la cola/log
+  const ccFinal = buildCcList(params.cc, params.toEmail);
   const { data: inserted, error: insertError } = await supabase
     .from("emails")
     .insert({
       to_email: params.toEmail,
       to_name: params.toName ?? null,
-      cc: params.cc && params.cc.length > 0 ? params.cc.join(",") : null,
+      cc: ccFinal.length > 0 ? ccFinal.join(",") : null,
       subject: params.subject,
       body_html: params.bodyHtml,
       attachment_url: params.attachmentUrl ?? null,

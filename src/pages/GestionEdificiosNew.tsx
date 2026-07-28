@@ -200,25 +200,25 @@ const GestionEdificiosNew = () => {
                 >
                   <CardContent className="p-6 space-y-4">
                     {/* Building Name */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-lg bg-[#F1F3F9] shrink-0">
-                          <Building2 className="h-5 w-5 text-[#1A367F]" strokeWidth={2.5} />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="text-[14px] font-bold text-[#1E293B] truncate group-hover:text-[#1A367F] transition-colors">
-                            {cliente.communityname || 'Sin nombre'}
-                          </h3>
-                          <p className="text-[11px] text-[#94A3B8] font-medium">{cliente.buildingtype || 'Edificio'}</p>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-lg bg-[#F1F3F9] shrink-0">
+                        <Building2 className="h-5 w-5 text-[#1A367F]" strokeWidth={2.5} />
                       </div>
-                      <Badge className={cn(
-                        "font-bold text-[10px] uppercase tracking-wider shrink-0",
-                        getEstadoBadgeClasses(estado)
-                      )}>
-                        {estado}
-                      </Badge>
+                      <div className="min-w-0">
+                        <h3 className="text-[14px] font-bold text-[#1E293B] truncate group-hover:text-[#1A367F] transition-colors">
+                          {cliente.communityname || 'Sin nombre'}
+                        </h3>
+                        <p className="text-[11px] text-[#94A3B8] font-medium">{cliente.buildingtype || 'Edificio'}</p>
+                      </div>
                     </div>
+
+                    {/* Estado: en su propia línea para que no se corte al angostar la tarjeta */}
+                    <Badge className={cn(
+                      "font-bold text-[10px] uppercase tracking-wider w-fit whitespace-nowrap",
+                      getEstadoBadgeClasses(estado)
+                    )}>
+                      {estado}
+                    </Badge>
 
                     {/* Details */}
                     <div className="space-y-2.5 pt-1">
