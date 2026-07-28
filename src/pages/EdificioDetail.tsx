@@ -911,18 +911,24 @@ const buildReporteEmailHtml = (edificio: string, saludo: string): string => `
 </style>
 </head>
 <body style="margin:0;padding:0;background:#F1F5F9;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;font-family:Tenorite,Arial,Helvetica,sans-serif;">
     <tr><td class="ek-outer" align="center" style="padding:24px 0;">
-      <table role="presentation" class="ek-card" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #E2E8F0;box-shadow:0 8px 28px rgba(15,23,42,0.10);font-family:Arial,Helvetica,sans-serif;">
+      <table role="presentation" class="ek-card" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #E2E8F0;box-shadow:0 8px 28px rgba(15,23,42,0.10);font-family:Tenorite,Arial,Helvetica,sans-serif;">
         <tr><td class="ek-header" style="background:#0F2A52;padding:28px 32px;border-bottom:4px solid #1A367F;">
           <p style="margin:0;color:#BFDBFE;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Reporte Trimestral</p>
-          <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:bold;">Edificio ${edificio}</h1>
+          <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:bold;">${edificio}</h1>
         </td></tr>
         <tr><td class="ek-body" style="padding:32px;color:#334155;font-size:14px;line-height:1.7;">
-          <p style="margin:0 0 16px;font-weight:bold;color:#1E293B;">${saludo},</p>
-          <p style="margin:0 0 16px;">Junto con saludar, les adjunto el reporte trimestral correspondiente al <strong>Edificio ${edificio}</strong> para su revisión.</p>
-          <p style="margin:0 0 16px;">Agradecemos la confianza depositada en nuestro trabajo y esperamos que la información adjunta sea de utilidad para el seguimiento y control del proceso realizado. Quedamos atentos a sus comentarios, observaciones o cualquier consulta adicional que pueda surgir al respecto.</p>
-          <p style="margin:0 0 18px;">Sin otro particular, les saluda atentamente,</p>
+          <p style="margin:0;font-weight:bold;color:#1E293B;">${saludo},</p>
+          <div style="line-height:16px;font-size:16px;">&nbsp;</div>
+          <p style="margin:0;">Junto con saludar, les adjunto el reporte trimestral correspondiente a <strong>${edificio}</strong> para su revisión.</p>
+          <div style="line-height:16px;font-size:16px;">&nbsp;</div>
+          <p style="margin:0;">Agradecemos la confianza depositada en nuestro trabajo y esperamos que la información adjunta sea de utilidad para el seguimiento y control del proceso realizado.</p>
+          <div style="line-height:16px;font-size:16px;">&nbsp;</div>
+          <p style="margin:0;">Quedamos atentos a sus comentarios, observaciones o cualquier consulta adicional que pueda surgir al respecto.</p>
+          <div style="line-height:16px;font-size:16px;">&nbsp;</div>
+          <p style="margin:0;">Sin otro particular, les saluda atentamente,</p>
+          <div style="line-height:8px;font-size:8px;">&nbsp;</div>
           <p style="margin:0;font-size:15px;font-weight:bold;color:#1A367F;">Gerencia Técnica</p>
           <div style="margin-top:22px;padding:12px 16px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;">
             <p style="margin:0;font-size:12px;color:#1A367F;">📎 Reporte adjunto en PDF.</p>
@@ -966,7 +972,7 @@ const enviarReporteEmail = async (item: any, pdfUrl: string, fileName: string, r
     toEmail: destinatarios[0],
     toName: nombres[0] || item.adminname || undefined,
     cc: destinatarios.slice(1),
-    subject: `Reporte Trimestral – Edificio ${edificio}`,
+    subject: `Reporte Trimestral – ${edificio}`,
     bodyHtml: buildReporteEmailHtml(edificio, saludo),
     attachmentUrl: pdfUrl,
     attachmentFilename: fileName,
