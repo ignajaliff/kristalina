@@ -749,43 +749,65 @@ const compressImage = (file: File, maxDim = 1280, quality = 0.72): Promise<Blob>
   });
 
 // ═══════════════════════════════════════════════════════════════════════
-// Slot individual para una imagen (vista previa + quitar)
+// Selector de imágenes del reporte: cantidad libre, en grilla ordenada.
+// Cada foto muestra su número (el mismo orden que tendrá en el PDF) y se
+// puede quitar individualmente; el botón "Agregar" siempre queda al final.
 // ═══════════════════════════════════════════════════════════════════════
-const ImageSlot = ({ index, file, onChange }: { index: number; file: File | null; onChange: (f: File | null) => void }) => {
+const ImagesPicker = ({ files, onChange }: { files: File[]; onChange: (f: File[]) => void }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
-  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+  const previews = useMemo(() => files.map(f => URL.createObjectURL(f)), [files]);
+  useEffect(() => () => { previews.forEach(u => URL.revokeObjectURL(u)); }, [previews]);
+
+  const addFiles = (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    onChange([...files, ...Array.from(list)]);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+  const removeAt = (i: number) => onChange(files.filter((_, idx) => idx !== i));
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <input
         ref={inputRef}
         type="file"
         accept=".jpg,.jpeg,.png,.webp"
+        multiple
         className="hidden"
-        onChange={e => onChange(e.target.files?.[0] || null)}
+        onChange={e => addFiles(e.target.files)}
       />
-      {file && previewUrl ? (
-        <div className="relative group border border-[#E2E8F0] rounded-lg overflow-hidden">
-          <img src={previewUrl} alt={`Imagen ${index + 1}`} className="w-full h-36 object-cover" />
-          <button
-            type="button"
-            onClick={() => { onChange(null); if (inputRef.current) inputRef.current.value = ""; }}
-            className="absolute top-1.5 right-1.5 h-6 w-6 flex items-center justify-center rounded-md bg-black/60 text-white text-xs font-bold hover:bg-black/80 transition-colors"
-            aria-label="Quitar imagen"
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {files.map((file, i) => (
+          <div
+            key={`${file.name}-${file.lastModified}-${i}`}
+            className="relative group border border-[#E2E8F0] rounded-lg overflow-hidden bg-[#F8FAFC]"
           >
-            ✕
-          </button>
-        </div>
-      ) : (
+            <img src={previews[i]} alt={`Imagen ${i + 1}`} className="w-full aspect-[4/3] object-cover" />
+            <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold">
+              {i + 1}
+            </span>
+            <button
+              type="button"
+              onClick={() => removeAt(i)}
+              className="absolute top-1.5 right-1.5 h-6 w-6 flex items-center justify-center rounded-md bg-black/60 text-white text-xs font-bold hover:bg-black/80 transition-colors"
+              aria-label={`Quitar imagen ${i + 1}`}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="w-full h-36 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-[#E2E8F0] rounded-lg text-[#94A3B8] hover:border-[#1A367F] hover:text-[#1A367F] hover:bg-[#F8FAFC] transition-colors"
+          className="w-full aspect-[4/3] flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-[#E2E8F0] rounded-lg text-[#94A3B8] hover:border-[#1A367F] hover:text-[#1A367F] hover:bg-[#F8FAFC] transition-colors"
         >
           <Upload className="h-5 w-5" />
-          <span className="text-[11px] font-semibold">Imagen {index + 1}</span>
+          <span className="text-[11px] font-semibold">{files.length === 0 ? "Agregar imágenes" : "Agregar más"}</span>
         </button>
+      </div>
+      {files.length > 0 && (
+        <p className="text-[10px] text-[#94A3B8]">
+          {files.length} imagen{files.length !== 1 ? "es" : ""} · aparecerán en el PDF en este mismo orden
+        </p>
       )}
     </div>
   );
@@ -1011,9 +1033,8 @@ const NuevoReporteDialog = ({ item, open, onOpenChange, onCreated }: {
   const [observacionesGenerales, setObservacionesGenerales] = useState("");
   const [conclusion, setConclusion] = useState("");
 
-  // Dos espacios independientes, una imagen en cada uno.
-  const [imageSlot1, setImageSlot1] = useState<File | null>(null);
-  const [imageSlot2, setImageSlot2] = useState<File | null>(null);
+  // Imágenes del reporte: cantidad libre, en el orden en que se agregan.
+  const [images, setImages] = useState<File[]>([]);
 
   // Enviar el reporte por email al cliente (toggle Sí/No).
   const [enviarEmail, setEnviarEmail] = useState(false);
@@ -1030,8 +1051,7 @@ const NuevoReporteDialog = ({ item, open, onOpenChange, onCreated }: {
     setFechaProximaMantenimiento("");
     setObservacionesGenerales("");
     setConclusion("");
-    setImageSlot1(null);
-    setImageSlot2(null);
+    setImages([]);
     setEnviarEmail(false);
   };
 
@@ -1044,9 +1064,8 @@ const NuevoReporteDialog = ({ item, open, onOpenChange, onCreated }: {
     try {
       // 1. Comprimir las imágenes y convertirlas a data URL (NO se suben sueltas:
       //    quedan embebidas dentro del PDF).
-      const slots = [imageSlot1, imageSlot2].filter((f): f is File => f !== null);
       const imagenesDataUrls: string[] = [];
-      for (const file of slots) {
+      for (const file of images) {
         const compressed = await compressImage(file);
         imagenesDataUrls.push(await blobToDataUrl(compressed));
       }
@@ -1194,16 +1213,13 @@ const NuevoReporteDialog = ({ item, open, onOpenChange, onCreated }: {
             </div>
           </div>
 
-          {/* Imágenes del reporte: 2 espacios, una imagen en cada uno */}
+          {/* Imágenes del reporte: cantidad libre, en grilla ordenada */}
           <div className="space-y-3 border-t pt-4">
             <div className="flex items-center gap-2">
               <Label className="text-sm font-bold text-[#1E293B]">Imágenes del reporte</Label>
               <span className="text-[10px] text-[#94A3B8]">(opcional · se comprimen automáticamente)</span>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <ImageSlot index={0} file={imageSlot1} onChange={setImageSlot1} />
-              <ImageSlot index={1} file={imageSlot2} onChange={setImageSlot2} />
-            </div>
+            <ImagesPicker files={images} onChange={setImages} />
           </div>
 
           {/* Enviar por email (Sí/No) — se envía a los contactos agendados */}

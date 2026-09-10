@@ -520,26 +520,51 @@ export const generateReportePDF = async (data: ReportData): Promise<Blob> => {
     doc.rect(margin, torreTableStartY, cw, torreRows.length * rowH, "S");
   }
 
-  // Imágenes debajo de la tabla — respetando la proporción real (sin estirar).
-  // Cada imagen tiene un "slot" fijo y se encaja dentro (contain) y se centra,
-  // así una foto vertical u horizontal nunca se deforma.
+  // Imágenes debajo de la tabla — cantidad libre, en grilla de 2 columnas.
+  // Cada imagen se encaja (contain) y se centra en un slot de tamaño fijo, así
+  // una foto vertical u horizontal nunca se deforma. Cuando una fila no entra
+  // en la página, se pasa a una nueva (con logo y pie) y todo lo que sigue se
+  // va corriendo en orden.
   y += 8;
   const imagenes = data.imagenesReporte || [];
   if (imagenes.length > 0) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(...BLUE_DARK);
-    doc.text("Registro fotográfico", margin, y);
-    y += 5;
+    const IMG_COLS = 2;
+    const IMG_GAP = 6;
+    const IMG_BOTTOM = pageHeight - 22;
+    const slotW = imagenes.length === 1 ? cw : (cw - IMG_GAP * (IMG_COLS - 1)) / IMG_COLS;
+    const slotH = 55;
 
-    const slotW = imagenes.length === 1 ? cw : (cw - 6) / 2;
-    const slotH = Math.min(55, Math.max(30, pageHeight - y - 22));
-
-    const dimsList = await Promise.all(imagenes.slice(0, 2).map((u) => getImageDims(u)));
-
-    imagenes.slice(0, 2).forEach((url, i) => {
+    const drawTituloFotos = (continuacion: boolean) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...BLUE_DARK);
+      doc.text(continuacion ? "Registro fotográfico (continuación)" : "Registro fotográfico", margin, y);
+      y += 5;
+    };
+    const nuevaPaginaFotos = (continuacion: boolean) => {
+      drawFooter(doc, pageWidth, pageHeight);
+      doc.addPage();
+      y = 18;
       try {
-        const xSlot = margin + (i === 1 ? slotW + 6 : 0);
+        doc.addImage("/kristalina-logo.png", "PNG", pageWidth - margin - 48, y - 3, 48, 14.5);
+      } catch (_) {}
+      y += 16;
+      drawTituloFotos(continuacion);
+    };
+
+    // Si no entra ni el título con una fila, arrancamos directamente en página nueva.
+    if (y + 5 + slotH > IMG_BOTTOM) nuevaPaginaFotos(false);
+    else drawTituloFotos(false);
+
+    const dimsList = await Promise.all(imagenes.map((u) => getImageDims(u)));
+
+    imagenes.forEach((url, i) => {
+      const col = i % IMG_COLS;
+      if (col === 0 && i > 0) y += slotH + IMG_GAP; // nueva fila
+      if (col === 0 && y + slotH > IMG_BOTTOM) nuevaPaginaFotos(true);
+
+      try {
+        const xSlot = margin + col * (slotW + IMG_GAP);
         const dims = dimsList[i];
 
         // Por defecto llena el slot; si conocemos la proporción real, encajamos.

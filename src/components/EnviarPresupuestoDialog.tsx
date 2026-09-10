@@ -45,6 +45,61 @@ interface DatosPresupuesto {
   torre_enfriamiento: boolean;
 }
 
+// HTML del email de presupuesto. Mismo "esqueleto" que factura/reportes
+// (responsive, full-width en PC, pie con logo), con acento AZUL. El espaciado
+// entre párrafos usa divs espaciadores porque Outlook ignora los margin de <p>.
+const KRISTALINA_LOGO_URL = "https://kristalina.provves.com/kristalina-logo.png?v=2";
+const buildPresupuestoEmailHtml = (comunidad: string, adminName: string, hasAdjunto: boolean): string => `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="x-apple-disable-message-reformatting" />
+<title>Presupuesto</title>
+<style>
+  body { margin:0; padding:0; }
+  @media only screen and (min-width:600px) {
+    .ek-outer  { padding:0 !important; background:#ffffff !important; }
+    .ek-card   { max-width:100% !important; width:100% !important; border-radius:0 !important; border-left:0 !important; border-right:0 !important; box-shadow:none !important; }
+    .ek-header { padding:44px 10% !important; }
+    .ek-body   { padding:52px 10% !important; }
+    .ek-footer { padding:36px 10% !important; }
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#F1F5F9;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;font-family:Tenorite,Arial,Helvetica,sans-serif;">
+    <tr><td class="ek-outer" align="center" style="padding:24px 0;">
+      <table role="presentation" class="ek-card" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #E2E8F0;box-shadow:0 8px 28px rgba(15,23,42,0.10);font-family:Tenorite,Arial,Helvetica,sans-serif;">
+        <tr><td class="ek-header" style="background:#0F2A52;padding:28px 32px;border-bottom:4px solid #1A367F;">
+          <p style="margin:0;color:#BFDBFE;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Presupuesto</p>
+          <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:bold;">${comunidad}</h1>
+        </td></tr>
+        <tr><td class="ek-body" style="padding:32px;color:#334155;font-size:14px;line-height:1.7;">
+          <p style="margin:0;font-weight:bold;color:#1E293B;">Estimado/a ${adminName},</p>
+          <div style="line-height:16px;font-size:16px;">&nbsp;</div>
+          <p style="margin:0;">Junto con saludar, adjuntamos el presupuesto elaborado para <strong>${comunidad}</strong>.</p>
+          <div style="line-height:16px;font-size:16px;">&nbsp;</div>
+          <p style="margin:0;">Quedamos atentos a cualquier consulta o antecedente adicional que requieran.</p>
+          <div style="line-height:16px;font-size:16px;">&nbsp;</div>
+          <p style="margin:0;">Saludos,</p>
+          <div style="line-height:8px;font-size:8px;">&nbsp;</div>
+          <p style="margin:0;font-size:15px;font-weight:bold;color:#1A367F;">Equipo Kristalina</p>
+          ${hasAdjunto ? `<div style="margin-top:22px;padding:12px 16px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;">
+            <p style="margin:0;font-size:12px;color:#1A367F;">📎 Presupuesto adjunto.</p>
+          </div>` : ""}
+        </td></tr>
+        <tr><td class="ek-footer" style="padding:24px 32px;border-top:1px solid #E2E8F0;text-align:center;background:#ffffff;">
+          <img src="${KRISTALINA_LOGO_URL}" alt="Kristalina" width="170" style="display:block;margin:0 auto 10px;max-width:170px;height:auto;" />
+          <p style="margin:0;font-size:11px;color:#94A3B8;">Kristalina · Tratamiento de agua · www.kristalina.cl</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
 export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, onComplete }: EnviarPresupuestoDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -163,10 +218,7 @@ export default function EnviarPresupuestoDialog({ cliente, open, onOpenChange, o
             toEmail: cliente.adminemail,
             toName: cliente.adminname,
             subject: `Presupuesto - ${cliente.communityname}`,
-            bodyHtml: `<p>Estimado/a ${cliente.adminname},</p>
-<p>Adjuntamos el presupuesto para <strong>${cliente.communityname}</strong>.</p>
-<p>Quedamos atentos a cualquier consulta.</p>
-<p>Saludos,<br/>Equipo Kristalina</p>`,
+            bodyHtml: buildPresupuestoEmailHtml(cliente.communityname, cliente.adminname, !!attachmentUrl),
             attachmentUrl,
             attachmentFilename,
             tipo: "presupuesto",

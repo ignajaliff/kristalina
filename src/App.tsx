@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import UpdateAvailableNotice from "./components/UpdateAvailableNotice";
 import AdminLayout from "./components/AdminLayout";
 import SellerLayout from "./components/SellerLayout";
 
@@ -33,6 +34,8 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      {/* Aviso flotante cuando se despliega una versión nueva */}
+      <UpdateAvailableNotice />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
