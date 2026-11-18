@@ -1,0 +1,189 @@
+# Cloudflare Rules — Deploy de la SPA
+
+Reglas para deployar los sistemas (React + Vite + Supabase) en Cloudflare. Complementan `rules.txt` y `git-rules.txt`. Verificadas contra la documentación oficial el 2026-10-11.
+
+> **Idea central**: la app es una SPA estática. Cloudflare solo sirve la carpeta `dist/`. No hay servidor, no hay SSR, no hace falta el plugin de Vite de Cloudflare. Supabase sigue siendo el único backend.
+
+## 1. Dónde se deploya: Workers con static assets
+
+Cloudflare tiene dos productos para hosting: **Pages** (el viejo) y **Workers con static assets** (el actual). Cloudflare recomienda arrancar los proyectos nuevos en Workers y Pages queda en mantenimiento. Estándar del equipo:
+
+* **Proyectos nuevos → Workers con static assets.** Sin código de Worker (`main`): solo se suben los assets. Las requests a assets estáticos son gratis e ilimitadas y nunca ejecutan código.
+* **No usar `@cloudflare/vite-plugin`.** Es para apps con backend en el Worker (SSR, API). Una SPA con Supabase no lo necesita y solo agrega complejidad.
+* Pages sigue funcionando para proyectos viejos ya deployados ahí. No migrarlos salvo que haga falta algo de Workers (ver §9).
+
+Diferencia importante respecto a Pages: **un dominio custom en Workers debe tener sus nameservers en Cloudflare.** Si el dominio del cliente está en otro proveedor, hay que mover los DNS a Cloudflare (zona gratuita) antes del deploy, o usar Pages.
+
+## 2. Versiones obligatorias
+
+| Herramienta | Versión | Por qué |
+|-------------|---------|---------|
+| Vite | 7 o superior (actual: 8) | Vite 7+ es ESM-only y exige Node 20.19+ / 22.12+ |
+| Node.js | **22 LTS**, fijado con `.nvmrc` | Workers Builds usa Node 24 por defecto y Pages 22. Fijarlo evita que local y Cloudflare buildeen distinto |
+| wrangler | 4.x, como devDependency | Workers Builds usa la versión de wrangler del `package.json`. Sin ella, usa la que quiera |
+
+Archivo `.nvmrc` en la raíz de cada proyecto (sin extensión, una sola línea):
+
+```
+22
+```
+
+Cloudflare también acepta `.node-version` o la build variable `NODE_VERSION`. Usar solo `.nvmrc` para no tener dos fuentes de verdad. **No** usar codenames (`lts/jod`) ni confiar en `engines` de `package.json`: Cloudflare ignora ambos.
+
+Localmente: `nvm use` antes de buildear. Si el build local pasa con Node 22 y el de Cloudflare falla, lo primero que se revisa es que `.nvmrc` esté commiteado.
+
+## 3. Archivos obligatorios del proyecto
+
+### `wrangler.jsonc` (raíz)
+
+```jsonc
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "[nombre-del-sistema]",
+  // Fecha de inicio del proyecto. No cambiarla después sin leer el changelog de Workers.
+  "compatibility_date": "2026-10-11",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
+```
+
+* `name`: kebab-case, único en la cuenta. Define la URL `[name].[subdominio].workers.dev`.
+* `not_found_handling: "single-page-application"` es **obligatorio**. Sin eso, recargar en `/dashboard` o abrir un link directo a `/ventas/123` da 404 porque no existe ese archivo en `dist/`. Con eso, cualquier ruta sin archivo devuelve `index.html` con 200 y React Router resuelve.
+* **No agregar `main`.** Si aparece `main`, hay un Worker que se ejecuta y se empieza a facturar por request.
+* Efecto colateral conocido: un asset que no existe (ej. `/assets/viejo.js`) también devuelve `index.html` con 200 en vez de 404. No es un bug, es el comportamiento del modo SPA.
+
+### `public/_headers`
+
+Vite copia `public/` tal cual a `dist/`, así que `_headers` termina en la raíz del deploy. Base recomendada:
+
+```
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+```
+
+* Máximo **100 reglas** y 2.000 caracteres por línea.
+* `/assets/*` es la carpeta donde Vite deja los archivos con hash en el nombre. Por eso pueden ser `immutable`: cada build genera nombres nuevos.
+* **No** poner `Cache-Control` en `/*`: las reglas se acumulan y Cloudflare une los valores con coma, rompiendo el header de `/assets/*`.
+* `Content-Security-Policy` no va en la base. Agregarla solo si el cliente lo pide y después de probar en preview: una CSP mal armada bloquea Supabase (`connect-src`) y deja la app en blanco.
+
+### `public/_redirects` (opcional)
+
+Solo si hace falta redirigir rutas viejas o dominios. Formato `origen destino código`, una por línea, 302 por defecto:
+
+```
+/login  /auth/login  301
+```
+
+Límites: 2.000 redirects estáticos, 100 dinámicos (con `*` o `:placeholder`), 1.000 caracteres por regla. Los redirects se evalúan **antes** que `_headers` y antes que el fallback de SPA.
+
+### `package.json` — scripts
+
+```json
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler deploy"
+  }
+}
+```
+
+`tsc -b` dentro de `build` hace que un error de tipos frene el deploy. No sacarlo para "que pase".
+
+## 4. Variables de entorno en Cloudflare
+
+Las variables `VITE_*` se inyectan **en el momento del build** y quedan dentro del bundle. Por eso en Cloudflare van en:
+
+**Worker → Settings → Build → Build Variables and Secrets** (no en "Variables & Secrets" de runtime, que la SPA nunca lee).
+
+Cargar exactamente las mismas que en `.env.example`:
+
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+```
+
+* Cambiar una build variable **no redeploya**: hay que volver a buildear (push o "Retry build").
+* La anon key es pública por diseño (viaja en el bundle). La service key **jamás** va a Cloudflare: la SPA no la necesita y cualquier build variable es legible por quien tenga acceso al dashboard.
+* `.env` local nunca se commitea. Cloudflare no lo lee: si falta una build variable, el build pasa pero la app arranca con `undefined` y falla al primer request a Supabase.
+
+## 5. Flujo de deploy: Git → Workers Builds
+
+Estándar: deploy automático desde el repo. Nada de `wrangler deploy` a mano desde una máquina personal para producción.
+
+Configuración inicial (una vez por proyecto, desde el dashboard):
+
+1. Workers & Pages → Create → Import a repository → elegir el repo
+2. **Production branch**: `main`
+3. **Build command**: `npm run build`
+4. **Deploy command**: `npx wrangler deploy` (default)
+5. Cargar las build variables de §4
+6. Guardar y esperar el primer build
+
+Resultado:
+
+| Rama | Qué pasa | URL |
+|------|----------|-----|
+| `main` | deploy a producción | `[name].[subdominio].workers.dev` + dominio custom |
+| cualquier otra | preview deployment | `[prefijo]-[name].[subdominio].workers.dev` |
+
+Las previews sirven para que el cliente valide una feature antes de mergear a `main`. Agregarlas a Supabase (§6) o el login no va a funcionar ahí.
+
+Deploy manual (`npm run deploy`) solo para: probar el primer deploy antes de conectar el repo, o un hotfix de emergencia cuando Workers Builds está caído. Requiere `npx wrangler login` previo y queda registrado como versión igual que un build automático.
+
+## 6. Supabase: URLs que hay que registrar
+
+Al deployar por primera vez, en Supabase → Authentication → URL Configuration:
+
+* **Site URL**: la URL de producción (dominio custom si existe, si no la `.workers.dev`). Es la que usan los mails de confirmación y reset de contraseña.
+* **Redirect URLs**: agregar producción y el patrón de previews. Supabase usa globs donde `*` no cruza puntos ni barras y `**` sí:
+
+```
+https://[dominio-cliente]/**
+https://[name].[subdominio].workers.dev/**
+https://*-[name].[subdominio].workers.dev/**
+http://localhost:5173/**
+```
+
+Sin esto, el login con magic link o OAuth redirige a la Site URL aunque el usuario esté en una preview, y parece que "el login no anda".
+
+Si el sistema usa solo email + contraseña (caso típico de gestión interna), el riesgo es menor pero igual hay que cargar la Site URL para que el reset de contraseña vuelva al dominio correcto.
+
+## 7. Límites de la plataforma
+
+| Límite | Valor | Consecuencia práctica |
+|--------|-------|-----------------------|
+| Tamaño por archivo | 25 MiB | Nada pesado en `public/`. Videos, PDFs, manuales → Supabase Storage |
+| Archivos por versión | 20.000 (free) / 100.000 (paid) | Un build normal de Vite tiene menos de 100. Si crece, revisar qué se está copiando a `public/` |
+| Reglas en `_headers` | 100 | Ver §3 |
+| Redirects | 2.100 en total | Ver §3 |
+
+Regla: **`public/` solo contiene `_headers`, `_redirects`, favicon y a lo sumo un logo.** Cualquier otro archivo estático de negocio (catálogos, fotos, documentos) va a Supabase Storage con bucket privado y signed URLs según `security-rules.txt` §3.
+
+## 8. Checklist antes del primer deploy
+
+1. `.nvmrc` con `22` commiteado y `nvm use` corrido localmente
+2. `wrangler` en devDependencies y `wrangler.jsonc` con `not_found_handling: "single-page-application"` y **sin** `main`
+3. `public/_headers` presente y con menos de 100 reglas
+4. `npm run build` pasa localmente con Node 22 y sin warnings de chunks > 25 MiB
+5. `dist/` en `.gitignore` (Cloudflare lo genera, nunca se commitea)
+6. Build variables cargadas en Cloudflare y coinciden con `.env.example`
+7. Site URL y Redirect URLs cargadas en Supabase
+8. Dominio custom (si hay): nameservers en Cloudflare y el dominio agregado en Worker → Settings → Domains & Routes
+9. Probar en la URL deployada: login, recargar en una ruta interna (`/dashboard`), abrir un link directo a un detalle (`/[modulo]/[id]`), y que la consola del navegador no muestre errores de CORS ni de `undefined` en la URL de Supabase
+10. Rollback probado una vez: Worker → Deployments → versión anterior → Rollback. Saber hacerlo antes de necesitarlo
+
+## 9. Cuándo sí mirar Pages o un Worker con código
+
+* **Dominio del cliente con DNS fuera de Cloudflare y no se puede mover** → Pages (acepta dominios externos vía CNAME). Mismo `dist/`, build output directory `dist`, el fallback SPA es automático, Node por defecto 22. Previews en `[rama].[proyecto].pages.dev`.
+* **Hace falta lógica de servidor** (webhooks, cron, llamadas con secretos) → primero Supabase Edge Functions, que ya es el estándar del kit. Solo si no alcanza, agregar un `main` al Worker con `run_worker_first: ["/api/*"]` y registrar la decisión en `CLAUDE.md`.
+* Nunca mezclar: si el proyecto arrancó en Workers, se queda en Workers.

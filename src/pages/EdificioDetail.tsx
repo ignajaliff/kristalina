@@ -905,7 +905,7 @@ const joinNombres = (nombres: string[]): string => {
 // correo bloquean imágenes locales/base64, necesita una URL accesible).
 // Pegar acá la URL del logo desplegado (ej: https://<dominio-de-la-app>/kristalina-logo.png).
 // Si queda vacío, el email se envía igual pero sin el logo.
-const KRISTALINA_LOGO_URL = "https://kristalina.provves.com/kristalina-logo.png?v=2";
+const KRISTALINA_LOGO_URL = "https://kristalina.nuvvora.com/kristalina-logo.png?v=2";
 
 // Arma el HTML moderno del email del reporte, con el estilo del sistema.
 const buildReporteEmailHtml = (edificio: string, saludo: string): string => `

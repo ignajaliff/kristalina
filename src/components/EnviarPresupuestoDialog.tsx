@@ -48,7 +48,7 @@ interface DatosPresupuesto {
 // HTML del email de presupuesto. Mismo "esqueleto" que factura/reportes
 // (responsive, full-width en PC, pie con logo), con acento AZUL. El espaciado
 // entre párrafos usa divs espaciadores porque Outlook ignora los margin de <p>.
-const KRISTALINA_LOGO_URL = "https://kristalina.provves.com/kristalina-logo.png?v=2";
+const KRISTALINA_LOGO_URL = "https://kristalina.nuvvora.com/kristalina-logo.png?v=2";
 const buildPresupuestoEmailHtml = (comunidad: string, adminName: string, hasAdjunto: boolean): string => `
 <!DOCTYPE html>
 <html lang="es">

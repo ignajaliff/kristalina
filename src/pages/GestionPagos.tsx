@@ -25,7 +25,7 @@ import { queueAndSendEmail } from "@/utils/email";
 // ─── Email de factura (cuenta administracion@kristalina.cl) ──────────────────
 // Al emitir una factura se envía un correo informativo al cliente con la factura
 // adjunta. Reutiliza los "Contactos Automatizaciones" del edificio.
-const KRISTALINA_LOGO_URL = "https://kristalina.provves.com/kristalina-logo.png?v=2";
+const KRISTALINA_LOGO_URL = "https://kristalina.nuvvora.com/kristalina-logo.png?v=2";
 
 interface ContactoAuto { nombre: string; email: string; }
 const parseContactos = (raw: any): ContactoAuto[] => {

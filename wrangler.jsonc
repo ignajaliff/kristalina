@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "kristalina",
+  // Fecha de la migración a Cloudflare. No cambiarla después sin leer el changelog de Workers.
+  "compatibility_date": "2026-11-18",
+  // Dominio de producción. La zona nuvvora.com está en Cloudflare: el deploy
+  // crea el registro DNS y el certificado solo.
+  "routes": [
+    { "pattern": "kristalina.nuvvora.com", "custom_domain": true }
+  ],
+  // Con "routes" wrangler apaga workers.dev por defecto. Se deja encendido para
+  // tener las previews por rama (ver git-rules.txt y cloudflare-rules.txt §5).
+  "workers_dev": true,
+  "preview_urls": true,
+  // Sin "main": no hay código de Worker, solo se sirven los archivos de dist/.
+  "assets": {
+    "directory": "./dist",
+    // Obligatorio: cualquier ruta sin archivo (/admin/edificios/123) devuelve
+    // index.html y React Router resuelve. Sin esto, recargar da 404.
+    "not_found_handling": "single-page-application"
+  }
+}

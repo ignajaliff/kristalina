@@ -3,13 +3,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // ═══════════════════════════════════════════════════════════════════════════
 // Detección de versión nueva desplegada
 // ═══════════════════════════════════════════════════════════════════════════
-// El problema: nginx sirve index.html sin caché, así que una pestaña NUEVA
-// siempre carga el último deploy. Pero una pestaña que ya estaba abierta sigue
-// corriendo el JS viejo en memoria hasta que el usuario recarga a mano.
+// El problema: Cloudflare sirve index.html con revalidación obligatoria
+// (max-age=0, must-revalidate + ETag), así que una pestaña NUEVA siempre carga
+// el último deploy. Pero una pestaña que ya estaba abierta sigue corriendo el
+// JS viejo en memoria hasta que el usuario recarga a mano.
 //
-// La solución: preguntar cada tanto por /version.json (que nginx sirve sin
-// caché) y compararlo con la versión embebida en el bundle que está corriendo.
-// Si no coinciden, hay un deploy nuevo esperando.
+// La solución: preguntar cada tanto por /version.json (que Cloudflare sirve sin
+// caché, ver public/_headers) y compararlo con la versión embebida en el bundle
+// que está corriendo. Si no coinciden, hay un deploy nuevo esperando.
 
 const VERSION_URL = "/version.json";
 
@@ -27,7 +28,7 @@ const fetchDeployedVersion = async (): Promise<string | null> => {
     const res = await fetch(`${VERSION_URL}?t=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) return null;
 
-    // Si el archivo no existe, nginx puede devolver el index.html del SPA.
+    // Si el archivo no existe, Cloudflare (modo SPA) devuelve el index.html con 200.
     // En ese caso no es JSON y no hay nada que comparar.
     const contentType = res.headers.get("content-type") || "";
     if (!contentType.includes("json")) return null;

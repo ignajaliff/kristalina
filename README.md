@@ -1,73 +1,32 @@
-# Welcome to your Lovable project
+# Kristalina — Sistema de gestión
 
-## Project info
+SPA en React + Vite + Supabase, deployada en Cloudflare Workers (static assets). Contexto completo del proyecto en [CLAUDE.md](CLAUDE.md) y reglas en [ai-pmp/](ai-pmp/).
 
-**URL**: https://lovable.dev/projects/27d17f7d-22ff-4e9f-880c-727163b6f8fd
+## Desarrollo local
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/27d17f7d-22ff-4e9f-880c-727163b6f8fd) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Requiere Node 22 (fijado en `.nvmrc`).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+nvm use
+npm ci
+cp .env.example .env   # completar VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
+npm run dev            # http://localhost:8080
 ```
 
-**Edit a file directly in GitHub**
+## Build
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run build          # tsc -b + vite build → dist/
+```
 
-**Use GitHub Codespaces**
+El build falla si faltan las variables `VITE_SUPABASE_*`.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Deploy
 
-## What technologies are used for this project?
+Cada push a `main` deploya a producción en Cloudflare (Workers Builds). Cualquier otra rama genera una URL de preview.
 
-This project is built with:
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+- Build Variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/27d17f7d-22ff-4e9f-880c-727163b6f8fd) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Configuración: [wrangler.jsonc](wrangler.jsonc) y [public/_headers](public/_headers). Detalle en [ai-pmp/cloudflare-rules.txt](ai-pmp/cloudflare-rules.txt).
