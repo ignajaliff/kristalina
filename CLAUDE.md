@@ -122,8 +122,8 @@ Detalle en `ai-pmp/cloudflare-rules.txt`. Antes se deployaba con Docker + nginx 
 
 - [x] `.nvmrc`, `wrangler.jsonc` (sin `main`) y `public/_headers` creados
 - [x] Dominio `kristalina.nuvvora.com` conectado al Worker
-- [ ] Repo conectado a Workers Builds (build: `npm run build`, deploy: `npx wrangler deploy`)
-- [ ] Build Variables cargadas: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (y nada más)
+- [x] Repo conectado a Workers Builds (build: `npm run build`, deploy: `npx wrangler deploy`)
+- [x] Build Variables cargadas: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (y nada más)
 - [ ] Supabase → URL Configuration: Site URL `https://kristalina.nuvvora.com` + Redirect URLs de producción, previews y `http://localhost:8080/**`
 - [ ] Probado en la URL real: login, recarga en `/admin/edificios`, link directo a `/admin/edificios/[id]`, PDFs con logo y firma, envío de email, consola limpia
 - [ ] Rollback probado una vez desde Deployments
@@ -173,14 +173,14 @@ Detalle en `ai-pmp/cloudflare-rules.txt`. Antes se deployaba con Docker + nginx 
 ## Estado actual del desarrollo
 
 **Última sesión**: 2026-11-18
-**Próximo paso**: conectar el repo a Cloudflare Workers Builds (con sus Build Variables), cargar las URLs en Supabase y completar el checklist de "Deploy (Cloudflare)".
+**Próximo paso**: probar en producción con un usuario real (login, PDFs, emails), confirmar las URLs en Supabase y apagar CapRover.
 
 **Lo que está funcionando**:
 * Todos los módulos de la tabla
 * Build con Node 22 + Vite 7 verificado; servido probado con `wrangler dev` (rutas SPA, `_headers`, `version.json`, logo y firma)
 
 **Lo que está pendiente**:
-* Deploy automático por push a `main` (Workers Builds) y apagado de CapRover
+* Apagado de CapRover (después de validar producción)
 
 **Problemas conocidos o deuda técnica**:
 * Bucket `presupuestos-pdf` público con `getPublicUrl` (security-rules.txt §3). Pasarlo a privado rompe los links ya enviados por email: requiere plan aparte.
